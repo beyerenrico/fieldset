@@ -45,7 +45,7 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
   - `sso` with `enforced: true`: the client writes open drafts to the device, sends a pending
     `POST /auth/logout`, then navigates the browser to `redirect_url`
     (`GET /auth/sso/{provider}/redirect?client=app…`, same origin).
-  - `sso` with `enforced: false`: the client offers "Continue with <organization>" or "Sign in with a
+  - `sso` with `enforced: false`: the client offers "Continue with `<organization>`" or "Sign in with a
     password" (the password step works as above). After `sso_failed` or `provider_unavailable` the
     password option is offered too; the server still refuses enforced domains with `sso_required`.
   - Discovery needs the network. Offline, the client says so; an offline start from the cached session

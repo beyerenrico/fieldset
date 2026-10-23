@@ -101,7 +101,7 @@ address changed, `fieldset config set lan-address <IPv4>`.
 
 ## Single sign-on
 
-**Administrators get "Single Sign-on erfordert Ihre Aufmerksamkeit: <provider>"** ("Single sign-on needs your
+**Administrators get "Single Sign-on erfordert Ihre Aufmerksamkeit: `<provider>`"** ("Single sign-on needs your
 attention"). The hourly provider check or the daily domain check failed; the SSO page shows the status "Fehler"
 ("Error") and the last error, for example: the discovery document, the signing keys or the SAML metadata could not be
 loaded (check the URL and that the server reaches the provider over HTTPS); issuer, tenant, audience or signature

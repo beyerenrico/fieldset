@@ -6,11 +6,14 @@ use App\Domain\Instance\Release\ReleaseVersion;
 use App\Domain\Instance\Release\SignerIdentity;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
+use Tests\Support\Release\WorkflowFiles;
 
 /*
  * Guards on .github/workflows/release.yml (KTD22, ADR 0060, ADR 0067) that actionlint does not check: the tag
  * trigger, no default token permissions, actions pinned by full commit SHA with a version comment, images pinned
- * by digest, and the signer identity install.sh will build in (U4).
+ * by digest, and the signer identity install.sh will build in (U4). Also the docs job of ci.yml (docs site plan U6):
+ * pinned actions, a read-only token, workflow values only through env; and no workflow runs on pull_request_target.
+ * docs.yml has its own guards (DocsWorkflowTest); release.yml stays uncallable, so docs.yml can never extend it (U7).
  */
 
 afterEach(function (): void {
@@ -19,7 +22,7 @@ afterEach(function (): void {
 
 function releaseWorkflow(): string
 {
-    return (string) file_get_contents(base_path('.github/workflows/release.yml'));
+    return WorkflowFiles::text('.github/workflows/release.yml');
 }
 
 function signerIdentityPattern(): string
@@ -36,32 +39,91 @@ it('runs only for pushed v* tags, with no default token permissions', function (
         ->and(releaseWorkflow())->not->toContain('workflow_dispatch');
 });
 
+it('cannot be called by another workflow, so no workflow can borrow its signer identity (docs site plan U7)', function (): void {
+    expect(releaseWorkflow())->not->toContain('workflow_call');
+});
+
 it('pins every action by full commit SHA with a version comment', function (string $workflow, int $pinned): void {
-    preg_match_all('/^\s+(?:-\s+)?uses:\s+(\S+)(.*)$/m', (string) file_get_contents(base_path($workflow)), $uses, PREG_SET_ORDER);
-    $checked = 0;
+    $text = WorkflowFiles::text($workflow);
+    $pins = WorkflowFiles::actionPins($workflow, $text);
+    preg_match_all('/^\s+(?:-\s+)?uses:\s/m', $text, $uses);
 
-    foreach ($uses as [$line, $action, $comment]) {
-        if ($workflow === '.github/workflows/ci.yml' && preg_match('/@v\d+$/', $action) === 1) {
-            continue; // jobs from before 2.0 keep their tags (plan U7: existing CI jobs unchanged)
-        }
-        if (str_starts_with($action, './')) {
-            expect($action)->toMatch('/^\.\/\.github\/workflows\/[\w-]+\.yml$/', $line); // a workflow of the same commit
-
-            continue;
-        }
-
-        $checked++;
-        expect($action)->toMatch('/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/', $line)
-            ->and($comment)->toMatch('/^ # v?\d+\.\d+\.\d+$/', $line);
-    }
-
-    expect($checked)->toBeGreaterThanOrEqual($pinned);
+    expect($pins['unpinned'])->toBe([])
+        ->and($pins['checked'])->toBeGreaterThanOrEqual($pinned)
+        ->and(array_sum(array_map(fn (string $job): int => preg_match_all('/^\s+(?:-\s+)?uses:\s/m', $job), WorkflowFiles::jobs($text))))
+        ->toBe(count($uses[0])); // every use sits in a job block
 })->with([
     'release' => ['.github/workflows/release.yml', 6],
     // The install-journeys job and its five pinned actions moved to their own workflow (ADR 0091 amendment 2026-10-22).
-    'ci' => ['.github/workflows/ci.yml', 4],
+    // The 2.0 jobs check out by SHA; the docs job pins checkout, setup-php and setup-node (docs site plan U6).
+    'ci' => ['.github/workflows/ci.yml', 7],
     'install journeys' => ['.github/workflows/install-journeys.yml', 5],
+    // resolve 2, build 3, store 2, deploy 3 (docs site plan U7).
+    'docs' => ['.github/workflows/docs.yml', 10],
 ]);
+
+it('fails the pin check for an action in the docs job that is not pinned by SHA with its version', function (string $ref): void {
+    $ci = WorkflowFiles::text('.github/workflows/ci.yml');
+    $docs = WorkflowFiles::jobs($ci)['docs'];
+    preg_match('/uses: ([\w.-]+\/[\w.-]+)@\S+(?: # \S+)?$/m', $docs, $use); // the docs job's first action
+    $broken = str_replace($docs, str_replace($use[0], "uses: {$use[1]}@{$ref}", $docs), $ci);
+
+    expect(WorkflowFiles::LEGACY_CI_JOBS)->not->toContain('docs')
+        ->and(WorkflowFiles::actionPins('.github/workflows/ci.yml', $broken)['unpinned'])->toBe(["docs: - uses: {$use[1]}@{$ref}"]);
+})->with([
+    'a major tag' => 'v4',
+    'a branch' => 'main',
+    'a short SHA' => '3d3c42e5 # v7.0.1',
+    'a SHA without its version' => str_repeat('a', 40),
+]);
+
+it('gives the docs job a read-only token that its checkout does not keep, and no secrets', function (): void {
+    $docs = WorkflowFiles::jobs(WorkflowFiles::text('.github/workflows/ci.yml'))['docs'];
+    preg_match('/^    permissions:\n((?: {6}.*\n)*)/m', $docs, $permissions);
+
+    expect($permissions[1] ?? null)->toBe("      contents: read\n")
+        ->and(substr_count($docs, 'permissions:'))->toBe(1)
+        ->and($docs)->toContain("persist-credentials: false\n")
+        ->and($docs)->not->toContain('secrets.')
+        ->and($docs)->not->toContain('actions/cache');
+});
+
+it('bounds the docs job with a timeout', function (): void {
+    expect(WorkflowFiles::jobs(WorkflowFiles::text('.github/workflows/ci.yml'))['docs'])->toMatch('/^    timeout-minutes: [1-9]\d*$/m');
+});
+
+it('passes workflow values to the docs job\'s scripts only through env, and never runs the root build', function (): void {
+    $docs = WorkflowFiles::jobs(WorkflowFiles::text('.github/workflows/ci.yml'))['docs'];
+    $scripts = WorkflowFiles::runScripts($docs);
+
+    expect($scripts)->toHaveCount(preg_match_all('/^ +(?:- )?run: /m', $docs))
+        ->and(implode("\n", $scripts))->toContain('node docs/site/scripts/build.mjs check --source "$src" --tag "$tag"');
+    foreach ($scripts as $script) {
+        expect($script)->not->toContain('${{')
+            ->and($script)->not->toContain('npm run build')
+            ->and($script)->not->toContain('--stub-export');
+    }
+});
+
+it('checks every tag docs-site lists against the release tag pattern before git uses it', function (): void {
+    $docs = WorkflowFiles::jobs(WorkflowFiles::text('.github/workflows/ci.yml'))['docs'];
+    $pattern = (int) strpos($docs, 'if ! [[ "$tag" =~ $pattern ]]; then');
+
+    expect($docs)->toContain('git ls-remote --exit-code origin refs/heads/docs-site')
+        ->and($docs)->toContain("pattern='^v".substr(str_replace('(?:', '(', ReleaseVersion::PATTERN), 1)."'")
+        ->and($pattern)->toBeGreaterThan(0)
+        ->and($pattern)->toBeLessThan((int) strpos($docs, 'refs/tags/$tag'));
+});
+
+it('runs no workflow on pull_request_target', function (): void {
+    $workflows = glob(base_path('.github/workflows/*.y*ml')) ?: [];
+
+    expect($workflows)->not->toBeEmpty();
+    foreach ($workflows as $workflow) {
+        // not->toContain() would take basename() as a second needle and pass whenever either is missing.
+        expect(str_contains((string) file_get_contents($workflow), 'pull_request_target'))->toBeFalse(basename($workflow));
+    }
+});
 
 it('pins every container image it runs by digest', function (string $workflow): void {
     preg_match_all('/docker\.io\/\S+|ghcr\.io\/sigstore\S+/', (string) file_get_contents(base_path($workflow)), $images);
@@ -70,7 +132,7 @@ it('pins every container image it runs by digest', function (string $workflow): 
     foreach ($images[0] as $image) {
         expect($image)->toMatch('/:[\w.-]+@sha256:[a-f0-9]{64}$/');
     }
-})->with(['.github/workflows/release.yml', '.github/workflows/ci.yml']);
+})->with(['.github/workflows/release.yml', '.github/workflows/ci.yml', '.github/workflows/docs.yml']);
 
 it('pins the signer identity to this workflow on a release tag', function (): void {
     $pattern = '/'.str_replace('/', '\/', signerIdentityPattern()).'/';
@@ -106,10 +168,7 @@ it('uses the signer identity built into the image and install.sh (U4)', function
 /** @return array<string, string> job id => its block of release.yml */
 function releaseJobs(): array
 {
-    $jobs = substr(releaseWorkflow(), (int) strpos(releaseWorkflow(), "\njobs:\n") + 7);
-    preg_match_all('/^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:\n|\z)/ms', $jobs, $matches, PREG_SET_ORDER);
-
-    return array_column($matches, 2, 1);
+    return WorkflowFiles::jobs(releaseWorkflow());
 }
 
 it('runs no PHP, Composer or repository code in a job that can mint an OIDC token', function (): void {

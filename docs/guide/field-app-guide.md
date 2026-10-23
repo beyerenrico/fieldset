@@ -67,7 +67,7 @@ laden", "Reload").
      Anmeldeseite Ihrer Organisation weitergeleitet …"). Sign in there; you come back to the app
      signed in.
    - **Central sign-in available.** The app asks "Wie möchten Sie sich anmelden?" ("How would you like
-     to sign in?"). Choose "Weiter mit <organization>" ("Continue with <organization>") or
+     to sign in?"). Choose "Weiter mit `<organization>`" ("Continue with `<organization>`") or
      "Mit Passwort anmelden" ("Sign in with a password").
    - **No central sign-in.** Enter your password and tap "Anmelden" ("Sign in").
 3. If you have two-factor authentication, enter the code from your authenticator app. If you lost your

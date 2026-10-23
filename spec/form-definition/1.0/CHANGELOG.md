@@ -1,5 +1,10 @@
 # Changelog — Fieldset Spec 1.0
 
+## Editorial — 2026-10-22 (no version change)
+- The README states the meta-schema's SHA-256 and advises validators to bundle `meta-schema.json` rather than fetch
+  its `$id` at runtime; the docs site serves the file at the `$id` URL. No semantic change: `specVersion` stays
+  `1.0.0` and the meta-schema is unchanged.
+
 ## Rename — 2026-10-21 (no version change)
 - Renamed from "Form Schema Spec 1.0" to "Fieldset Spec 1.0". The meta-schema `$id` is now
   `https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json` (was

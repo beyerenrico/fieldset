@@ -1,4 +1,6 @@
 // Fails when an installed npm package uses a license that is not OSI-approved and AGPL-compatible.
+// Scans <dir>/node_modules for an optional argument such as docs/site (its own package, ADR 0094), else ./node_modules
+// (the repo root in CI and `npm run licenses`).
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -24,9 +26,16 @@ const accepts = (expr) => String(expr)
   .split(/\s+OR\s+/i)
   .some((alt) => alt.split(/\s+AND\s+/i).every((id) => ALLOWED.has(id.trim())));
 
+const [dir] = process.argv.slice(2);
+const root = join(dir ?? '.', 'node_modules');
+if (dir !== undefined && !existsSync(root)) {
+  console.error(`No node_modules in ${dir}: install it first (npm ci).`);
+  process.exit(1);
+}
+
 const violations = [];
 let count = 0;
-for (const manifest of packages('node_modules')) {
+for (const manifest of packages(root)) {
   const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
   if (!pkg.name || !pkg.version) continue;
   count++;
@@ -40,4 +49,4 @@ if (violations.length) {
   console.error(`Disallowed npm licenses:\n  ${[...new Set(violations)].join('\n  ')}`);
   process.exit(1);
 }
-console.log(`npm licenses OK (${count} packages)`);
+console.log(`npm licenses OK (${count} packages${dir === undefined ? '' : ` in ${dir}`})`);

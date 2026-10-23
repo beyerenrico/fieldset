@@ -1,0 +1,499 @@
+# Docs site publish workflow (docs site plan U7; ADR 0094; KTDs "Publishing and trust").
+#
+# Publishes a release's minor as https://beyerenrico.github.io/fieldset/<minor>/ after its Release run succeeded, through
+# the append-only docs-site branch, which holds the whole deployable site (every Pages deploy replaces the site):
+#   resolve  proves the release before anything builds: a tag push of release.yml in this repository that succeeded,
+#            the tag's commit is the run's head commit, the GitHub release is published, and its release-manifest.json
+#            carries a Sigstore bundle from release.yml at that tag and commit (the identity install.sh checks).
+#            git, gh, jq and cosign only.
+#   build    untrusted: runs npm, VitePress and the released app image (OpenAPI export) and uploads the artifact.
+#            contents: read and no secrets. A skip by the version rules (lib/versions.mjs) ends the run green.
+#   store    verifies the artifact with docs/site/store/ from main (git, jq, grep, cmp only; never the artifact's code)
+#            and appends one commit to docs-site without force. contents: write, environment docs-store.
+#   deploy   deploys the stored commit to Pages; dispatch mode `redeploy` deploys docs-site as it is.
+# The Release run itself is never extended (ReleaseWorkflowTest: no dispatch, no extra OIDC job, no workflow_call).
+# No checkout keeps credentials, no job uses the Actions cache (a main job must not seed caches tag runs restore), and
+# values from inputs, the triggering run or other jobs reach scripts only through env. RELEASING.md "Docs site" has
+# the human steps: dispatch `publish <tag>` re-runs a publish, `redeploy` restores Pages from docs-site.
+
+name: Docs
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish, e.g. v2.1.0-rc.2 (mode publish)'
+        required: false
+        type: string
+      mode:
+        description: 'publish: build, store and deploy the tag; redeploy: deploy docs-site as it is'
+        required: true
+        type: choice
+        options: [publish, redeploy]
+        default: publish
+
+permissions: {}
+
+# One publish at a time and never cancelled: store appends to docs-site, deploy replaces the whole site. Only a
+# dispatch and a Release run that resolve accepts share the group `docs-pages`; any other workflow_run (a failed
+# Release run, another repository's) gets a group of its own, so it never takes the pending slot from a real publish.
+concurrency:
+  group: >-
+    ${{ (github.event_name == 'workflow_dispatch'
+    || (github.event_name == 'workflow_run'
+    && github.event.workflow_run.conclusion == 'success'
+    && github.event.workflow_run.event == 'push'
+    && github.event.workflow_run.path == '.github/workflows/release.yml'
+    && github.event.workflow_run.head_repository.full_name == github.repository))
+    && 'docs-pages' || format('docs-skip-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NODE_VERSION: '24'
+  COSIGN_RELEASE: v3.1.3
+  # The signer install.sh trusts (release.yml, ADR 0060); resolve also pins the tag's ref and commit.
+  CERTIFICATE_ISSUER: https://token.actions.githubusercontent.com
+  CERTIFICATE_IDENTITY_REGEXP: '^https://github\.com/beyerenrico/fieldset/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+  # ReleaseVersion::PATTERN with the leading v, anchored, its (?: groups written as ERE groups (DocsWorkflowTest).
+  RELEASE_TAG_PATTERN: '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$'
+  # The app image by digest, as release-manifest.json writes it.
+  IMAGE_PATTERN: '^[a-z0-9.-]+(:[0-9]+)?/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$'
+
+jobs:
+  # workflow_run matches workflows by name, so a fork's workflow called Release fires it too: only a successful tag
+  # push of this repository's release.yml qualifies (checked here and again in the first step). A dispatch publishes
+  # its tag input after the same proof. A dispatch from another branch runs resolve and build, which are read-only, to
+  # prove them; store and deploy run only on main, where their environments also allow them.
+  resolve:
+    name: Verify the release
+    if: >-
+      (github.event_name == 'workflow_run' && github.ref == 'refs/heads/main'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.path == '.github/workflows/release.yml'
+      && github.event.workflow_run.head_repository.full_name == github.repository
+      && github.event.workflow_run.conclusion == 'success')
+      || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      minor: ${{ steps.tag.outputs.minor }}
+      commit: ${{ steps.commit.outputs.commit }}
+      image: ${{ steps.manifest.outputs.image }}
+    steps:
+      - name: Resolve the tag from the Release run or the dispatch input
+        id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_PATH: ${{ github.event.workflow_run.path }}
+          RUN_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          if [ "$EVENT" = workflow_run ]; then
+            [ "$RUN_EVENT" = push ] || fail "the Release run was not started by a tag push"
+            [ "$RUN_PATH" = .github/workflows/release.yml ] || fail "the triggering run is not .github/workflows/release.yml"
+            [ "$RUN_REPOSITORY" = "$GITHUB_REPOSITORY" ] || fail "the triggering run belongs to another repository"
+            [ "$RUN_CONCLUSION" = success ] || fail "the Release run did not succeed"
+            tag="$RUN_TAG"
+          else
+            tag="$INPUT_TAG"
+            [ -n "$tag" ] || fail "mode publish needs the tag input"
+          fi
+          [[ "$tag" =~ $RELEASE_TAG_PATTERN ]] || fail "$(printf '%q' "$tag") is not a release tag (vX.Y.Z or vX.Y.Z-alpha|beta|rc.N)"
+          {
+            echo "tag=$tag"
+            echo "minor=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          } >> "$GITHUB_OUTPUT"
+      - name: Fetch the tag (git only, nothing is run)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+          persist-credentials: false
+      - name: Require the tag's commit to be the Release run's head commit
+        id: commit
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          commit="$(git rev-parse --verify "refs/tags/${TAG}^{commit}")"
+          if [ "$(git rev-parse --verify HEAD)" != "$commit" ]; then
+            echo "::error::the checkout is not at $TAG ($commit)"
+            exit 1
+          fi
+          if [ "$EVENT" = workflow_run ] && [ "$commit" != "$HEAD_SHA" ]; then
+            echo "::error::$TAG points at $commit, but the Release run ran on $HEAD_SHA"
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Require a published release and download its signed manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"; then
+            echo "::error::$TAG has no published GitHub release"
+            exit 1
+          fi
+          if [ "$draft" != false ]; then
+            echo "::error::the release of $TAG is still a draft"
+            exit 1
+          fi
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release" \
+            --pattern release-manifest.json --pattern release-manifest.json.sigstore.json
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: ${{ env.COSIGN_RELEASE }}
+      # install.sh's checks (fieldset_install_verify), narrowed to this tag's ref and commit.
+      - name: Verify the manifest's signature against release.yml at the tag and its commit
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          COMMIT: ${{ steps.commit.outputs.commit }}
+        run: |
+          set -euo pipefail
+          cosign verify-blob "$RUNNER_TEMP/release/release-manifest.json" \
+            --bundle "$RUNNER_TEMP/release/release-manifest.json.sigstore.json" \
+            --certificate-identity-regexp "$CERTIFICATE_IDENTITY_REGEXP" \
+            --certificate-oidc-issuer "$CERTIFICATE_ISSUER" \
+            --certificate-github-workflow-trigger push \
+            --certificate-github-workflow-repository "$GITHUB_REPOSITORY" \
+            --certificate-github-workflow-ref "refs/tags/$TAG" \
+            --certificate-github-workflow-sha "$COMMIT"
+      - name: Read the app image from the verified manifest
+        id: manifest
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          COMMIT: ${{ steps.commit.outputs.commit }}
+        run: |
+          set -euo pipefail
+          manifest="$RUNNER_TEMP/release/release-manifest.json"
+          version="$(jq -r '.version' "$manifest")"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::the signed manifest is for $(printf '%q' "$version"), not $TAG"
+            exit 1
+          fi
+          image="$(jq -r '.images.app | "\(.registry)/\(.repository)@\(.digest)"' "$manifest")"
+          if ! [[ "$image" =~ $IMAGE_PATTERN ]]; then
+            echo "::error::the signed manifest names no app image by digest"
+            exit 1
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "::notice::Verified $TAG at $COMMIT; app image $image"
+
+  # Untrusted: npm, VitePress and the app image run here, so store re-checks everything this job uploads.
+  build:
+    name: Build the copy (untrusted)
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      action: ${{ steps.publish.outputs.action }}
+    # migrate and scramble:export read a fresh database: the product's own Postgres image (distribution/release.json).
+    services:
+      postgres:
+        image: docker.io/library/postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_DB: fieldset_docs
+          POSTGRES_USER: fieldset
+          POSTGRES_PASSWORD: docs-export-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fieldset" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - name: Check out main's tooling at the run's commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      # Content comes from the tag, tooling from main (KTD "Tooling from main, content from the tag").
+      - name: Add the verified tag's commit as the content worktree
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ $RELEASE_TAG_PATTERN && "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::resolve passed no valid tag and commit"
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin "+refs/tags/$TAG:refs/tags/$TAG"
+          tagged="$(git rev-parse --verify "refs/tags/${TAG}^{commit}")"
+          if [ "$tagged" != "$COMMIT" ]; then
+            echo "::error::$TAG points at $tagged, not at the verified commit $COMMIT"
+            exit 1
+          fi
+          git worktree add --detach "$RUNNER_TEMP/source" "$COMMIT"
+      - name: Read the stored versions.json from docs-site (read-only)
+        id: stored
+        run: |
+          set -euo pipefail
+          status=0
+          git ls-remote --exit-code origin refs/heads/docs-site > /dev/null || status=$?
+          if [ "$status" -eq 2 ]; then
+            echo "::notice::No docs-site branch yet: this is the first publish"
+            echo "stored=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ "$status" -ne 0 ]; then
+            echo "::error::git ls-remote origin failed with exit status $status"
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin +refs/heads/docs-site:refs/remotes/origin/docs-site
+          git show refs/remotes/origin/docs-site:versions.json > "$RUNNER_TEMP/stored-versions.json"
+          echo "stored=$RUNNER_TEMP/stored-versions.json" >> "$GITHUB_OUTPUT"
+      # Before any untrusted code runs, so the token in this step's env meets no process the build left behind. A
+      # third queued run replaces a pending one (concurrency), so a release can miss its publish: dispatch it again.
+      # The release this run publishes counts as its minor's stored copy when store would accept it over the stored one
+      # (a copy tag of 2.1 or later, not older, not an rc over a final), so it never asks for an older release.
+      - name: Warn about published releases newer than their stored copy (reconcile)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+          STORED: ${{ steps.stored.outputs.stored }}
+        run: |
+          set -euo pipefail
+          order() { jq -n --arg a "$1" --arg b "$2" -f docs/site/store/version-order.jq 2> /dev/null; }
+          stored_tag() { [ "$STORED" = none ] || jq -r --arg m "$1" '.copies[] | select(.minor == $m) | .tag' "$STORED"; }
+          publishes_over() { # <stored tag or empty>: status 0 when store would accept TAG over it
+            [ -n "$1" ] || return 0
+            if [[ "$TAG" == *-rc.* && "$1" != *-rc.* ]]; then return 1; fi
+            [ "$(order "$TAG" "$1")" != -1 ]
+          }
+          tag_minor=''
+          if [[ "$TAG" =~ ^v([0-9]+\.[0-9]+)\. ]]; then
+            tag_minor="${BASH_REMATCH[1]}"
+            rank="$(order "$TAG" v2.1.0-rc.0)" || rank=-1 # alpha, beta and versions before 2.1 publish no copy
+            [ "$rank" != -1 ] || tag_minor=''
+          fi
+          releases="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 200 --json tagName --jq '.[].tagName')"
+          while IFS= read -r release; do
+            if [ -z "$release" ] || [ "$release" = "$TAG" ]; then continue; fi
+            rank="$(order "$release" v2.1.0-rc.0)" || continue # alpha, beta and non-release tags get no copy
+            [ "$rank" != -1 ] || continue # versions before 2.1 get no copy (R10)
+            [[ "$release" =~ ^v([0-9]+\.[0-9]+)\. ]]
+            minor="${BASH_REMATCH[1]}"
+            stored="$(stored_tag "$minor")"
+            if [ "$minor" = "$tag_minor" ] && publishes_over "$stored"; then stored="$TAG"; fi
+            if [ -z "$stored" ]; then
+              echo "::warning::$release is published, but $minor has no stored copy: dispatch publish $release"
+            elif [[ "$release" == *-rc.* && "$stored" != *-rc.* ]]; then
+              continue # a pre-release never replaces a final copy (R21)
+            elif [ "$(order "$release" "$stored")" = 1 ]; then
+              echo "::warning::$release is published, but $minor stores $stored: dispatch publish $release"
+            fi
+          done <<< "$releases"
+      # The tag's code and PHP without a Composer install (KTD "The OpenAPI export runs inside the released app
+      # image"): the image pinned by digest in the verified manifest, a throwaway key, the job's Postgres, and no Redis
+      # (cache, sessions and queue stay in memory). No secret or token enters the container.
+      - name: Export the OpenAPI document and the release facts inside the released app image
+        env:
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$IMAGE" =~ $IMAGE_PATTERN && "$TAG" =~ $RELEASE_TAG_PATTERN ]]; then
+            echo "::error::resolve passed no valid app image and tag"
+            exit 1
+          fi
+          docker pull --quiet "$IMAGE"
+          out="$RUNNER_TEMP/export"
+          mkdir -m 0777 "$out" # the image runs as www-data
+          APP_KEY="base64:$(openssl rand -base64 32)"
+          export APP_KEY
+          app=(docker run --rm --pull never --network host --entrypoint php -v "$out:/export"
+            -e APP_KEY -e APP_ENV=production -e APP_URL=http://localhost -e "API_VERSION=${TAG#v}"
+            -e DB_CONNECTION=pgsql -e DB_HOST=127.0.0.1 -e DB_PORT=5432 -e DB_DATABASE=fieldset_docs
+            -e DB_USERNAME=fieldset -e DB_PASSWORD=docs-export-only
+            -e CACHE_STORE=array -e SESSION_DRIVER=array -e QUEUE_CONNECTION=sync -e BROADCAST_CONNECTION=log
+            "$IMAGE" artisan)
+          "${app[@]}" migrate --force --no-interaction
+          "${app[@]}" scramble:export --path=/export/openapi.json
+          "${app[@]}" release:version "$TAG" > "$RUNNER_TEMP/release.json"
+          cat "$RUNNER_TEMP/release.json"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      # docs/site/.npmrc sets ignore-scripts=true; never the root `npm run build` (LEARNINGS 166).
+      - run: npm ci
+        working-directory: docs/site
+      - name: Build the copy and, when the root refreshes, the root (build.mjs publish)
+        id: publish
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+          STORED: ${{ steps.stored.outputs.stored }}
+        run: |
+          set -euo pipefail
+          node docs/site/scripts/build.mjs publish --source "$RUNNER_TEMP/source" --tag "$TAG" --out "$RUNNER_TEMP/out" \
+            --export "$RUNNER_TEMP/export/openapi.json" --stored "$STORED" --built-with "$GITHUB_SHA" \
+            --release-json "$RUNNER_TEMP/release.json"
+          action="$(jq -r .action "$RUNNER_TEMP/out/decision.json")"
+          case "$action" in
+            publish) ;;
+            skip) echo "::notice::$TAG gets no publish: $(jq -r .reason "$RUNNER_TEMP/out/decision.json")" ;;
+            *) echo "::error::decision.json has no valid action"; exit 1 ;;
+          esac
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+      - name: Upload the build output (decision.json, and site/ on a publish)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs-build
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Privileged: runs no repo code but docs/site/store/ from main at the run's commit (git, jq, grep, cmp).
+  store:
+    name: Verify the build and append it to docs-site
+    needs: [resolve, build]
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.action == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: docs-store
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.verify.outputs.commit }}
+    steps:
+      - name: Check out the store program from main (version-order.jq, store-artifact.sh)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: tooling
+          persist-credentials: false
+          sparse-checkout: docs/site/store
+          sparse-checkout-cone-mode: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: docs-build
+          path: ${{ runner.temp }}/artifact
+      - name: Check out docs-site, or start it as an orphan before the first publish
+        run: |
+          set -euo pipefail
+          git init -q site
+          git -C site remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          status=0
+          git -C site ls-remote --exit-code origin refs/heads/docs-site > /dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
+            git -C site fetch --no-tags --depth=1 origin +refs/heads/docs-site:refs/remotes/origin/docs-site
+            git -C site checkout -q -b docs-site refs/remotes/origin/docs-site
+          elif [ "$status" -eq 2 ]; then
+            echo "::notice::No docs-site branch yet: this publish starts it"
+            git -C site checkout -q --orphan docs-site
+          else
+            echo "::error::git ls-remote origin failed with exit status $status"
+            exit 1
+          fi
+      - name: Fetch the verified tag (spec files and staged Markdown are compared with it)
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ $RELEASE_TAG_PATTERN ]]; then
+            echo "::error::resolve passed no valid tag"
+            exit 1
+          fi
+          git init -q tag
+          git -C tag fetch --no-tags --depth=1 "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "+refs/tags/$TAG:refs/tags/$TAG"
+      # Allowed paths, the root refresh and latest come from resolve's verified tag, never from build's decision.json.
+      - name: Verify the artifact and commit it to docs-site
+        id: verify
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+          MINOR: ${{ needs.resolve.outputs.minor }}
+        run: |
+          set -euo pipefail
+          bash tooling/docs/site/store/store-artifact.sh --artifact "$RUNNER_TEMP/artifact" --site site --tag-repo tag \
+            --tag "$TAG" --commit "$COMMIT" --minor "$MINOR" --tooling "$GITHUB_SHA"
+          echo "commit=$(git -C site rev-parse --verify HEAD)" >> "$GITHUB_OUTPUT"
+      # The only step with the token: a fast-forward push that fails when anyone else wrote docs-site first.
+      - name: Push the commit to docs-site (fast-forward only)
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: git -C site push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/docs-site
+
+  # Pages actions and git only. A Pages deploy replaces the whole site, so it always deploys a complete docs-site commit.
+  deploy:
+    name: Deploy docs-site to GitHub Pages
+    needs: store
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main'
+      && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'redeploy') || needs.store.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      # A publish deploys its stored commit only while it is still the head of docs-site: a re-run of an old run's
+      # deploy, or one after a later publish or a revert, would roll Pages back.
+      - name: Choose the commit to deploy
+        id: commit
+        env:
+          EVENT: ${{ github.event_name }}
+          MODE: ${{ inputs.mode }}
+          STORED: ${{ needs.store.outputs.commit }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ] && [ "$MODE" = redeploy ]; then
+            echo "ref=refs/heads/docs-site" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! [[ "$STORED" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::store reported no stored commit"
+            exit 1
+          fi
+          if ! head="$(git ls-remote --exit-code "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" refs/heads/docs-site | cut -f1)"; then
+            echo "::error::cannot read the head of docs-site"
+            exit 1
+          fi
+          if [ "$head" != "$STORED" ]; then
+            echo "::error::docs-site is at $head, not at $STORED, the commit this run stored: deploying it would roll Pages back. Dispatch the workflow with mode=redeploy to deploy docs-site as it is"
+            exit 1
+          fi
+          echo "ref=$STORED" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.commit.outputs.ref }}
+          path: site
+          persist-credentials: false
+      # upload-pages-artifact archives with --dereference: a symlink would publish the runner file it points at.
+      - name: Refuse symlinks and submodules in the stored tree
+        run: |
+          set -euo pipefail
+          odd="$(git -C site ls-tree -r HEAD | grep -E '^(120000|160000) ' || true)"
+          if [ -n "$odd" ]; then
+            echo "::error::docs-site holds symlinks or submodules:"
+            echo "$odd"
+            exit 1
+          fi
+          git -C site log --oneline -1
+          rm -rf site/.git
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

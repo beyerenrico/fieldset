@@ -100,7 +100,7 @@ cannot do them.
    - the install journeys on arm64 (Apple Silicon), J11 (the agent guide's doc-test) among them:
      `vendor/bin/pest --testsuite=Install` (see [the harness](#building-and-testing-a-release-locally-harness));
    - the guide checks in the fast suite (`tests/Unit/Docs`): every `fieldset` command, flag, environment variable and
-     link the guides name exists (ADR 0042);
+     link the guides name exists (ADR 0042), and no raw HTML tag or `<placeholder>` stands outside code (ADR 0094);
    - the Trivy exception dates (see below).
 2. Tag and push:
 
@@ -140,6 +140,78 @@ Scan policy (ADR 0071): the app image allows no exception. A third-party image m
 entry is scoped to one component and has a statement and an `expired_at` at most 90 days out. Before tagging,
 check the dates: an expired entry fails `scan`. Refresh the pin when a fixed image exists; otherwise renew the
 entry in a reviewed commit with a current statement. The `scan` log lists every suppressed finding.
+
+## Docs site
+
+The site `https://beyerenrico.github.io/fieldset/` (ADR 0094) holds one copy per minor version from 2.1 on, the home
+page, `latest/` and Fieldset Spec 1.0 at its `$id`. Nobody has to publish it by hand: when a `Release` run succeeds,
+the `Docs` workflow (`.github/workflows/docs.yml`) publishes that release's minor, about 2.5 hours after the tag
+(plan estimate). A failed release publishes nothing. Its jobs:
+
+| Job | What it does |
+|---|---|
+| resolve | proves the release before anything builds: a successful tag push of this repository's `release.yml`, the tag's commit is the run's head commit, the GitHub release is published, and `cosign verify-blob` accepts its `release-manifest.json` with the identity `install.sh` checks |
+| build | untrusted (`contents: read`): builds the copy, and when due the root, from a worktree of the tag with `main`'s `docs/site/` and the OpenAPI export of the released app image. A tag the version rules skip (alpha, beta, below 2.1, older than the stored copy, an rc once the minor has a final) ends the run green with a notice. It also warns when a published release is newer than its stored copy |
+| store | runs only `docs/site/store/` from `main` (git, jq, grep, cmp): verifies the artifact (paths, `versions.json`, spec files, install URLs, the reference page's CSP) and appends one commit to the `docs-site` branch without force (environment `docs-store`) |
+| deploy | deploys the stored `docs-site` commit to Pages (environment `github-pages`); every deploy replaces the whole site |
+
+`docs-site` holds the whole deployable site, one commit per publish. Old builds cannot be rebuilt, so it is their
+only copy: never force-push, rebase or delete it.
+
+**Re-run a publish** (for example after a failed run, or when the warning names a release whose run was dropped) by
+dispatching the workflow from `main`; `store` and `deploy` run only there:
+
+```sh
+gh workflow run docs.yml --ref main -f tag=vX.Y.Z      # mode publish (the default): build, store and deploy the tag
+gh workflow run docs.yml --ref main -f mode=redeploy   # deploy docs-site as it is, nothing is built
+```
+
+**Verify** a publish, or what is live:
+
+```sh
+gh run list --workflow docs.yml --limit 1                    # the newest Docs run and its id
+gh run watch <run id> --exit-status                          # follow it; non-zero when a job failed
+git ls-remote origin refs/heads/docs-site                    # the stored commit the deploy must match
+curl -fsSL https://beyerenrico.github.io/fieldset/versions.json | jq .   # the live copies and latest
+```
+
+Each copy is served at `https://beyerenrico.github.io/fieldset/<minor>/` (for example `/fieldset/2.1/`),
+`/fieldset/latest/` leads to the newest, and the spec is at its `$id`,
+`https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json`. A deploy whose stored commit is no
+longer the head of `docs-site` (a re-run after a later publish or a revert) fails on purpose; `mode=redeploy` deploys
+the head.
+
+**Root refresh.** The home page, `latest/` and the spec files change only when the publish is the newest version: the
+newest final, or the newest rc while no final exists. `versions.json` changes on every publish. A re-run of the newest
+tag refreshes the root, which is how home-page fixes go live: merge the fix to `main`, then dispatch the newest tag. The
+root's theme and config always come from `main`; its pages and screenshots come from the tag's `docs/site/root/`, and
+from `main` only for tags that predate the site (2.1). A page fix for a newer minor therefore needs a new tag.
+
+**Remove a bad copy** with a revert commit on `docs-site`, never a force-push, then redeploy:
+
+```sh
+git fetch origin docs-site
+git worktree add ../fieldset-docs-site origin/docs-site
+git -C ../fieldset-docs-site revert --no-edit <bad publish commit>
+git -C ../fieldset-docs-site push origin HEAD:docs-site
+gh workflow run docs.yml --ref main -f mode=redeploy
+```
+
+The revert also restores the previous `versions.json` and, if that publish refreshed the root, the previous root.
+
+**One-time setup (human steps, plan U10).** Settings the workflow relies on; none of them is set by the autonomous
+build:
+
+1. **Pages source.** Settings → Pages → Build and deployment → Source: GitHub Actions.
+2. **`github-pages` environment.** Deployment branches: `main` only.
+3. **`docs-store` environment.** Create it; deployment branches: `main` only. It holds the job that writes
+   `docs-site`.
+4. **`docs-site` ruleset.** A branch ruleset targeting `docs-site` with "Restrict deletions" and "Block force pushes".
+
+**Known gap (deferred):** `finalize` marks every final release as GitHub's latest (`gh release edit --latest`), so a
+late 2.1.x after 2.2.0 would move `releases/latest` backwards. The home page and the rc notice use versioned install
+commands, but every copy's guides use `releases/latest/download/install.sh`. Fix `finalize` before a patch of an
+older minor ships after a newer minor's final.
 
 ## Building and testing a release locally (harness)
 

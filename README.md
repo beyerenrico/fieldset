@@ -110,7 +110,9 @@ Checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`
 
 ## Documentation
 
-Guides in [`docs/guide/`](docs/guide/index.md):
+The docs site [beyerenrico.github.io/fieldset](https://beyerenrico.github.io/fieldset/) publishes the guides of each
+release with search, the interactive API reference and Fieldset Spec 1.0 (ADR 0094). The same guides are in
+[`docs/guide/`](docs/guide/index.md):
 
 - [Install](docs/guide/install.md) · [Agent guide](docs/guide/agent-guide.md) ·
   [Upgrade](docs/guide/upgrade.md) · [Backup and restore](docs/guide/backup-restore.md) ·

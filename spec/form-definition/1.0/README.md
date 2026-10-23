@@ -2,7 +2,11 @@
 
 Status: **1.0.0** · License: MIT · Meta-schema: [`meta-schema.json`](meta-schema.json) (JSON Schema 2020-12)
 Meta-schema `$id`: `https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json`
+Meta-schema SHA-256: `fc73ec9a396356008df49fd872a5bd20408c8c8eb9ef09155bdc09c256b8eaeb`
 Role vocabulary: [`roles.json`](roles.json) · Changes: [`CHANGELOG.md`](CHANGELOG.md) · Conformance: [`../../conformance/`](../../conformance)
+
+The `$id` is an identifier. The docs site serves the meta-schema at that URL, but validators are advised to bundle a
+copy of `meta-schema.json`, checked against the SHA-256 above, rather than fetch it at runtime.
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119. Two implementations (PHP
 `packages/fieldset-php`, TypeScript `packages/fieldset-js`) MUST produce identical results for

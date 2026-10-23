@@ -1,0 +1,62 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/beyerenrico/fieldset/main/docs/site/schema/versions.schema.json",
+    "title": "Fieldset docs site versions.json, schema 1",
+    "description": "Served at /fieldset/versions.json and rewritten by every docs publish (ADR 0094, docs site plan U5). Schema 1 is frozen and additive only: readers ignore unknown fields and fall back to their baked values for a schema above 1 (docs/site/lib/versions-reader.mjs). Rules the keywords below cannot state: minors are unique, each copy's minor is the major.minor of its version, tag is v plus version, prerelease is true exactly when version has a pre-release part, latest names one of the copies (the newest final, or the newest pre-release while no final exists), and copies are listed newest first. The writer publishes only finals and rc.N pre-releases from 2.1 on; readers accept any release version.",
+    "type": "object",
+    "required": ["schema", "latest", "copies"],
+    "properties": {
+        "schema": {
+            "description": "Contract version; 1 until an incompatible change, which readers of schema 1 then ignore.",
+            "const": 1
+        },
+        "latest": {
+            "description": "The minor that /fieldset/latest/ and the home page's docs links open.",
+            "$ref": "#/$defs/minor"
+        },
+        "copies": {
+            "description": "One entry per published minor, newest first.",
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/copy" }
+        }
+    },
+    "$defs": {
+        "minor": {
+            "description": "A minor version; the only value readers put into a URL (/fieldset/<minor>/).",
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+$"
+        },
+        "version": {
+            "description": "A release version in the grammar of ReleaseVersion::PATTERN (app/Domain/Instance/Release/ReleaseVersion.php).",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+        },
+        "tag": {
+            "description": "The release's git tag: v plus the version.",
+            "type": "string",
+            "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+        },
+        "copy": {
+            "type": "object",
+            "required": ["minor", "version", "tag", "prerelease", "builtWith"],
+            "properties": {
+                "minor": { "$ref": "#/$defs/minor" },
+                "version": {
+                    "description": "The release this copy was built from.",
+                    "$ref": "#/$defs/version"
+                },
+                "tag": { "$ref": "#/$defs/tag" },
+                "prerelease": {
+                    "description": "True for a copy built from a pre-release, which shows the pre-release notice.",
+                    "type": "boolean"
+                },
+                "builtWith": {
+                    "description": "Full SHA of the main commit whose docs/site tooling built the copy.",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{40}$"
+                }
+            }
+        }
+    }
+}

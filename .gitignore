@@ -41,3 +41,7 @@ Thumbs.db
 /public/app
 /public/form-preview
 /.claude/worktrees
+/docs/site/node_modules
+/docs/site/**/.vitepress/cache
+/docs/site/**/.vitepress/dist
+/docs/site/dist

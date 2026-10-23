@@ -1,5 +1,5 @@
 # 0042: Documentation site: plain Markdown in `docs/guide/`
-- Status: accepted
+- Status: superseded by 0094 (generator and hosting); writing rules carried forward
 - Date: 2026-10-18
 
 ## Context
