@@ -9,15 +9,15 @@
         "changed": true,
         "data": {
             "action": "start",
-            "url": "https://fieldset-test-d7851edc96.trycloudflare.com",
+            "url": "https://fieldset-test-c5bfc19d59.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fieldset-test-d7851edc96.trycloudflare.com",
-                "expires_at": "2026-10-21T13:09:59Z",
-                "peer": "10.215.184.2",
+                "hostname": "fieldset-test-c5bfc19d59.trycloudflare.com",
+                "expires_at": "2026-10-23T12:25:39Z",
+                "peer": "10.215.124.98",
                 "admin": false,
-                "url": "https://fieldset-test-d7851edc96.trycloudflare.com",
+                "url": "https://fieldset-test-c5bfc19d59.trycloudflare.com",
                 "state": "active"
             },
             "next_commands": [
@@ -30,12 +30,12 @@
         "warnings": [
             {
                 "code": "tunnel_third_party",
-                "message": "Traffic to https://fieldset-test-d7851edc96.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "message": "Traffic to https://fieldset-test-c5bfc19d59.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
                 "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
             },
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel expires at 2026-10-21T13:09:59Z; after that its address answers 503.",
+                "message": "The tunnel expires at 2026-10-23T12:25:39Z; after that its address answers 503.",
                 "hint": "Run `fieldset tunnel renew` to keep it 4 more hours, `fieldset tunnel stop` to end it now."
             },
             {

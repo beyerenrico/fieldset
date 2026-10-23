@@ -17,15 +17,15 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 134.2
+                "free_gib": 122.4
             },
             "last_backup": null,
             "last_upgrade": null,
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
-            "url": "https://192.168.178.28",
+            "url": "https://192.168.178.24",
             "local_url": "http://localhost:8081",
-            "project": "fieldset-fieldset-test-j06-c322",
+            "project": "fieldset-fieldset-test-j06-b1ca",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -74,10 +74,10 @@
             "proxy": null,
             "phone_https": {
                 "mode": "local-ca",
-                "lan_address": "192.168.178.28",
-                "url": "https://192.168.178.28",
-                "trust_url": "http://192.168.178.28/phone-trust",
-                "root_sha256": "4C:69:44:27:47:DD:FE:04:2D:D4:25:DD:34:09:54:92:02:4B:5F:6C:7F:DF:2B:C3:2D:DD:FB:C2:45:71:2B:9C",
+                "lan_address": "192.168.178.24",
+                "url": "https://192.168.178.24",
+                "trust_url": "http://192.168.178.24/phone-trust",
+                "root_sha256": "E3:98:A5:B4:D7:9A:E7:C7:BC:58:F9:96:FE:CD:3F:EA:BB:46:01:B4:FE:63:50:F8:2D:AF:EA:49:3C:4E:AB:E4",
                 "lan_address_current": true
             },
             "tunnel": null,
@@ -88,7 +88,7 @@
                     "time": "03:30",
                     "time_zone": "Europe/Berlin",
                     "retention": 7,
-                    "next_run": "2026-10-22T01:30:00Z"
+                    "next_run": "2026-10-24T01:30:00Z"
                 },
                 "encrypted": false,
                 "directory": "<work>/fieldset-test-j06/backups",
@@ -104,7 +104,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fieldset-fieldset-test-j06-c322_app-storage",
+                "storage_volume": "fieldset-fieldset-test-j06-b1ca_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []
@@ -122,8 +122,8 @@
                         "email": "owner@example.test",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-21T12:03:05Z",
-                        "expires_at": "2026-10-21T13:03:05Z",
+                        "created_at": "2026-10-23T11:18:43Z",
+                        "expires_at": "2026-10-23T12:18:43Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",

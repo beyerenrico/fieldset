@@ -1,6 +1,6 @@
 # State: 2026-10-23 — Fieldset 2.1.0-rc.4 published; docs site live with the 2.1 copy
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
-Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
+Rename to Fieldset (human decision, QUESTIONS 1/25; plans and brainstorms are local only, QUESTIONS 79;
 ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
 merged into `rename-fieldset`, which is merged `--no-ff` into `main`; local tags `rename-done` and annotated `v2.1.0` on
 that merge commit. No tag pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
@@ -19,14 +19,15 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 0. Nightly `Install journeys` runs (02:17 UTC): fix a red one before anything else.
 1. `v2.1.0-rc.4` (209fe4a7, human: "Yes, rc.4 when green") published as a pre-release: Release run 39919806861 green;
    post-publish checks from outside CI (cosign, anonymous access, docs) in `evidence/R2.1/postpublish-v2.1.0-rc.4.txt`.
-   rc.1 is a draft, rc.2 and rc.3 have no release (pull check, J09, Trivy). Local `v2.1.0` on 209fe4a7, not pushed:
-   pushing it needs human approval, and local arm64 journeys first (human: "Skip for the rc", run before the final).
-   Remaining RELEASING post-publish items need real accounts or devices (SMTP, screen reader, VPS, tunnel, phones).
+   rc.1 is a draft, rc.2 and rc.3 have no release (pull check, J09, Trivy). Final: local `v2.1.0` moves from 209fe4a7
+   to the merge of `maint-final-2.1.0` (QUESTIONS 80, docs only); local arm64 journeys on aa3f5c1f 151 passed /
+   7 skipped (1 h 45 m). Pushing `v2.1.0` needs human approval. Other post-publish checks need real accounts/devices.
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy), 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209) and 2026-11-22 (60 Chromium 156 fixes in gotenberg 8.38.1): refresh pins
    when upstream images ship (Go >= 1.26.10 / 1.27.3, Chromium 156) or renew them in a reviewed commit.
-3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094): Docs run 39940103599 published the 2.1 copy
-   (docs-site 5f908137); `/latest/` shows the rc notice, the spec resolves at its `$id`. Open human choices: Wiki off, About website.
+3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094; Docs run 39940103599, docs-site 5f908137).
+   Open human choices: Wiki off, About website (QUESTIONS 78 e/f).
+4. Next patch 2.1.x: query tuning (QUESTIONS 41/74/80): saved reports, explorer search, inbox, API in_review series.
 
 ## Gate results (R2.1.md, rerun after the Go fix)
 - Static, licenses clean; PHP 7404/7404; Vitest 615/111/622/246; conformance 391/392.
@@ -46,7 +47,6 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 - Journeys write release evidence to `R<major>.<minor>` (`FIELDSET_EVIDENCE_MILESTONE=R2.1`); M10-pinned journeys
   still write into M10: copy to `R2.1/M10-pinned/` and restore M10 (R6). Emulated and `FIELDSET_RELEASE_VERSION` runs
   overwrite the native J01/J07 files: copy them to `J01-amd64-*` / `J01-v2.1.0-*`, `J07-v2.1.0-*`, restore the natives.
-- 30-day expiry for the new gosu entry (no reachability analysis for this CVE), not 90 like gosu's older entries.
 
 ## Known problems
 - E2E runs rewrite evidence PNGs: revert only PNGs (LEARNINGS 159). m6-offline click flake under load (QUESTIONS 76c).

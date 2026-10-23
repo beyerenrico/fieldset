@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fieldset-test-j04-smtp … --smtp-host fieldset-test-j04-relay-… --smtp-port 1025 --smtp-encryption none --smtp-username fieldset-test-relay-user --password-file <work>/smtp-password --from-address forms@example.test --json",
     "exit_code": 0,
-    "seconds": 51.9,
+    "seconds": 50.9,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -13,7 +13,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j04-smtp",
-            "project": "fieldset-fieldset-test-j04-smtp-9bb2",
+            "project": "fieldset-fieldset-test-j04-smtp-2282",
             "port": 8081,
             "mail": {
                 "mode": "smtp",
@@ -26,7 +26,7 @@
                 "<work>/fieldset-test-j04-smtp/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T12:57:20Z",
+                "expires_at": "2026-10-23T12:13:01Z",
                 "delivered": "secrets_file"
             }
         },
@@ -34,13 +34,13 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/smtp-owner-link.json",
-                "expires_at": "2026-10-21T12:57:20Z"
+                "expires_at": "2026-10-23T12:13:01Z"
             }
         ],
         "warnings": [
             {
                 "code": "smtp_plaintext_auth",
-                "message": "The SMTP password goes to fieldset-test-j04-relay-3036 unencrypted (--smtp-encryption none).",
+                "message": "The SMTP password goes to fieldset-test-j04-relay-09e8 unencrypted (--smtp-encryption none).",
                 "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
             }
         ],
@@ -61,7 +61,7 @@
         "catcher": "removed",
         "catcher_url": null,
         "smtp": {
-            "host": "fieldset-test-j04-relay-3036",
+            "host": "fieldset-test-j04-relay-09e8",
             "port": 1025,
             "scheme": "smtp",
             "encryption": "none"

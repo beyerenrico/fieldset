@@ -1,7 +1,7 @@
 {
     "command": "fieldset config set domain fieldset-test-cfg.test --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json",
     "exit_code": 0,
-    "seconds": 62.7,
+    "seconds": 62.5,
     "stdout": {
         "schema_version": 1,
         "command": "config",
@@ -88,74 +88,74 @@
     },
     "containers_before": {
         "app": {
-            "id": "23786586506f",
-            "started": "2026-10-21T11:36:29.986070554Z"
+            "id": "b0719c2097ad",
+            "started": "2026-10-23T10:51:39.877470677Z"
         },
         "backup": {
-            "id": "e3d4b90a18bd",
-            "started": "2026-10-21T11:36:29.791077637Z"
+            "id": "af6b7c05db7b",
+            "started": "2026-10-23T10:51:39.58100526Z"
         },
         "gotenberg": {
-            "id": "127605d70ae7",
-            "started": "2026-10-21T11:36:29.402816679Z"
+            "id": "68caa1f44750",
+            "started": "2026-10-23T10:51:39.042138218Z"
         },
         "mailpit": {
-            "id": "85eeeee51ac4",
-            "started": "2026-10-21T11:36:29.278247679Z"
+            "id": "e20f27461042",
+            "started": "2026-10-23T10:51:39.140299093Z"
         },
         "postgres": {
-            "id": "2658a4effeb7",
-            "started": "2026-10-21T11:36:19.227717841Z"
+            "id": "701fbaadf29a",
+            "started": "2026-10-23T10:51:29.092988297Z"
         },
         "queue": {
-            "id": "b0af691b8209",
-            "started": "2026-10-21T11:36:30.166536638Z"
+            "id": "2abc146a2aa0",
+            "started": "2026-10-23T10:51:39.771209135Z"
         },
         "redis": {
-            "id": "431ee83c48a7",
-            "started": "2026-10-21T11:36:19.340861424Z"
+            "id": "1f28402cff59",
+            "started": "2026-10-23T10:51:28.996833213Z"
         },
         "scheduler": {
-            "id": "3389fbec9941",
-            "started": "2026-10-21T11:36:29.887035221Z"
+            "id": "332447eb8d4d",
+            "started": "2026-10-23T10:51:39.677960343Z"
         }
     },
     "containers_after": {
         "app": {
-            "id": "0754d8fe6c29",
-            "started": "2026-10-21T11:37:15.758730214Z"
+            "id": "924a4d115098",
+            "started": "2026-10-23T10:52:25.102434711Z"
         },
         "backup": {
-            "id": "e3d4b90a18bd",
-            "started": "2026-10-21T11:36:29.791077637Z"
+            "id": "af6b7c05db7b",
+            "started": "2026-10-23T10:51:39.58100526Z"
         },
         "edge": {
-            "id": "4effc4302933",
-            "started": "2026-10-21T11:37:31.389780347Z"
+            "id": "b776a3282d01",
+            "started": "2026-10-23T10:52:40.757335552Z"
         },
         "gotenberg": {
-            "id": "127605d70ae7",
-            "started": "2026-10-21T11:36:29.402816679Z"
+            "id": "68caa1f44750",
+            "started": "2026-10-23T10:51:39.042138218Z"
         },
         "mailpit": {
-            "id": "af13bc0ca227",
-            "started": "2026-10-21T11:37:15.22284613Z"
+            "id": "4733b28e3914",
+            "started": "2026-10-23T10:52:24.615825836Z"
         },
         "postgres": {
-            "id": "2658a4effeb7",
-            "started": "2026-10-21T11:36:19.227717841Z"
+            "id": "701fbaadf29a",
+            "started": "2026-10-23T10:51:29.092988297Z"
         },
         "queue": {
-            "id": "b7555a63d029",
-            "started": "2026-10-21T11:37:39.070654044Z"
+            "id": "cc66448c6adf",
+            "started": "2026-10-23T10:52:48.572164083Z"
         },
         "redis": {
-            "id": "431ee83c48a7",
-            "started": "2026-10-21T11:36:19.340861424Z"
+            "id": "1f28402cff59",
+            "started": "2026-10-23T10:51:28.996833213Z"
         },
         "scheduler": {
-            "id": "a866eea06964",
-            "started": "2026-10-21T11:37:38.968343086Z"
+            "id": "5f155935c406",
+            "started": "2026-10-23T10:52:48.430758542Z"
         }
     },
     "kept_running": [

@@ -9,7 +9,7 @@
         "changed": false,
         "data": {
             "dir": "<work>/fieldset-test-cfg",
-            "project": "fieldset-fieldset-test-cfg-d9a8",
+            "project": "fieldset-fieldset-test-cfg-5895",
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "url": "http://localhost:8081",
@@ -37,7 +37,7 @@
                 },
                 "size": "small",
                 "database": "fieldset",
-                "storage_volume": "fieldset-fieldset-test-cfg-d9a8_app-storage",
+                "storage_volume": "fieldset-fieldset-test-cfg-5895_app-storage",
                 "webhooks": "on",
                 "last_restore": null,
                 "backup": {

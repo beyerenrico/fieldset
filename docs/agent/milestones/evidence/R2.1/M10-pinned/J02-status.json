@@ -17,7 +17,7 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 134.3
+                "free_gib": 122.4
             },
             "last_backup": null,
             "last_upgrade": null,
@@ -25,7 +25,7 @@
             "mode": "domain",
             "url": "https://fieldset-test-j02.test",
             "local_url": null,
-            "project": "fieldset-fieldset-test-j02-c9ee",
+            "project": "fieldset-fieldset-test-j02-ac38",
             "port": null,
             "health": "ok",
             "services": {
@@ -80,7 +80,7 @@
                     "time": "03:30",
                     "time_zone": "Europe/Berlin",
                     "retention": 7,
-                    "next_run": "2026-10-22T01:30:00Z"
+                    "next_run": "2026-10-24T01:30:00Z"
                 },
                 "encrypted": false,
                 "directory": "<work>/fieldset-test-j02/backups",
@@ -96,7 +96,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fieldset-fieldset-test-j02-c9ee_app-storage",
+                "storage_volume": "fieldset-fieldset-test-j02-ac38_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []
@@ -114,8 +114,8 @@
                         "email": "owner@example.test",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-21T11:50:00Z",
-                        "expires_at": "2026-10-21T12:50:00Z",
+                        "created_at": "2026-10-23T11:05:42Z",
+                        "expires_at": "2026-10-23T12:05:42Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",

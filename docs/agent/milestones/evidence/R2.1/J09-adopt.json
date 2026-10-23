@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fieldset-test-j09 --adopt <work>/fieldset-test-j09-v1-<id> --yes --json",
     "exit_code": 0,
-    "seconds": 61.4,
+    "seconds": 60.6,
     "stdout": {
         "schema_version": 1,
         "command": "adopt",
@@ -9,32 +9,32 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "url": "http://localhost:63199",
+            "url": "http://localhost:57101",
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j09",
-            "project": "fieldset-fieldset-test-j09-c078",
-            "port": 63199,
+            "project": "fieldset-fieldset-test-j09-b325",
+            "port": 57101,
             "mail": {
                 "mode": "capture",
                 "catcher_url": "http://localhost:8025",
                 "catcher_login_command": "fieldset config show --catcher-login"
             },
             "adopted": {
-                "checkout": "<work>/fieldset-test-j09-v1-486a21",
-                "project": "fieldset-test-j09-v1-486a21",
+                "checkout": "<work>/fieldset-test-j09-v1-a64734",
+                "project": "fieldset-test-j09-v1-a64734",
                 "version": "1.0.0",
-                "backup": "safety-adopt-20261021T123804Z",
-                "backup_path": "<work>/fieldset-test-j09/backups/safety-adopt-20261021T123804Z",
+                "backup": "safety-adopt-20261023T115311Z",
+                "backup_path": "<work>/fieldset-test-j09/backups/safety-adopt-20261023T115311Z",
                 "verified": {
                     "counts": {
                         "activity_log": 20,
                         "attachments": 0,
                         "form_versions": 1,
                         "forms": 1,
-                        "mail_messages": 11,
+                        "mail_messages": 7,
                         "organizations": 1,
-                        "renditions": 40,
+                        "renditions": 31,
                         "submissions": 47,
                         "users": 9
                     },
@@ -80,12 +80,12 @@
                     "waited_seconds": 0
                 },
                 "volumes": {
-                    "pg-data": "fieldset-fieldset-test-j09-c078_pg-data",
-                    "app-storage": "fieldset-fieldset-test-j09-c078_app-storage"
+                    "pg-data": "fieldset-fieldset-test-j09-b325_pg-data",
+                    "app-storage": "fieldset-fieldset-test-j09-b325_app-storage"
                 },
                 "legacy_volumes": {
-                    "pg-data": "fieldset-test-j09-v1-486a21_pg-data",
-                    "app-storage": "fieldset-test-j09-v1-486a21_app-storage"
+                    "pg-data": "fieldset-test-j09-v1-a64734_pg-data",
+                    "app-storage": "fieldset-test-j09-v1-a64734_app-storage"
                 }
             },
             "pending_mail": {
@@ -95,7 +95,7 @@
             },
             "way_back": [
                 "<work>/fieldset-test-j09/fieldset uninstall (a final backup first; the 1.0 volumes were never changed)",
-                "cd <work>/fieldset-test-j09-v1-486a21 && docker compose up -d"
+                "cd <work>/fieldset-test-j09-v1-a64734 && docker compose up -d"
             ],
             "next_commands": [
                 "<work>/fieldset-test-j09/fieldset status",
@@ -120,16 +120,16 @@
         "heads": [
             {
                 "seq": 10,
-                "hash": "d50ff46fdbff3059777bc0ffcc8f3b1f585d879d2bb0b147aa067d4dfde2bb5c"
+                "hash": "f660d1aa06bd9df890a53f81669c2c63b45124953aead66b922ad3d3d8a95275"
             },
             {
                 "seq": 10,
-                "hash": "c69a2d09eec6a060e78ad854acf0f0f82bf55418a10c5f8b908177986eb17171"
+                "hash": "97d5dd43a0b7413de917c4a1232ad6d43799bf418c72b57cd56ced67e33deb00"
             }
         ]
     },
     "backup_manifest": {
-        "created_at": "20261021T123804Z",
+        "created_at": "20261023T115311Z",
         "postgres": "postgres (PostgreSQL) 16.15",
         "migrations": "40",
         "last_migration": "2026_10_23_100000_add_submissions_org_updated_at_index",
@@ -137,18 +137,18 @@
         "attachments": "0",
         "form_versions": "1",
         "forms": "1",
-        "mail_messages": "11",
+        "mail_messages": "7",
         "organizations": "1",
-        "renditions": "40",
+        "renditions": "31",
         "submissions": "47",
         "users": "9",
         "storage": "included",
         "env": "included",
         "source": "fieldset adopt",
         "version": "1.0.0",
-        "project": "fieldset-test-j09-v1-486a21",
-        "app_key_fingerprints": "c691-9d80-d8ec-896c",
-        "journal": "895ed63dd129c583"
+        "project": "fieldset-test-j09-v1-a64734",
+        "app_key_fingerprints": "3971-818d-6f31-98d6",
+        "journal": "eb4b1538f2827ac2"
     },
     "instance": {
         "submissions": 47,
@@ -156,11 +156,11 @@
         "heads": [
             {
                 "seq": 10,
-                "hash": "d50ff46fdbff3059777bc0ffcc8f3b1f585d879d2bb0b147aa067d4dfde2bb5c"
+                "hash": "f660d1aa06bd9df890a53f81669c2c63b45124953aead66b922ad3d3d8a95275"
             },
             {
                 "seq": 10,
-                "hash": "c69a2d09eec6a060e78ad854acf0f0f82bf55418a10c5f8b908177986eb17171"
+                "hash": "97d5dd43a0b7413de917c4a1232ad6d43799bf418c72b57cd56ced67e33deb00"
             }
         ]
     }

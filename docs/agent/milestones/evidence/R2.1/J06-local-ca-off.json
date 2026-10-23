@@ -15,7 +15,7 @@
             "mode": "local",
             "reverted": false,
             "previous": {
-                "url": "https://192.168.178.28",
+                "url": "https://192.168.178.24",
                 "mode": "local"
             },
             "services": {
@@ -63,7 +63,7 @@
             },
             {
                 "code": "url_changed",
-                "message": "The instance URL is now http://localhost:8081 (was https://192.168.178.28): installed home-screen apps, bookmarks and links already sent keep the old address.",
+                "message": "The instance URL is now http://localhost:8081 (was https://192.168.178.24): installed home-screen apps, bookmarks and links already sent keep the old address.",
                 "hint": "Send new invitations or document links where needed."
             }
         ],

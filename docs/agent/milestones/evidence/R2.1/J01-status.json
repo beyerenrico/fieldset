@@ -17,7 +17,7 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 134.3
+                "free_gib": 122.4
             },
             "last_backup": null,
             "last_upgrade": null,
@@ -25,7 +25,7 @@
             "mode": "local",
             "url": "http://localhost:8081",
             "local_url": "http://localhost:8081",
-            "project": "fieldset-fieldset-test-j01-7899",
+            "project": "fieldset-fieldset-test-j01-9c66",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -77,7 +77,7 @@
                     "time": "03:30",
                     "time_zone": "Europe/Berlin",
                     "retention": 7,
-                    "next_run": "2026-10-22T01:30:00Z"
+                    "next_run": "2026-10-24T01:30:00Z"
                 },
                 "encrypted": false,
                 "directory": "<work>/fieldset-test-j01/backups",
@@ -93,7 +93,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fieldset-fieldset-test-j01-7899_app-storage",
+                "storage_volume": "fieldset-fieldset-test-j01-9c66_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []

@@ -50,10 +50,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "134.2 GiB free.",
+                    "summary": "122.4 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 134.2,
+                        "free_gib": 122.4,
                         "path": "<work>/fieldset-test-j06"
                     }
                 },
@@ -113,7 +113,7 @@
                 {
                     "key": "ports",
                     "status": "ok",
-                    "summary": "Ports 8081, 8025 are served by this instance. Ports 80 and 443 on 192.168.178.28 are served by this instance's edge.",
+                    "summary": "Ports 8081, 8025 are served by this instance. Ports 80 and 443 on 192.168.178.24 are served by this instance's edge.",
                     "hint": null,
                     "details": {
                         "ports": {
@@ -122,7 +122,7 @@
                         },
                         "taken": [],
                         "lan": {
-                            "address": "192.168.178.28",
+                            "address": "192.168.178.24",
                             "ports": {
                                 "http": 80,
                                 "https": 443
@@ -142,10 +142,10 @@
                 {
                     "key": "lan_address",
                     "status": "ok",
-                    "summary": "The local CA's certificate is for 192.168.178.28, one of this host's addresses.",
+                    "summary": "The local CA's certificate is for 192.168.178.24, one of this host's addresses.",
                     "hint": null,
                     "details": {
-                        "address": "192.168.178.28"
+                        "address": "192.168.178.24"
                     }
                 },
                 {

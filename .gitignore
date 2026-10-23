@@ -45,3 +45,7 @@ Thumbs.db
 /docs/site/**/.vitepress/cache
 /docs/site/**/.vitepress/dist
 /docs/site/dist
+
+# Plans and brainstorm docs stay local (human decision 2026-10-23, QUESTIONS 79)
+/docs/plans/
+/docs/brainstorms/

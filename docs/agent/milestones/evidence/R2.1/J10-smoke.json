@@ -7,6 +7,6 @@
         "[1/3] [fieldset-instance] › tests/e2e/fieldset-smoke.spec.ts:26:3 › fresh fieldset instance › the owner link leads to setting a password",
         "[2/3] [fieldset-instance] › tests/e2e/fieldset-smoke.spec.ts:43:3 › fresh fieldset instance › the owner reaches the dashboard with the capture banner and opens the forms list",
         "[3/3] [fieldset-instance] › tests/e2e/fieldset-smoke.spec.ts:55:3 › fresh fieldset instance › the Field App loads over trusted HTTPS and registers its service worker",
-        "  3 passed (4.4s)"
+        "  3 passed (4.2s)"
     ]
 }

@@ -96,7 +96,7 @@
                 "delivered": "data"
             },
             "sign_in_link": {
-                "expires_at": "2026-10-21T12:19:50Z",
+                "expires_at": "2026-10-23T11:35:31Z",
                 "delivered": "secrets_file"
             }
         },
@@ -104,7 +104,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j06-demo-secrets.json",
-                "expires_at": "2026-10-21T12:19:50Z"
+                "expires_at": "2026-10-23T11:35:31Z"
             }
         ],
         "warnings": [],

@@ -5,8 +5,8 @@
         "2.1.0-rc.3-test",
         "2.1.0-rc.4-test"
     ],
-    "built": "2026-10-21",
-    "revision": "4c68e46608fc93ca0683835e0eff77c97436bed3",
+    "built": "2026-10-23",
+    "revision": "aa3f5c1fa30b181e65e77d632798f83142a2ff7e",
     "install": {
         "exit_code": 0,
         "version": "2.1.0-rc.1-test"
@@ -26,11 +26,11 @@
         "exit_code": 5,
         "error": {
             "code": "target_unhealthy",
-            "message": "The upgrade to 2.1.0-rc.3-test failed and was rolled back; the instance runs 2.1.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fieldset-fieldset-test-j07-2820-redis-1 Healthy \ncontainer fieldset-fieldset-test-j07-2820-app-1 is unhealthy",
+            "message": "The upgrade to 2.1.0-rc.3-test failed and was rolled back; the instance runs 2.1.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fieldset-fieldset-test-j07-b496-gotenberg-1 Healthy \ncontainer fieldset-fieldset-test-j07-b496-app-1 is unhealthy",
             "hint": "Read the logs in `data.logs` and `fieldset logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fieldset upgrade` again once the cause is fixed.",
             "retryable": true
         },
-        "acknowledged_writes": 63,
+        "acknowledged_writes": 62,
         "statuses_after_the_gate": {
             "503": 53,
             "0": 2,
@@ -46,7 +46,7 @@
             "state": "running",
             "last_phase": "quiesce",
             "last_completed_phase": "pull",
-            "started_at": "2026-10-21T12:17:25Z",
+            "started_at": "2026-10-23T11:32:59Z",
             "command": "fieldset upgrade --resume",
             "options": []
         },
@@ -56,13 +56,13 @@
             "health": "ok"
         },
         "last_history": {
-            "at": "2026-10-21T12:17:59Z",
+            "at": "2026-10-23T11:33:33Z",
             "event": "upgraded",
             "from": "2.1.0-rc.1-test",
             "to": "2.1.0-rc.2-test",
-            "journal": "880a4b8fd678f199",
-            "safety_backup": "safety-upgrade-20261021T121734Z",
-            "safety_backup_sums": "2bb1a0290af0080d2d7f284eb3c347e709ea4c1c35bb5738c577188c9bb19a00"
+            "journal": "d3cd4649405dda99",
+            "safety_backup": "safety-upgrade-20261023T113307Z",
+            "safety_backup_sums": "bb231dab97e5150600ece2a810743386698e5785159772f5e86d8a967b1f0803"
         }
     },
     "rollback": {
@@ -70,8 +70,8 @@
         "data": {
             "from": "2.1.0-rc.2-test",
             "to": "2.1.0-rc.1-test",
-            "backup": "safety-upgrade-20261021T121734Z",
-            "safety_backup": "safety-rollback-20261021T121851Z",
+            "backup": "safety-upgrade-20261023T113307Z",
+            "safety_backup": "safety-rollback-20261023T113419Z",
             "loss": {
                 "submissions": 1,
                 "activity_log": 1,
@@ -110,7 +110,7 @@
                 "webhook_endpoints_deactivated": 0
             },
             "carry_mode": "state",
-            "storage_volume": "fieldset-fieldset-test-j07-2820_app-storage-r98fd781eeb05",
+            "storage_volume": "fieldset-fieldset-test-j07-b496_app-storage-r5f30a821c04a",
             "left_behind": [],
             "webhooks": "paused"
         },
@@ -134,11 +134,11 @@
         "exit_code": 5,
         "error": {
             "code": "target_unhealthy",
-            "message": "The upgrade to 2.1.0-rc.3-test failed and was rolled back; the instance runs 2.1.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fieldset-fieldset-test-j07p-154d-postgres-1 Healthy \ncontainer fieldset-fieldset-test-j07p-154d-app-1 is unhealthy",
+            "message": "The upgrade to 2.1.0-rc.3-test failed and was rolled back; the instance runs 2.1.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fieldset-fieldset-test-j07p-d5ec-gotenberg-1 Healthy \ncontainer fieldset-fieldset-test-j07p-d5ec-app-1 is unhealthy",
             "hint": "Read the logs in `data.logs` and `fieldset logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fieldset upgrade` again once the cause is fixed.",
             "retryable": true
         },
-        "acknowledged_writes": 93,
+        "acknowledged_writes": 82,
         "statuses_after_the_gate": {
             "503": 53,
             "0": 2,

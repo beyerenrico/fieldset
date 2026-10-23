@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fieldset-test-j05-domain --version 2.1.0-alpha.1-test --org \"J5 Domain Org\" --owner-email owner@example.test --locale en --domain fieldset-test-j05.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --demo --secrets-file <work>/j05-domain-secrets.json --json",
     "exit_code": 0,
-    "seconds": 51.9,
+    "seconds": 52,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -13,7 +13,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fieldset-test-j05-domain",
-            "project": "fieldset-fieldset-test-j05-domain-4c7f",
+            "project": "fieldset-fieldset-test-j05-domain-fa57",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -26,7 +26,7 @@
                 "<work>/fieldset-test-j05-domain/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T13:00:50Z",
+                "expires_at": "2026-10-23T12:16:27Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -110,7 +110,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-domain-secrets.json",
-                "expires_at": "2026-10-21T13:00:50Z"
+                "expires_at": "2026-10-23T12:16:27Z"
             },
             {
                 "name": "demo_password:owner@demo.test",

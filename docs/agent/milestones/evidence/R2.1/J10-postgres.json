@@ -1,59 +1,59 @@
 {
     "covers": "admin-pages.mjs and api.mjs (pg_stat_reset() before them)",
-    "database_mib": 1270,
-    "blks_read": 17095166,
-    "blks_hit": 11617067,
-    "hit_pct": 40.5,
+    "database_mib": 1265,
+    "blks_read": 17216620,
+    "blks_hit": 13558616,
+    "hit_pct": 44.1,
     "temp_files": 35,
     "temp_mib": 145,
     "tables": [
         {
             "relname": "submission_values",
-            "mib": 915,
-            "heap_blks_read": 6024366,
-            "heap_blks_hit": 4174,
-            "idx_blks_read": 220193,
-            "idx_blks_hit": 26843
+            "mib": 911,
+            "heap_blks_read": 6006425,
+            "heap_blks_hit": 3728,
+            "idx_blks_read": 255868,
+            "idx_blks_hit": 26376
         },
         {
             "relname": "submissions",
             "mib": 150,
-            "heap_blks_read": 9365910,
-            "heap_blks_hit": 3620855,
-            "idx_blks_read": 53778,
-            "idx_blks_hit": 160327
+            "heap_blks_read": 9456389,
+            "heap_blks_hit": 5612611,
+            "idx_blks_read": 62247,
+            "idx_blks_hit": 153642
         },
         {
             "relname": "activity_log",
-            "mib": 106,
-            "heap_blks_read": 1191232,
-            "heap_blks_hit": 378548,
-            "idx_blks_read": 14601,
-            "idx_blks_hit": 49378
+            "mib": 105,
+            "heap_blks_read": 1196181,
+            "heap_blks_hit": 376918,
+            "idx_blks_read": 14594,
+            "idx_blks_hit": 49355
         },
         {
             "relname": "renditions",
-            "mib": 45,
-            "heap_blks_read": 23184,
-            "heap_blks_hit": 187,
+            "mib": 44,
+            "heap_blks_read": 23182,
+            "heap_blks_hit": 180,
             "idx_blks_read": 56,
             "idx_blks_hit": 614
         },
         {
             "relname": "workflow_runs",
             "mib": 19,
-            "heap_blks_read": 34855,
+            "heap_blks_read": 34957,
             "heap_blks_hit": 17026,
-            "idx_blks_read": 648,
-            "idx_blks_hit": 912
+            "idx_blks_read": 612,
+            "idx_blks_hit": 948
         },
         {
             "relname": "tasks",
             "mib": 13,
-            "heap_blks_read": 60199,
-            "heap_blks_hit": 500244,
-            "idx_blks_read": 6081,
-            "idx_blks_hit": 105366
+            "heap_blks_read": 57707,
+            "heap_blks_hit": 496817,
+            "idx_blks_read": 6159,
+            "idx_blks_hit": 90756
         }
     ],
     "settings": {

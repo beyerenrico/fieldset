@@ -13,6 +13,8 @@ from a clone of the repository (1.0) are described in the [archive](archive/1.0-
 - Linux (amd64 or arm64) with Docker Engine 24 or later, or Docker Desktop on macOS. `fieldset`
   brings its own Docker Compose.
 - At least 2 GB of memory for Docker and 4 GB of free disk space (10 GB recommended). `fieldset doctor` checks both.
+  With large data (around 100,000 submissions, a database over 1 GB) give Docker 4 GB of memory: on 2 GB, saved
+  reports, the submission explorer's search and the submissions inbox can take up to two seconds.
 - `curl`.
 - For a public instance with HTTPS: a domain whose A (and AAAA) record points to the server, and the ports 80 and
   443 free and reachable from the internet.

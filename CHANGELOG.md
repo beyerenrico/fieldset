@@ -5,7 +5,11 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## Unreleased
+## 2.1.0 — 2026-10-23
+
+The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes
+below, nothing changes in behaviour. **Breaking for every pre-release user, with no compatibility path:** old names are
+removed, not aliased (ADR 0092).
 
 ### Added
 - **Docs site** — `https://beyerenrico.github.io/fieldset/` with one copy of the guides per minor version (from 2.1),
@@ -15,17 +19,6 @@ The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.m
   the site on every run (`RELEASING.md`, "Docs site").
 - **Spec README** — states the meta-schema's SHA-256 and advises validators to bundle the schema rather than fetch
   its `$id` (no semantic change).
-
-### Changed
-- **Documentation** — ADR 0094 supersedes ADR 0042's generator and hosting decision and keeps its writing rules.
-  Placeholders such as `<organization>`, which GitHub showed as nothing, are now code spans in the guides, and a guide
-  check rejects raw HTML tags outside code.
-
-## 2.1.0 — 2026-10-22 (release candidate `v2.1.0-rc.2`)
-
-The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes
-below, nothing changes in behaviour. **Breaking for every pre-release user, with no compatibility path:** old names are
-removed, not aliased (ADR 0092).
 
 ### Changed
 - **Name** — product, repository `beyerenrico/fieldset`, image `ghcr.io/beyerenrico/fieldset`, signer identity
@@ -45,6 +38,9 @@ removed, not aliased (ADR 0092).
   1.0 must be synced before switching.
 - **Upgrades** — `release.json` upgrades from `2.1.0-alpha.1`; 2.0 pre-release instances are not upgraded. A 1.0
   checkout is still adopted with `fieldset adopt` (its 1.0 project and database defaults are kept).
+- **Documentation** — ADR 0094 supersedes ADR 0042's generator and hosting decision and keeps its writing rules.
+  Placeholders such as `<organization>`, which GitHub showed as nothing, are now code spans in the guides, and a guide
+  check rejects raw HTML tags outside code. The install guide says when Docker needs 4 GB of memory (large data).
 
 ### Fixed
 - **Stack file** — the scheduler has no disabled healthcheck any more, so `docker compose up --wait` on an instance

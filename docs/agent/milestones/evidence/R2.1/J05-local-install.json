@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fieldset-test-j05-local --version 2.1.0-alpha.1-test --org Demo --owner-email owner@example.test --locale en --demo --secrets-file <work>/j05-owner-link.json --json",
     "exit_code": 0,
-    "seconds": 52.5,
+    "seconds": 51.1,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -13,7 +13,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j05-local",
-            "project": "fieldset-fieldset-test-j05-local-885c",
+            "project": "fieldset-fieldset-test-j05-local-058e",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -27,7 +27,7 @@
                 "<work>/fieldset-test-j05-local/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T12:58:16Z",
+                "expires_at": "2026-10-23T12:13:56Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -110,7 +110,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-owner-link.json",
-                "expires_at": "2026-10-21T12:58:16Z"
+                "expires_at": "2026-10-23T12:13:56Z"
             }
         ],
         "warnings": [],

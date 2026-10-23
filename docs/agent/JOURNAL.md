@@ -428,3 +428,11 @@
 - Docs run 39940103599 (workflow_run) published the 2.1 copy; `/latest/` shows the rc notice, spec byte-identical at
   its `$id`. cosign verify/verify-blob and anonymous access to all 7 digests x 2 platforms pass from outside CI
   (`evidence/R2.1/postpublish-v2.1.0-rc.4.txt`).
+
+## 2026-10-23 plans out of git, final 2.1.0 docs (maint-final-2.1.0)
+- Human decision (QUESTIONS 79): `docs/plans/` and `docs/brainstorms/` untracked and git-ignored, kept on disk; no
+  history rewrite. AGENTS.md says plan paths in ADRs and agent records are local only.
+- Final 2.1.0 needs a docs commit (QUESTIONS 80): CHANGELOG 2.1.0 dated, Unreleased folded in; 4 GB note in the
+  install guide (decision 41/74). Query tuning: human "After final, in 2.1.x".
+- Local arm64 Install journeys on aa3f5c1f (before the final, QUESTIONS 77c): 151 passed / 7 skipped, 1 h 45 m, no
+  leftovers. Evidence in `R2.1/` (M10-pinned results copied to `R2.1/M10-pinned/`, M10 restored).
