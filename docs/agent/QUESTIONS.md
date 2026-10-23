@@ -384,3 +384,6 @@ Format: question · chosen option · impact · how to reverse.
    "Restrict deletions" and "Block force pushes" (the branch is the only copy of old builds). Optional: (e) turn off
    the repository Wiki; (f) set the repository's About website to `https://beyerenrico.github.io/fieldset/`
    · pending human review: approve each before go-live, or skip (e) and (f).
+   **78 resolved (2026-10-23):** human answer "Yes, go live (Recommended)" for (a)–(d), done by the agent via the API:
+   Pages source GitHub Actions; `github-pages` and `docs-store` deploy from `main` only; ruleset 25700020 "Docs site
+   storage (docs-site)" (deletion, non-fast-forward). (e) and (f) not decided.

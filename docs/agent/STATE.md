@@ -25,7 +25,7 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy) and 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209): refresh pins (Go ≥ 1.26.10 / 1.27.3) or renew them in a reviewed commit.
 3. QUESTIONS 77b (PDF fixture producer) open. Docs site: branch `maint-docs-site`, plan 2026-10-22-001; U1–U9, U11–U13 done,
-   code review fixed (bc2ab21b); U10 go-live needs the human settings (QUESTIONS 78).
+   code review fixed (bc2ab21b); go-live settings done (QUESTIONS 78), merged to main; publishes after the next release.
 
 ## Gate results (R2.1.md, rerun after the Go fix)
 - Static, licenses clean; PHP 7404/7404; Vitest 615/111/622/246; conformance 391/392.
