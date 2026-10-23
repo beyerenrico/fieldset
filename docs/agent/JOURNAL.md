@@ -421,3 +421,10 @@
   Chromium CVEs x 2 packages, fixed in Debian 156.0.8078.47, no Gotenberg release after 8.38.1. Dated exceptions until
   2026-11-22 per ADR 0071; local Trivy 0.76.0 scan of both platforms: clean with the file, 209 findings without.
 - Docs site merged to main (db51746e) after go-live settings (QUESTIONS 78); it publishes after the next release.
+
+## 2026-10-23 rc.4 published, docs site live (maint-state-rc4)
+- Main CI 39913717204 green on 209fe4a7; `v2.1.0-rc.4` pushed by name (human: "Yes, rc.4 when green"), local `v2.1.0`
+  moved there (not pushed). Release run 39919806861 green end to end; GitHub pre-release with 9 assets.
+- Docs run 39940103599 (workflow_run) published the 2.1 copy; `/latest/` shows the rc notice, spec byte-identical at
+  its `$id`. cosign verify/verify-blob and anonymous access to all 7 digests x 2 platforms pass from outside CI
+  (`evidence/R2.1/postpublish-v2.1.0-rc.4.txt`).
