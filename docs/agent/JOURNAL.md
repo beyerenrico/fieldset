@@ -415,3 +415,9 @@
 - `v2.1.0-rc.2` pushed on 6376edb8 (main CI 39813158091 green). Release run 39819962977 failed J09 only (147 passed):
   the drill missed 34 files of 44 renditions because 1.0's queue had rendered 10 demo PDFs. The journey now compares
   missing files with the load generator's renditions (LEARNINGS 179). A new tag (rc.3) needs the human's approval.
+
+## 2026-10-23 rc.3 scan (maint-trivy-chromium156)
+- rc.3 (2328d5f3) release run 39848976042: journeys green (J09 fix holds); the Trivy job failed on gotenberg only: 60
+  Chromium CVEs x 2 packages, fixed in Debian 156.0.8078.47, no Gotenberg release after 8.38.1. Dated exceptions until
+  2026-11-22 per ADR 0071; local Trivy 0.76.0 scan of both platforms: clean with the file, 209 findings without.
+- Docs site merged to main (db51746e) after go-live settings (QUESTIONS 78); it publishes after the next release.
