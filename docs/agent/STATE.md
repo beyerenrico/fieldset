@@ -20,13 +20,13 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 1. `v2.1.0-rc.4` (209fe4a7, human: "Yes, rc.4 when green") published as a pre-release: Release run 39919806861 green;
    post-publish checks from outside CI (cosign, anonymous access, docs) in `evidence/R2.1/postpublish-v2.1.0-rc.4.txt`.
    rc.1 is a draft, rc.2 and rc.3 have no release (pull check, J09, Trivy). Final: local `v2.1.0` moves from 209fe4a7
-   to the docs commit of `maint-final-2.1.0` (QUESTIONS 80); arm64 journeys ran locally on aa3f5c1f; push needs approval.
-   Remaining RELEASING post-publish items need real accounts or devices (SMTP, screen reader, VPS, tunnel, phones).
+   to the merge of `maint-final-2.1.0` (QUESTIONS 80, docs only); local arm64 journeys on aa3f5c1f 151 passed /
+   7 skipped (1 h 45 m). Pushing `v2.1.0` needs human approval. Other post-publish checks need real accounts/devices.
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy), 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209) and 2026-11-22 (60 Chromium 156 fixes in gotenberg 8.38.1): refresh pins
    when upstream images ship (Go >= 1.26.10 / 1.27.3, Chromium 156) or renew them in a reviewed commit.
-3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094): Docs run 39940103599 published the 2.1 copy
-   (docs-site 5f908137); `/latest/` shows the rc notice, the spec resolves at its `$id`. Open human choices: Wiki off, About website.
+3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094; Docs run 39940103599, docs-site 5f908137).
+   Open human choices: Wiki off, About website (QUESTIONS 78 e/f).
 4. Next patch 2.1.x: query tuning (QUESTIONS 41/74/80): saved reports, explorer search, inbox, API in_review series.
 
 ## Gate results (R2.1.md, rerun after the Go fix)

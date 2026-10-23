@@ -14,8 +14,8 @@
             "local_url": "http://localhost:8081",
             "tunnel": null,
             "previous": {
-                "hostname": "fieldset-test-d7851edc96.trycloudflare.com",
-                "expires_at": "2026-10-21T13:10:33Z",
+                "hostname": "fieldset-test-c5bfc19d59.trycloudflare.com",
+                "expires_at": "2026-10-23T12:26:14Z",
                 "state": "active"
             },
             "services": {

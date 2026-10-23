@@ -8,27 +8,27 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "08fd5b89-d703-44a4-ba8d-7b0e3bcab2d6",
+            "uuid": "8c88b954-953a-4524-a037-91a93c1807a5",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j03-239e-backup-1",
-                    "fieldset-fieldset-test-j03-239e-mailpit-1",
-                    "fieldset-fieldset-test-j03-239e-queue-1",
-                    "fieldset-fieldset-test-j03-239e-app-1",
-                    "fieldset-fieldset-test-j03-239e-scheduler-1",
-                    "fieldset-fieldset-test-j03-239e-gotenberg-1",
-                    "fieldset-fieldset-test-j03-239e-postgres-1",
-                    "fieldset-fieldset-test-j03-239e-redis-1"
+                    "fieldset-fieldset-test-j03-07d7-backup-1",
+                    "fieldset-fieldset-test-j03-07d7-mailpit-1",
+                    "fieldset-fieldset-test-j03-07d7-app-1",
+                    "fieldset-fieldset-test-j03-07d7-queue-1",
+                    "fieldset-fieldset-test-j03-07d7-gotenberg-1",
+                    "fieldset-fieldset-test-j03-07d7-scheduler-1",
+                    "fieldset-fieldset-test-j03-07d7-postgres-1",
+                    "fieldset-fieldset-test-j03-07d7-redis-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j03-239e_default",
-                    "fieldset-fieldset-test-j03-239e_renderer"
+                    "fieldset-fieldset-test-j03-07d7_default",
+                    "fieldset-fieldset-test-j03-07d7_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j03-239e_app-storage",
-                    "fieldset-fieldset-test-j03-239e_mailpit-data",
-                    "fieldset-fieldset-test-j03-239e_pg-data",
-                    "fieldset-fieldset-test-j03-239e_valkey-data"
+                    "fieldset-fieldset-test-j03-07d7_app-storage",
+                    "fieldset-fieldset-test-j03-07d7_mailpit-data",
+                    "fieldset-fieldset-test-j03-07d7_pg-data",
+                    "fieldset-fieldset-test-j03-07d7_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j03",
@@ -60,6 +60,6 @@
         "networks": []
     },
     "attached_after": [
-        "fieldset-test-harness-42b596-traefik-1"
+        "fieldset-test-harness-847ab6-traefik-1"
     ]
 }

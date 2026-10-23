@@ -48,10 +48,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "134.1 GiB free.",
+                    "summary": "122.9 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 134.1,
+                        "free_gib": 122.9,
                         "path": "<work>/fieldset-test-j12-ae5"
                     }
                 },
@@ -95,8 +95,8 @@
                         "a": [],
                         "aaaa": [],
                         "host_addresses": [
-                            "192.168.178.28",
-                            "192.168.178.24"
+                            "192.168.178.24",
+                            "192.168.178.28"
                         ]
                     }
                 },
@@ -159,7 +159,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/fieldset@sha256:b52ba13024da5368887563ddca1d780193874e0591b9063e8cc29f169d443b64"
+        "<registry>/beyerenrico/fieldset@sha256:99fd799bbadbb1cd33fd9773ccb1d997405a936fa8c9367ddbce0df30681e73f"
     ],
     "service_starts": []
 }

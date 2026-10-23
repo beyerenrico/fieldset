@@ -1,16 +1,16 @@
 {
     "admin_login": [
         308,
-        "https://192.168.178.28/admin/login?x=1"
+        "https://192.168.178.24/admin/login?x=1"
     ],
     "app": [
         308,
-        "https://192.168.178.28/app"
+        "https://192.168.178.24/app"
     ],
     "trust_page": {
         "status": 200,
         "hsts": null,
-        "csp": "default-src 'self'; script-src 'self' 'nonce-<redacted>' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://192.168.178.28; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+        "csp": "default-src 'self'; script-src 'self' 'nonce-<redacted>' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://192.168.178.24; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
         "set_cookie": null
     },
     "root": {

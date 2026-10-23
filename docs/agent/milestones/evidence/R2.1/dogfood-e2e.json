@@ -2,16 +2,16 @@
     "target": {
         "install": "install.sh --dir <work>/fieldset-test-dogfood --version 2.1.0-alpha.1-test --org \"Dogfood Org\" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json",
         "url": "http://localhost:8081",
-        "project": "fieldset-fieldset-test-dogfood-eb69",
+        "project": "fieldset-fieldset-test-dogfood-9210",
         "catcher": "http://localhost:8025",
         "platform": "linux/arm64"
     },
     "command": "playwright test --project=desktop --workers=2 (E2E_TARGET=fieldset, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)",
     "exit_code": 0,
-    "seconds": 148.8,
+    "seconds": 154.8,
     "stats": {
-        "startTime": "2026-10-21T11:44:33.038Z",
-        "duration": 148274.9,
+        "startTime": "2026-10-23T10:59:43.800Z",
+        "duration": 153923.788,
         "expected": 71,
         "skipped": 8,
         "unexpected": 0,
@@ -217,8 +217,9 @@
         }
     ],
     "failed": [],
+    "instance_events": [],
     "stderr": [
         "[desktop] › ../../../../../tests/e2e/m4-review.spec.ts:43:1 › journey 4: reject, resubmit, approve, PDF to the customer",
-        "[desktop] › ../../../../../tests/e2e/m4-versions.spec.ts:103:5 › journey 5: versions and re-rendering › office › re-rendering the v1 submission keeps input_hash, text and page count"
+        "[desktop] › ../../../../../tests/e2e/m4-versions.spec.ts:104:5 › journey 5: versions and re-rendering › office › re-rendering the v1 submission keeps input_hash, text and page count"
     ]
 }

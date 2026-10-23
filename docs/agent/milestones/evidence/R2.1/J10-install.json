@@ -1,9 +1,9 @@
 {
     "command": "install.sh --dir <work>/fieldset-test-j10 --version 2.1.0-alpha.1-test --org J10 Org --owner-email owner@example.test --locale en --domain fieldset-test-j10.test --acme-email ops@example.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 49,
+    "seconds": 49.3,
     "pull_seconds": 0.2,
-    "seconds_without_pull": 48.8,
+    "seconds_without_pull": 49.1,
     "target_seconds": 300,
     "verdict": "met",
     "phases": {
@@ -15,21 +15,21 @@
         "up": 6,
         "migrate": 3,
         "app_install": 2,
-        "start": 31,
+        "start": 32,
         "smoke": 4,
         "done": 0
     },
     "pull_size": {
         "platform": "linux/arm64",
         "images": {
-            "app": 160617543,
+            "app": 160616514,
             "postgres": 113892033,
             "valkey": 17937250,
             "gotenberg": 505802531,
             "mailpit": 16830700,
             "caddy": 23637011
         },
-        "total_bytes": 838717068,
+        "total_bytes": 838716039,
         "seconds_at_100_mbit": 67.1
     },
     "stdout": {
@@ -43,7 +43,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fieldset-test-j10",
-            "project": "fieldset-fieldset-test-j10-0f0a",
+            "project": "fieldset-fieldset-test-j10-e029",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -56,7 +56,7 @@
                 "<work>/fieldset-test-j10/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T13:41:21Z",
+                "expires_at": "2026-10-23T12:56:28Z",
                 "delivered": "secrets_file"
             }
         },
@@ -64,7 +64,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-21T13:41:21Z"
+                "expires_at": "2026-10-23T12:56:28Z"
             }
         ],
         "warnings": [],
@@ -73,111 +73,111 @@
     "stderr_ndjson": [
         {
             "at": 0.2,
-            "line": "{\"ts\":\"2026-10-21T12:41:08Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.1.0-alpha.1-test from http://127.0.0.1:62324\"}"
+            "line": "{\"ts\":\"2026-10-23T11:56:15Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.1.0-alpha.1-test from http://127.0.0.1:54999\"}"
         },
         {
             "at": 0.61,
-            "line": "{\"ts\":\"2026-10-21T12:41:08Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/fieldset@sha256:b52ba13024da5368887563ddca1d780193874e0591b9063e8cc29f169d443b64\"}"
+            "line": "{\"ts\":\"2026-10-23T11:56:15Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/fieldset@sha256:99fd799bbadbb1cd33fd9773ccb1d997405a936fa8c9367ddbce0df30681e73f\"}"
         },
         {
-            "at": 0.81,
-            "line": "{\"ts\":\"2026-10-21T12:41:08Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fieldset install 2.1.0-alpha.1-test in <work>/fieldset-test-j10\"}"
+            "at": 0.82,
+            "line": "{\"ts\":\"2026-10-23T11:56:15Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fieldset install 2.1.0-alpha.1-test in <work>/fieldset-test-j10\"}"
         },
         {
-            "at": 1.62,
-            "line": "{\"ts\":\"2026-10-21T12:41:09Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}"
+            "at": 1.44,
+            "line": "{\"ts\":\"2026-10-23T11:56:16Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}"
         },
         {
-            "at": 2.63,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 1 s\",\"elapsed_seconds\":1}"
+            "at": 2.46,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 1 s\",\"elapsed_seconds\":1}"
         },
         {
-            "at": 2.63,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}"
+            "at": 2.46,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}"
         },
         {
-            "at": 2.63,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}"
+            "at": 2.46,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}"
         },
         {
-            "at": 2.83,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}"
+            "at": 2.46,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}"
         },
         {
-            "at": 2.83,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}"
+            "at": 2.7,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}"
         },
         {
-            "at": 2.83,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}"
+            "at": 2.7,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}"
         },
         {
-            "at": 3.05,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}"
+            "at": 2.7,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}"
         },
         {
-            "at": 3.05,
-            "line": "{\"ts\":\"2026-10-21T12:41:10Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}"
+            "at": 2.7,
+            "line": "{\"ts\":\"2026-10-23T11:56:17Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}"
         },
         {
-            "at": 8.91,
-            "line": "{\"ts\":\"2026-10-21T12:41:16Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}"
+            "at": 8.77,
+            "line": "{\"ts\":\"2026-10-23T11:56:23Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}"
         },
         {
-            "at": 8.91,
-            "line": "{\"ts\":\"2026-10-21T12:41:16Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}"
+            "at": 8.77,
+            "line": "{\"ts\":\"2026-10-23T11:56:23Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}"
         },
         {
-            "at": 11.6,
-            "line": "{\"ts\":\"2026-10-21T12:41:19Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 3 s\",\"elapsed_seconds\":3}"
+            "at": 11.57,
+            "line": "{\"ts\":\"2026-10-23T11:56:26Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 3 s\",\"elapsed_seconds\":3}"
         },
         {
-            "at": 11.6,
-            "line": "{\"ts\":\"2026-10-21T12:41:19Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}"
+            "at": 11.57,
+            "line": "{\"ts\":\"2026-10-23T11:56:26Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}"
         },
         {
-            "at": 13.38,
-            "line": "{\"ts\":\"2026-10-21T12:41:21Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 2 s\",\"elapsed_seconds\":2}"
+            "at": 13.44,
+            "line": "{\"ts\":\"2026-10-23T11:56:28Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 2 s\",\"elapsed_seconds\":2}"
         },
         {
-            "at": 13.38,
-            "line": "{\"ts\":\"2026-10-21T12:41:21Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}"
+            "at": 13.7,
+            "line": "{\"ts\":\"2026-10-23T11:56:28Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}"
         },
         {
-            "at": 44.69,
-            "line": "{\"ts\":\"2026-10-21T12:41:52Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 31 s\",\"elapsed_seconds\":31}"
+            "at": 45.2,
+            "line": "{\"ts\":\"2026-10-23T11:57:00Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 32 s\",\"elapsed_seconds\":32}"
         },
         {
-            "at": 44.69,
-            "line": "{\"ts\":\"2026-10-21T12:41:52Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 23 min)\",\"max_seconds\":1415}"
+            "at": 45.2,
+            "line": "{\"ts\":\"2026-10-23T11:57:00Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 23 min)\",\"max_seconds\":1415}"
         },
         {
-            "at": 45.3,
-            "line": "{\"ts\":\"2026-10-21T12:41:53Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Waiting for the certificate for fieldset-test-j10.test (attempt 1/40, 0 s of at most 420 s)\",\"attempt\":1,\"attempts\":40,\"elapsed_seconds\":0,\"max_seconds\":420}"
+            "at": 45.61,
+            "line": "{\"ts\":\"2026-10-23T11:57:00Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Waiting for the certificate for fieldset-test-j10.test (attempt 1/40, 0 s of at most 420 s)\",\"attempt\":1,\"attempts\":40,\"elapsed_seconds\":0,\"max_seconds\":420}"
         },
         {
-            "at": 45.71,
-            "line": "{\"ts\":\"2026-10-21T12:41:53Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}"
+            "at": 46.24,
+            "line": "{\"ts\":\"2026-10-23T11:57:01Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}"
         },
         {
-            "at": 47.39,
-            "line": "{\"ts\":\"2026-10-21T12:41:55Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}"
+            "at": 47.68,
+            "line": "{\"ts\":\"2026-10-23T11:57:02Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}"
         },
         {
-            "at": 48.63,
-            "line": "{\"ts\":\"2026-10-21T12:41:56Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}"
+            "at": 48.91,
+            "line": "{\"ts\":\"2026-10-23T11:57:03Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}"
         },
         {
-            "at": 48.83,
-            "line": "{\"ts\":\"2026-10-21T12:41:56Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 4 s\",\"elapsed_seconds\":4}"
+            "at": 49.11,
+            "line": "{\"ts\":\"2026-10-23T11:57:04Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 4 s\",\"elapsed_seconds\":4}"
         },
         {
-            "at": 48.83,
-            "line": "{\"ts\":\"2026-10-21T12:41:56Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}"
+            "at": 49.11,
+            "line": "{\"ts\":\"2026-10-23T11:57:04Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}"
         },
         {
-            "at": 48.83,
-            "line": "{\"ts\":\"2026-10-21T12:41:56Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
+            "at": 49.11,
+            "line": "{\"ts\":\"2026-10-23T11:57:04Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
         }
     ]
 }

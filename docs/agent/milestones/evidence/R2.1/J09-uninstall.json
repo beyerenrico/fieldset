@@ -1,7 +1,7 @@
 {
     "commands": [
         "fieldset uninstall --yes --json",
-        "docker compose up -d --wait (in the checkout)"
+        "docker compose up -d (in the checkout), then waits until it is up"
     ],
     "exit_code": 0,
     "stdout": {
@@ -11,27 +11,27 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "1197c422-a0ab-4873-982a-d568965243fc",
+            "uuid": "6f298ead-b7ba-42d1-8ba5-6a2d532bc63e",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j09-c078-backup-1",
-                    "fieldset-fieldset-test-j09-c078-scheduler-1",
-                    "fieldset-fieldset-test-j09-c078-queue-1",
-                    "fieldset-fieldset-test-j09-c078-app-1",
-                    "fieldset-fieldset-test-j09-c078-mailpit-1",
-                    "fieldset-fieldset-test-j09-c078-gotenberg-1",
-                    "fieldset-fieldset-test-j09-c078-redis-1",
-                    "fieldset-fieldset-test-j09-c078-postgres-1"
+                    "fieldset-fieldset-test-j09-b325-backup-1",
+                    "fieldset-fieldset-test-j09-b325-scheduler-1",
+                    "fieldset-fieldset-test-j09-b325-queue-1",
+                    "fieldset-fieldset-test-j09-b325-app-1",
+                    "fieldset-fieldset-test-j09-b325-mailpit-1",
+                    "fieldset-fieldset-test-j09-b325-gotenberg-1",
+                    "fieldset-fieldset-test-j09-b325-redis-1",
+                    "fieldset-fieldset-test-j09-b325-postgres-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j09-c078_default",
-                    "fieldset-fieldset-test-j09-c078_renderer"
+                    "fieldset-fieldset-test-j09-b325_default",
+                    "fieldset-fieldset-test-j09-b325_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j09-c078_app-storage-raa771bc80464",
-                    "fieldset-fieldset-test-j09-c078_mailpit-data",
-                    "fieldset-fieldset-test-j09-c078_pg-data",
-                    "fieldset-fieldset-test-j09-c078_valkey-data"
+                    "fieldset-fieldset-test-j09-b325_app-storage-r28cc3909b377",
+                    "fieldset-fieldset-test-j09-b325_mailpit-data",
+                    "fieldset-fieldset-test-j09-b325_pg-data",
+                    "fieldset-fieldset-test-j09-b325_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j09",
@@ -53,29 +53,29 @@
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261021T124025Z",
-                "backup": "final-20261021T124025Z",
+                "dir": "backups/final-20261023T115531Z",
+                "backup": "final-20261023T115531Z",
                 "encrypted": false,
                 "includes_secrets": false,
-                "key_file": "backups/final-20261021T124025Z.app-key.env",
-                "missing_files": 43
+                "key_file": "backups/final-20261023T115531Z.app-key.env",
+                "missing_files": 33
             },
             "adopted": {
-                "checkout": "<work>/fieldset-test-j09-v1-486a21",
-                "project": "fieldset-test-j09-v1-486a21",
-                "backup": "safety-adopt-20261021T123804Z",
+                "checkout": "<work>/fieldset-test-j09-v1-a64734",
+                "project": "fieldset-test-j09-v1-a64734",
+                "backup": "safety-adopt-20261023T115311Z",
                 "pending": false,
                 "legacy_changed": false,
                 "writes_since_adopt": {
-                    "audit_entries": 6,
+                    "audit_entries": 13,
                     "rows": {
-                        "activity_log": 6,
-                        "renditions": 8,
+                        "activity_log": 13,
+                        "renditions": 14,
                         "submissions": 3
                     },
                     "any": true
                 },
-                "restart_1_0": "cd <work>/fieldset-test-j09-v1-486a21 && docker compose up -d",
+                "restart_1_0": "cd <work>/fieldset-test-j09-v1-a64734 && docker compose up -d",
                 "jobs_in_1_0": {
                     "left": 0,
                     "delayed": 0,
@@ -87,23 +87,23 @@
         "warnings": [
             {
                 "code": "files_missing",
-                "message": "43 file(s) the database references were not in storage; manifest.json lists them.",
+                "message": "33 file(s) the database references were not in storage; manifest.json lists them.",
                 "hint": null
             },
             {
                 "code": "app_key_beside_backup",
-                "message": "The APP keys are in plaintext (0600) in <work>/fieldset-test-j09/backups/final-20261021T124025Z.app-key.env, beside the final backup.",
-                "hint": "Keep that file as safe as the backup. `install.sh --dir <work>/fieldset-test-j09 --from-backup <work>/fieldset-test-j09/backups/final-20261021T124025Z --app-key-file <work>/fieldset-test-j09/backups/final-20261021T124025Z.app-key.env` brings it back (install.sh takes a directory that holds only backups/; the instance's own fieldset is gone)."
+                "message": "The APP keys are in plaintext (0600) in <work>/fieldset-test-j09/backups/final-20261023T115531Z.app-key.env, beside the final backup.",
+                "hint": "Keep that file as safe as the backup. `install.sh --dir <work>/fieldset-test-j09 --from-backup <work>/fieldset-test-j09/backups/final-20261023T115531Z --app-key-file <work>/fieldset-test-j09/backups/final-20261023T115531Z.app-key.env` brings it back (install.sh takes a directory that holds only backups/; the instance's own fieldset is gone)."
             },
             {
                 "code": "restart_1_0",
                 "message": "The 1.0 install this instance was adopted from is stopped; its volumes were not changed since the adopt.",
-                "hint": "Bring it back with: cd <work>/fieldset-test-j09-v1-486a21 && docker compose up -d"
+                "hint": "Bring it back with: cd <work>/fieldset-test-j09-v1-a64734 && docker compose up -d"
             },
             {
                 "code": "writes_since_adopt",
-                "message": "Data written since adopt (6 audit entries, row changes {\"activity_log\":6,\"renditions\":8,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261021T124025Z.",
-                "hint": "To get it back, create a 2.0 instance from it with `fieldset install --from-backup <work>/fieldset-test-j09/backups/final-20261021T124025Z` (the final backup's own warning names its keys)."
+                "message": "Data written since adopt (13 audit entries, row changes {\"activity_log\":13,\"renditions\":14,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261023T115531Z.",
+                "hint": "To get it back, create a 2.0 instance from it with `fieldset install --from-backup <work>/fieldset-test-j09/backups/final-20261023T115531Z` (the final backup's own warning names its keys)."
             }
         ],
         "errors": []
@@ -119,11 +119,11 @@
         "heads": [
             {
                 "seq": 10,
-                "hash": "d50ff46fdbff3059777bc0ffcc8f3b1f585d879d2bb0b147aa067d4dfde2bb5c"
+                "hash": "f660d1aa06bd9df890a53f81669c2c63b45124953aead66b922ad3d3d8a95275"
             },
             {
                 "seq": 10,
-                "hash": "c69a2d09eec6a060e78ad854acf0f0f82bf55418a10c5f8b908177986eb17171"
+                "hash": "97d5dd43a0b7413de917c4a1232ad6d43799bf418c72b57cd56ced67e33deb00"
             }
         ]
     }

@@ -8,20 +8,20 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261021T122444Z",
-            "path": "<work>/fieldset-test-j08/backups/manual-20261021T122444Z",
+            "backup": "manual-20261023T114011Z",
+            "path": "<work>/fieldset-test-j08/backups/manual-20261023T114011Z",
             "kind": "manual",
-            "created_at": "2026-10-21T12:24:44Z",
-            "bytes": 498556,
+            "created_at": "2026-10-23T11:40:11Z",
+            "bytes": 498579,
             "encrypted": false,
             "includes_secrets": false,
-            "app_key_fingerprint": "af90-0c5b-b904-6b85",
+            "app_key_fingerprint": "7572-692e-d9f3-d3d0",
             "files": {
                 "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 143938338816
+            "free_bytes": 131315023872
         },
         "secrets": [],
         "warnings": [
@@ -81,12 +81,12 @@
         "schema_version": "1.0",
         "format": "fieldset-backup",
         "kind": "manual",
-        "name": "manual-20261021T122444Z",
-        "created_at": "2026-10-21T12:24:44Z",
-        "completed_at": "2026-10-21T12:24:44Z",
+        "name": "manual-20261023T114011Z",
+        "created_at": "2026-10-23T11:40:11Z",
+        "completed_at": "2026-10-23T11:40:12Z",
         "instance": {
-            "uuid": "8b58a68d-f157-418d-998d-694504e75768",
-            "project": "fieldset-fieldset-test-j08-f2d1",
+            "uuid": "8a91814d-b991-4a32-a648-f20a87dfe58a",
+            "project": "fieldset-fieldset-test-j08-d97a",
             "version": "2.1.0-alpha.1-test",
             "mode": "local"
         },
@@ -158,7 +158,7 @@
             "changed_while_archived": false
         },
         "app_key_fingerprints": [
-            "af90-0c5b-b904-6b85"
+            "7572-692e-d9f3-d3d0"
         ],
         "hmac": {
             "algorithm": "hmac-sha256",
@@ -171,19 +171,19 @@
         "files": {
             "audit-heads.json": {
                 "bytes": 447,
-                "sha256": "8dff40f746482c4875184f0eee007982b07085f18e3183557fa3bb7e62cf8059"
+                "sha256": "4a7cadb39e89e365ccf9a4538a89a98914ddb88ee22c9478d778f5d0cd25f60a"
             },
             "database.dump": {
-                "bytes": 491484,
-                "sha256": "71141e26cddff28c2c7f499c349ee7eb5d885ecb9474de16c6ed7dfa6d1e08fc"
+                "bytes": 491502,
+                "sha256": "a689e2dd0a668e581258faf34259a86d8517e7973331c4d12207484ad5fcc0c4"
             },
             "settings.json": {
                 "bytes": 373,
-                "sha256": "d6597470d030969092a86e86dcf92acbdc64a041433f6dfc83ba8bf49d4a72c3"
+                "sha256": "0c486408e1787414873a12239773b30efccba269e0bd265155a41680d0b9bd3b"
             },
             "storage.tar.gz": {
-                "bytes": 1042,
-                "sha256": "23b6ead2fcc40eb59d68d97019fb1410ad9e3239aea950cf951662bc02b70ea8"
+                "bytes": 1047,
+                "sha256": "acf37863389a406727bbbf091827b9eef3694aebf96cb7efa8093a1a1ba5f5a8"
             }
         }
     },

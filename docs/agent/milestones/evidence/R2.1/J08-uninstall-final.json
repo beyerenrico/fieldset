@@ -8,30 +8,30 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "3c43dd89-4517-468b-9343-78aa73828ea6",
+            "uuid": "1811638a-3416-410a-9e91-18819fa28c3d",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j08b-4425-edge-1",
-                    "fieldset-fieldset-test-j08b-4425-backup-1",
-                    "fieldset-fieldset-test-j08b-4425-mailpit-1",
-                    "fieldset-fieldset-test-j08b-4425-app-1",
-                    "fieldset-fieldset-test-j08b-4425-queue-1",
-                    "fieldset-fieldset-test-j08b-4425-scheduler-1",
-                    "fieldset-fieldset-test-j08b-4425-gotenberg-1",
-                    "fieldset-fieldset-test-j08b-4425-postgres-1",
-                    "fieldset-fieldset-test-j08b-4425-redis-1"
+                    "fieldset-fieldset-test-j08b-a944-edge-1",
+                    "fieldset-fieldset-test-j08b-a944-mailpit-1",
+                    "fieldset-fieldset-test-j08b-a944-backup-1",
+                    "fieldset-fieldset-test-j08b-a944-queue-1",
+                    "fieldset-fieldset-test-j08b-a944-app-1",
+                    "fieldset-fieldset-test-j08b-a944-gotenberg-1",
+                    "fieldset-fieldset-test-j08b-a944-scheduler-1",
+                    "fieldset-fieldset-test-j08b-a944-postgres-1",
+                    "fieldset-fieldset-test-j08b-a944-redis-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j08b-4425_default",
-                    "fieldset-fieldset-test-j08b-4425_edge",
-                    "fieldset-fieldset-test-j08b-4425_renderer"
+                    "fieldset-fieldset-test-j08b-a944_default",
+                    "fieldset-fieldset-test-j08b-a944_edge",
+                    "fieldset-fieldset-test-j08b-a944_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j08b-4425_app-storage-rc7c3065910c1",
-                    "fieldset-fieldset-test-j08b-4425_edge-data",
-                    "fieldset-fieldset-test-j08b-4425_mailpit-data",
-                    "fieldset-fieldset-test-j08b-4425_pg-data",
-                    "fieldset-fieldset-test-j08b-4425_valkey-data"
+                    "fieldset-fieldset-test-j08b-a944_app-storage-rf70160d6bb25",
+                    "fieldset-fieldset-test-j08b-a944_edge-data",
+                    "fieldset-fieldset-test-j08b-a944_mailpit-data",
+                    "fieldset-fieldset-test-j08b-a944_pg-data",
+                    "fieldset-fieldset-test-j08b-a944_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j08b",
@@ -54,8 +54,8 @@
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261021T123441Z",
-                "backup": "final-20261021T123441Z",
+                "dir": "backups/final-20261023T114939Z",
+                "backup": "final-20261023T114939Z",
                 "encrypted": true,
                 "includes_secrets": true,
                 "key_file": null,
@@ -66,8 +66,8 @@
         "warnings": [
             {
                 "code": "final_backup_encrypted",
-                "message": "The final backup <work>/fieldset-test-j08b/backups/final-20261021T123441Z is encrypted and carries the APP keys.",
-                "hint": "`install.sh --dir <work>/fieldset-test-j08b --from-backup <work>/fieldset-test-j08b/backups/final-20261021T123441Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
+                "message": "The final backup <work>/fieldset-test-j08b/backups/final-20261023T114939Z is encrypted and carries the APP keys.",
+                "hint": "`install.sh --dir <work>/fieldset-test-j08b --from-backup <work>/fieldset-test-j08b/backups/final-20261023T114939Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
             },
             {
                 "code": "certificates_removed",

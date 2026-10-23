@@ -10,7 +10,7 @@
         "data": {
             "key": "mail",
             "from": "capture",
-            "to": "smtp://fieldset-test-j04-smtp-2f95:1025 (catcher kept)",
+            "to": "smtp://fieldset-test-j04-smtp-4962:1025 (catcher kept)",
             "url": "http://localhost:8081",
             "mode": "local",
             "reverted": true,
@@ -21,12 +21,12 @@
             },
             "failure": {
                 "error": "test_mail_failed",
-                "server": "smtp://fieldset-test-j04-smtp-2f95:1025 (catcher kept)"
+                "server": "smtp://fieldset-test-j04-smtp-4962:1025 (catcher kept)"
             },
             "fix_first": "Check the SMTP host, port, encryption (starttls needs a server that offers STARTTLS; a relay without TLS takes --smtp-encryption none), user name and password against what the server answered (data.failure). Then run the command again; the previous mail settings stay until a test mail goes through.",
-            "command": "fieldset config set mail smtp --smtp-host fieldset-test-j04-smtp-2f95 --smtp-port 1025 --smtp-username <the same user name> --password-stdin --from-address forms@example.test --yes",
+            "command": "fieldset config set mail smtp --smtp-host fieldset-test-j04-smtp-4962 --smtp-port 1025 --smtp-username <the same user name> --password-stdin --from-address forms@example.test --yes",
             "options": {
-                "--smtp-host": "fieldset-test-j04-smtp-2f95",
+                "--smtp-host": "fieldset-test-j04-smtp-4962",
                 "--smtp-port": "1025",
                 "--smtp-username": "<the same user name>",
                 "--password-stdin": true,

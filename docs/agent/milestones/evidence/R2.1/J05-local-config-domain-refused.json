@@ -1,7 +1,7 @@
 {
     "command": "fieldset config set domain fieldset-test-j05.test --yes --json",
     "exit_code": 3,
-    "seconds": 5.2,
+    "seconds": 4.8,
     "stdout": {
         "schema_version": 1,
         "command": "config",

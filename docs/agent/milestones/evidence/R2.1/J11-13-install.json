@@ -1,9 +1,9 @@
 {
-    "guide_line": 440,
+    "guide_line": 442,
     "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --version <old-version> --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes",
     "command": "sh '<harness>/dist/download/v2.1.0-alpha.1-test/install.sh' --version 2.1.0-alpha.1-test --dir <work>/fieldset-test-j11-forms-new --from-backup <work>/fieldset-test-j11-forms-move/backup.tar.age --identity-file <work>/fieldset-test-j11-forms-move/identity.age --passphrase-file <work>/fieldset-test-j11-forms-passphrase --app-key-file <work>/fieldset-test-j11-forms-move/app-key.env --secrets-file <work>/fieldset-test-j11-forms-new-secrets.json --json --yes",
     "exit_code": 0,
-    "seconds": 55.2,
+    "seconds": 54.2,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -15,7 +15,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j11-forms-new",
-            "project": "fieldset-fieldset-test-j11-forms-new-65aa",
+            "project": "fieldset-fieldset-test-j11-forms-new-f273",
             "port": 8082,
             "mail": {
                 "mode": "capture",
@@ -28,28 +28,28 @@
                 "format": "fieldset",
                 "authenticated": true,
                 "encrypted": true,
-                "created_at": "2026-10-21T13:15:46Z",
+                "created_at": "2026-10-23T12:30:44Z",
                 "version": "2.1.0-alpha.1-test",
                 "epoch": 3,
                 "recipients": {
                     "listed": [
-                        "age14psew25jaxl46s2xc5j247mk5hpzmccjc6qlj9wrcp7tp0xq390qth8cxj"
+                        "age1gjgg7ewju6ew8ryzq9t7chalre4s4nh84nvsrfupz5t2vayjn9ds846xce"
                     ],
                     "kept": []
                 }
             },
             "pending_mail": {
-                "host": "fieldset-test-j11-smtp-21bb",
+                "host": "fieldset-test-j11-smtp-e02f",
                 "port": 1025,
                 "scheme": "smtp",
                 "encryption": "none",
                 "from_address": "forms@example.com",
-                "command": "fieldset config set mail smtp --smtp-host fieldset-test-j11-smtp-21bb --smtp-port 1025 --smtp-encryption none --from-address forms@example.com --smtp-username <account> --password-file <file>"
+                "command": "fieldset config set mail smtp --smtp-host fieldset-test-j11-smtp-e02f --smtp-port 1025 --smtp-encryption none --from-address forms@example.com --smtp-username <account> --password-file <file>"
             },
             "webhooks": "paused",
             "confirm_commands": [
                 "fieldset config set webhooks on",
-                "fieldset config set mail smtp --smtp-host fieldset-test-j11-smtp-21bb --smtp-port 1025 --smtp-encryption none --from-address forms@example.com --smtp-username <account> --password-file <file>"
+                "fieldset config set mail smtp --smtp-host fieldset-test-j11-smtp-e02f --smtp-port 1025 --smtp-encryption none --from-address forms@example.com --smtp-username <account> --password-file <file>"
             ],
             "sign_in_link": null,
             "next_commands": [
@@ -77,7 +77,7 @@
             },
             {
                 "code": "backup_recipients_not_kept",
-                "message": "The backup lists the age recipient(s) age14psew25jaxl46s2xc5j247mk5hpzmccjc6qlj9wrcp7tp0xq390qth8cxj; they were not taken over, so new backups are not encrypted.",
+                "message": "The backup lists the age recipient(s) age1gjgg7ewju6ew8ryzq9t7chalre4s4nh84nvsrfupz5t2vayjn9ds846xce; they were not taken over, so new backups are not encrypted.",
                 "hint": "If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`."
             }
         ],

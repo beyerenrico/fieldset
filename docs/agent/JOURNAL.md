@@ -434,3 +434,5 @@
   history rewrite. AGENTS.md says plan paths in ADRs and agent records are local only.
 - Final 2.1.0 needs a docs commit (QUESTIONS 80): CHANGELOG 2.1.0 dated, Unreleased folded in; 4 GB note in the
   install guide (decision 41/74). Query tuning: human "After final, in 2.1.x".
+- Local arm64 Install journeys on aa3f5c1f (before the final, QUESTIONS 77c): 151 passed / 7 skipped, 1 h 45 m, no
+  leftovers. Evidence in `R2.1/` (M10-pinned results copied to `R2.1/M10-pinned/`, M10 restored).

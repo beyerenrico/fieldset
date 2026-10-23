@@ -1,9 +1,9 @@
 {
-    "guide_line": 465,
+    "guide_line": 467,
     "guide_command": "~/forms/fieldset uninstall --keep-backups --yes --json",
     "command": "<work>/fieldset-test-j11-forms/fieldset uninstall --keep-backups --yes --json",
     "exit_code": 0,
-    "seconds": 6.7,
+    "seconds": 6.6,
     "stdout": {
         "schema_version": 1,
         "command": "uninstall",
@@ -11,27 +11,27 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "61c3fb3a-2507-4883-b425-f5513d9f8c04",
+            "uuid": "d5b529d5-e078-44a6-9b29-136dec321fa4",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j11-forms-80dc-backup-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-queue-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-scheduler-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-app-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-mailpit-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-gotenberg-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-postgres-1",
-                    "fieldset-fieldset-test-j11-forms-80dc-redis-1"
+                    "fieldset-fieldset-test-j11-forms-50aa-backup-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-queue-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-scheduler-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-app-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-mailpit-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-gotenberg-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-postgres-1",
+                    "fieldset-fieldset-test-j11-forms-50aa-redis-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j11-forms-80dc_default",
-                    "fieldset-fieldset-test-j11-forms-80dc_renderer"
+                    "fieldset-fieldset-test-j11-forms-50aa_default",
+                    "fieldset-fieldset-test-j11-forms-50aa_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j11-forms-80dc_app-storage-rd3adcf2948a1",
-                    "fieldset-fieldset-test-j11-forms-80dc_mailpit-data",
-                    "fieldset-fieldset-test-j11-forms-80dc_pg-data",
-                    "fieldset-fieldset-test-j11-forms-80dc_valkey-data"
+                    "fieldset-fieldset-test-j11-forms-50aa_app-storage-rfeb2ce38ddd8",
+                    "fieldset-fieldset-test-j11-forms-50aa_mailpit-data",
+                    "fieldset-fieldset-test-j11-forms-50aa_pg-data",
+                    "fieldset-fieldset-test-j11-forms-50aa_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j11-forms",
@@ -53,8 +53,8 @@
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261021T131647Z",
-                "backup": "final-20261021T131647Z",
+                "dir": "backups/final-20261023T123145Z",
+                "backup": "final-20261023T123145Z",
                 "encrypted": true,
                 "includes_secrets": true,
                 "key_file": null,
@@ -65,8 +65,8 @@
         "warnings": [
             {
                 "code": "final_backup_encrypted",
-                "message": "The final backup <work>/fieldset-test-j11-forms/backups/final-20261021T131647Z is encrypted and carries the APP keys.",
-                "hint": "`install.sh --dir <work>/fieldset-test-j11-forms --from-backup <work>/fieldset-test-j11-forms/backups/final-20261021T131647Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
+                "message": "The final backup <work>/fieldset-test-j11-forms/backups/final-20261023T123145Z is encrypted and carries the APP keys.",
+                "hint": "`install.sh --dir <work>/fieldset-test-j11-forms --from-backup <work>/fieldset-test-j11-forms/backups/final-20261023T123145Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
             }
         ],
         "errors": []

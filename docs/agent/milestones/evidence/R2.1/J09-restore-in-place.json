@@ -1,5 +1,5 @@
 {
-    "command": "fieldset restore safety-adopt-20261021T123804Z --accept-unauthenticated --yes --json",
+    "command": "fieldset restore safety-adopt-20261023T115311Z --accept-unauthenticated --yes --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -8,14 +8,14 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "safety-adopt-20261021T123804Z",
+            "backup": "safety-adopt-20261023T115311Z",
             "format": "legacy",
             "authenticated": false,
             "encrypted": false,
-            "created_at": "20261021T123804Z",
+            "created_at": "20261023T115311Z",
             "backup_version": null,
-            "url": "http://localhost:63199",
-            "storage_volume": "fieldset-fieldset-test-j09-c078_app-storage-raa771bc80464",
+            "url": "http://localhost:57101",
+            "storage_volume": "fieldset-fieldset-test-j09-b325_app-storage-r28cc3909b377",
             "epoch": 2,
             "previous_epoch": 1,
             "carried": {
@@ -63,7 +63,7 @@
                 "tested": 2,
                 "failed": []
             },
-            "safety_backup": "safety-restore-20261021T123919Z",
+            "safety_backup": "safety-restore-20261023T115425Z",
             "safety_backup_sealed": false,
             "keys_added": [],
             "valkey_flushed": true,

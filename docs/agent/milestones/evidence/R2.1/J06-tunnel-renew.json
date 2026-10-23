@@ -9,24 +9,24 @@
         "changed": true,
         "data": {
             "action": "renew",
-            "url": "https://fieldset-test-d7851edc96.trycloudflare.com",
+            "url": "https://fieldset-test-c5bfc19d59.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fieldset-test-d7851edc96.trycloudflare.com",
-                "expires_at": "2026-10-21T13:10:33Z",
-                "peer": "10.215.184.2",
+                "hostname": "fieldset-test-c5bfc19d59.trycloudflare.com",
+                "expires_at": "2026-10-23T12:26:14Z",
+                "peer": "10.215.124.98",
                 "admin": false,
-                "url": "https://fieldset-test-d7851edc96.trycloudflare.com",
+                "url": "https://fieldset-test-c5bfc19d59.trycloudflare.com",
                 "state": "active"
             },
-            "previous_expires_at": "2026-10-21T13:09:59Z"
+            "previous_expires_at": "2026-10-23T12:25:39Z"
         },
         "secrets": [],
         "warnings": [
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel now expires at 2026-10-21T13:10:33Z.",
+                "message": "The tunnel now expires at 2026-10-23T12:26:14Z.",
                 "hint": null
             }
         ],

@@ -1,7 +1,7 @@
 {
     "command": "fieldset reset --demo --no-backup --yes --secrets-file <work>/j05-domain-reset.json --json",
     "exit_code": 0,
-    "seconds": 70.2,
+    "seconds": 70.7,
     "stdout": {
         "schema_version": 1,
         "command": "reset",
@@ -19,17 +19,17 @@
             "organization": "J5 Domain Org",
             "owner_email": "owner@example.test",
             "safety_backup": null,
-            "audit_export": "audit-export-reset-20261021T120144Z.jsonl",
+            "audit_export": "audit-export-reset-20261023T111721Z.jsonl",
             "epoch": 2,
             "previous_epoch": 1,
-            "storage_volume": "fieldset-fieldset-test-j05-domain-4c7f_app-storage-reset-1a015a7118ab",
+            "storage_volume": "fieldset-fieldset-test-j05-domain-fa57_app-storage-reset-8d7d5e3c3fe1",
             "flushed": {
                 "valkey": true,
                 "catcher": true
             },
             "left_behind": [],
             "removed": [
-                "volume fieldset-fieldset-test-j05-domain-4c7f_app-storage"
+                "volume fieldset-fieldset-test-j05-domain-fa57_app-storage"
             ],
             "next_commands": [
                 "<work>/fieldset-test-j05-domain/fieldset status",
@@ -37,7 +37,7 @@
                 "<work>/fieldset-test-j05-domain/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T13:01:52Z",
+                "expires_at": "2026-10-23T12:17:29Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -121,7 +121,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-domain-reset.json",
-                "expires_at": "2026-10-21T13:01:52Z"
+                "expires_at": "2026-10-23T12:17:29Z"
             },
             {
                 "name": "demo_password:owner@demo.test",
@@ -172,7 +172,7 @@
         "warnings": [
             {
                 "code": "no_backup",
-                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261021T120144Z.jsonl.",
+                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261023T111721Z.jsonl.",
                 "hint": null
             }
         ],
@@ -193,7 +193,7 @@
     "export_header": {
         "format": "fieldset-audit-export",
         "version": "1.0",
-        "exported_at": "2026-10-21T12:01:45Z",
+        "exported_at": "2026-10-23T11:17:22Z",
         "epoch": 1,
         "entries": 34
     },

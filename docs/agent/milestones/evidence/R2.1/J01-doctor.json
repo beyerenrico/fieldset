@@ -50,10 +50,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "134.3 GiB free.",
+                    "summary": "122.4 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 134.3,
+                        "free_gib": 122.4,
                         "path": "<work>/fieldset-test-j01"
                     }
                 },

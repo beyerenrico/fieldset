@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fieldset-test-j01 --version 2.1.0-alpha.1-test --org \"Journey Org\" --owner-email owner@example.test --owner-name \"Jo Owner\" --locale en --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 47.3,
+    "seconds": 48.1,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -13,7 +13,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j01",
-            "project": "fieldset-fieldset-test-j01-7899",
+            "project": "fieldset-fieldset-test-j01-9c66",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -27,7 +27,7 @@
                 "<work>/fieldset-test-j01/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T12:49:02Z",
+                "expires_at": "2026-10-23T12:04:41Z",
                 "delivered": "secrets_file"
             }
         },
@@ -35,38 +35,38 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-21T12:49:02Z"
+                "expires_at": "2026-10-23T12:04:41Z"
             }
         ],
         "warnings": [],
         "errors": []
     },
     "stderr_ndjson": [
-        "{\"ts\":\"2026-10-21T11:48:50Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.1.0-alpha.1-test from http://127.0.0.1:62324\"}",
-        "{\"ts\":\"2026-10-21T11:48:50Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/fieldset@sha256:b52ba13024da5368887563ddca1d780193874e0591b9063e8cc29f169d443b64\"}",
-        "{\"ts\":\"2026-10-21T11:48:50Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fieldset install 2.1.0-alpha.1-test in <work>/fieldset-test-j01\"}",
-        "{\"ts\":\"2026-10-21T11:48:51Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 1 s\",\"elapsed_seconds\":1}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-21T11:48:52Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}",
-        "{\"ts\":\"2026-10-21T11:48:58Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}",
-        "{\"ts\":\"2026-10-21T11:48:58Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}",
-        "{\"ts\":\"2026-10-21T11:49:01Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 3 s\",\"elapsed_seconds\":3}",
-        "{\"ts\":\"2026-10-21T11:49:01Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}",
-        "{\"ts\":\"2026-10-21T11:49:02Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 2 s\",\"elapsed_seconds\":2}",
-        "{\"ts\":\"2026-10-21T11:49:02Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}",
-        "{\"ts\":\"2026-10-21T11:49:33Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 31 s\",\"elapsed_seconds\":31}",
-        "{\"ts\":\"2026-10-21T11:49:33Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 14 min)\",\"max_seconds\":875}",
-        "{\"ts\":\"2026-10-21T11:49:34Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}",
-        "{\"ts\":\"2026-10-21T11:49:35Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}",
-        "{\"ts\":\"2026-10-21T11:49:36Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}",
-        "{\"ts\":\"2026-10-21T11:49:37Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 3 s\",\"elapsed_seconds\":3}",
-        "{\"ts\":\"2026-10-21T11:49:37Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}",
-        "{\"ts\":\"2026-10-21T11:49:37Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
+        "{\"ts\":\"2026-10-23T11:04:28Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.1.0-alpha.1-test from http://127.0.0.1:54999\"}",
+        "{\"ts\":\"2026-10-23T11:04:28Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/fieldset@sha256:99fd799bbadbb1cd33fd9773ccb1d997405a936fa8c9367ddbce0df30681e73f\"}",
+        "{\"ts\":\"2026-10-23T11:04:29Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fieldset install 2.1.0-alpha.1-test in <work>/fieldset-test-j01\"}",
+        "{\"ts\":\"2026-10-23T11:04:29Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 1 s\",\"elapsed_seconds\":1}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-23T11:04:31Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}",
+        "{\"ts\":\"2026-10-23T11:04:37Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}",
+        "{\"ts\":\"2026-10-23T11:04:37Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}",
+        "{\"ts\":\"2026-10-23T11:04:39Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 3 s\",\"elapsed_seconds\":3}",
+        "{\"ts\":\"2026-10-23T11:04:39Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}",
+        "{\"ts\":\"2026-10-23T11:04:41Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 2 s\",\"elapsed_seconds\":2}",
+        "{\"ts\":\"2026-10-23T11:04:41Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}",
+        "{\"ts\":\"2026-10-23T11:05:12Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 32 s\",\"elapsed_seconds\":32}",
+        "{\"ts\":\"2026-10-23T11:05:12Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 14 min)\",\"max_seconds\":875}",
+        "{\"ts\":\"2026-10-23T11:05:13Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}",
+        "{\"ts\":\"2026-10-23T11:05:14Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}",
+        "{\"ts\":\"2026-10-23T11:05:15Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}",
+        "{\"ts\":\"2026-10-23T11:05:16Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 3 s\",\"elapsed_seconds\":3}",
+        "{\"ts\":\"2026-10-23T11:05:16Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}",
+        "{\"ts\":\"2026-10-23T11:05:16Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
     ]
 }

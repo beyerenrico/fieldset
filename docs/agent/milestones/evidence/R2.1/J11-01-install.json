@@ -1,9 +1,9 @@
 {
-    "guide_line": 144,
+    "guide_line": 146,
     "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --dir ~/forms --org \"Example Ltd\" --owner-email owner@example.com --demo --secrets-file ~/forms-secrets.json --json --yes",
     "command": "sh '<harness>/dist/download/v2.1.0-alpha.1-test/install.sh' --version '2.1.0-alpha.1-test' --dir <work>/fieldset-test-j11-forms --org \"Example Ltd\" --owner-email owner@example.com --demo --secrets-file <work>/fieldset-test-j11-forms-secrets.json --json --yes",
     "exit_code": 0,
-    "seconds": 50.9,
+    "seconds": 50.5,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -15,7 +15,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j11-forms",
-            "project": "fieldset-fieldset-test-j11-forms-80dc",
+            "project": "fieldset-fieldset-test-j11-forms-50aa",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -29,7 +29,7 @@
                 "<work>/fieldset-test-j11-forms/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T14:11:35Z",
+                "expires_at": "2026-10-23T13:26:34Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -112,7 +112,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/fieldset-test-j11-forms-secrets.json",
-                "expires_at": "2026-10-21T14:11:35Z"
+                "expires_at": "2026-10-23T13:26:34Z"
             }
         ],
         "warnings": [],
