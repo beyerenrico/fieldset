@@ -429,6 +429,8 @@
   its `$id`. cosign verify/verify-blob and anonymous access to all 7 digests x 2 platforms pass from outside CI
   (`evidence/R2.1/postpublish-v2.1.0-rc.4.txt`).
 
-## 2026-10-23 plans out of git (maint-untrack-plans)
+## 2026-10-23 plans out of git, final 2.1.0 docs (maint-final-2.1.0)
 - Human decision (QUESTIONS 79): `docs/plans/` and `docs/brainstorms/` untracked and git-ignored, kept on disk; no
   history rewrite. AGENTS.md says plan paths in ADRs and agent records are local only.
+- Final 2.1.0 needs a docs commit (QUESTIONS 80): CHANGELOG 2.1.0 dated, Unreleased folded in; 4 GB note in the
+  install guide (decision 41/74). Query tuning: human "After final, in 2.1.x".

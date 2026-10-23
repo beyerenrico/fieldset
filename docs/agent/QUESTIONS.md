@@ -396,3 +396,9 @@ Format: question · chosen option · impact · how to reverse.
    **79 resolved (2026-10-23):** `docs/plans/` and `docs/brainstorms/` removed from the index (`git rm --cached`) and
    git-ignored; the files stay on the human's disk; history is not rewritten. `docs/agent/` stays tracked (restart
    protocol). Paths to plans in ADRs and agent records stay as written (AGENTS.md notes they are local only).
+80. Final 2.1.0 commit and query tuning (2026-10-23). The CHANGELOG at the rc.4 commit still titled 2.1.0 "release
+   candidate rc.2" with a separate Unreleased section, and the 4 GB note (decision 41/74) was in no guide, so the final
+   tag needs a docs commit after rc.4 (the guides are not in the app image). Query tuning ("moves to 2.1", 41/74):
+   human answer "After final, in 2.1.x (Recommended)".
+   **80 resolved (2026-10-23):** CHANGELOG 2.1.0 dated 2026-10-23 with the docs site folded in; the install guide's
+   requirements say when Docker needs 4 GB; tuning is the next patch.
