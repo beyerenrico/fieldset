@@ -64,6 +64,8 @@ removed, not aliased (ADR 0092).
   base built with Go 1.27.3 and the Docker CLI 29.9.2 (Go 1.26.10); cloudflared moves to 2026.10.2 (Go 1.27.3). The
   postgres (gosu), Gotenberg, Mailpit and Caddy images have no release with the fixed Go yet: dated scan exceptions
   until 2026-11-20 (ADR 0093).
+- **Chromium in Gotenberg** — 60 high Chromium findings (fixed in Debian's Chromium 156) in Gotenberg 8.38.1, the
+  latest release: dated scan exceptions until 2026-11-22, until Gotenberg ships an image with the fix (ADR 0071).
 
 ## 2.0.0 — 2026-10-21 (tagged locally, not published)
 

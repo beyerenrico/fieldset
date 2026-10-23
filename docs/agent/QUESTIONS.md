@@ -377,6 +377,9 @@ Format: question · chosen option · impact · how to reverse.
    stays for the human to delete.
    Human answer "Fix first, then rc.2 (Recommended)" for the canvas builder's stale inspector found by that CI run: rc.2
    is tagged on the merge of `maint-release-rc2` (pull-check fix plus the builder fix).
+   rc.2's release failed J09 (timing-dependent assertion); human answer "Yes, rc.3 when green (Recommended)". rc.3's
+   release failed the third-party scan (60 Chromium CVEs in gotenberg 8.38.1, no newer image); dated exceptions until
+   2026-11-22 (ADR 0071); human answer "Yes, rc.4 when green (Recommended)".
 78. Docs site go-live settings (2026-10-22, plan `docs/plans/2026-10-22-001-feat-docs-site-plan.md` U10, ADR 0094,
    `RELEASING.md` "Docs site"): repository settings the `Docs` workflow relies on, none of them made by the agent:
    (a) Pages source "GitHub Actions"; (b) environment `github-pages` deploying from `main` only; (c) environment

@@ -18,12 +18,13 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 ## Next actions
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
-1. `v2.1.0-rc.1` (d393ffa4) stays a draft (verify-public "cannot overwrite digest"). `v2.1.0-rc.2` on 6376edb8 (merge
-   of `maint-release-rc2`, QUESTIONS 77e): Release run 39819962977 failed J09 only (timing-dependent assertion; fix
-   merged to main as 2328d5f3, LEARNINGS 179). Next: rc.3 on main after green CI (human: "Yes, rc.3 when green"), move
-   local `v2.1.0` there. Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
-2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy) and 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
-   mailpit, caddy; cloudflared CVE-2026-63209): refresh pins (Go ≥ 1.26.10 / 1.27.3) or renew them in a reviewed commit.
+1. `v2.1.0-rc.1` and `-rc.2` stay unpublished drafts (pull check; J09). `v2.1.0-rc.3` on 2328d5f3: its Release run
+   39848976042 passed the journeys, then the third-party scan failed on 60 new Chromium findings in gotenberg 8.38.1
+   (no newer image). Branch `maint-trivy-chromium156` adds dated exceptions (ADR 0071); rc.4 needs human approval.
+   Local `v2.1.0` on 2328d5f3 (move with the next rc). Before `v2.1.0`: local arm64 journeys (human: "Skip for the rc").
+2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy), 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
+   mailpit, caddy; cloudflared CVE-2026-63209) and 2026-11-22 (60 Chromium 156 fixes in gotenberg 8.38.1): refresh pins
+   when upstream images ship (Go >= 1.26.10 / 1.27.3, Chromium 156) or renew them in a reviewed commit.
 3. QUESTIONS 77b (PDF fixture producer) open. Docs site: branch `maint-docs-site`, plan 2026-10-22-001; U1–U9, U11–U13 done,
    code review fixed (bc2ab21b); go-live settings done (QUESTIONS 78), merged to main; publishes after the next release.
 
