@@ -4,10 +4,10 @@
   "copies": [
     {
       "minor": "2.1",
-      "version": "2.1.0-rc.4",
-      "tag": "v2.1.0-rc.4",
-      "prerelease": true,
-      "builtWith": "209fe4a77b9beb94902de2853e380af4e4ea0e15"
+      "version": "2.1.0",
+      "tag": "v2.1.0",
+      "prerelease": false,
+      "builtWith": "2c224db844c7d1f3846021b5840fbb08c3773039"
     }
   ]
 }
