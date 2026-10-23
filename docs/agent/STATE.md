@@ -1,4 +1,4 @@
-# State: 2026-10-22 — Fieldset 2.1.0: rc.1 draft blocked by the pull check, fix on its way to rc.2
+# State: 2026-10-23 — Fieldset 2.1.0-rc.4 published; docs site live with the 2.1 copy
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
 Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
 ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
@@ -16,17 +16,17 @@ amendment; CI run 39747027552 lost the SSO start token). Human decisions 2026-10
 commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old dev resources deleted (77d).
 
 ## Next actions
-0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
-   runs (02:17 UTC): fix a red one before anything else.
-1. `v2.1.0-rc.1` and `-rc.2` stay unpublished drafts (pull check; J09). `v2.1.0-rc.3` on 2328d5f3: its Release run
-   39848976042 passed the journeys, then the third-party scan failed on 60 new Chromium findings in gotenberg 8.38.1
-   (no newer image). Branch `maint-trivy-chromium156` adds dated exceptions (ADR 0071); rc.4 needs human approval.
-   Local `v2.1.0` on 2328d5f3 (move with the next rc). Before `v2.1.0`: local arm64 journeys (human: "Skip for the rc").
+0. Nightly `Install journeys` runs (02:17 UTC): fix a red one before anything else.
+1. `v2.1.0-rc.4` (209fe4a7, human: "Yes, rc.4 when green") published as a pre-release: Release run 39919806861 green;
+   post-publish checks from outside CI (cosign, anonymous access, docs) in `evidence/R2.1/postpublish-v2.1.0-rc.4.txt`.
+   rc.1 is a draft, rc.2 and rc.3 have no release (pull check, J09, Trivy). Local `v2.1.0` on 209fe4a7, not pushed:
+   pushing it needs human approval, and local arm64 journeys first (human: "Skip for the rc", run before the final).
+   Remaining RELEASING post-publish items need real accounts or devices (SMTP, screen reader, VPS, tunnel, phones).
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy), 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209) and 2026-11-22 (60 Chromium 156 fixes in gotenberg 8.38.1): refresh pins
    when upstream images ship (Go >= 1.26.10 / 1.27.3, Chromium 156) or renew them in a reviewed commit.
-3. QUESTIONS 77b (PDF fixture producer) open. Docs site: branch `maint-docs-site`, plan 2026-10-22-001; U1–U9, U11–U13 done,
-   code review fixed (bc2ab21b); go-live settings done (QUESTIONS 78), merged to main; publishes after the next release.
+3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094): Docs run 39940103599 published the 2.1 copy
+   (docs-site 5f908137); `/latest/` shows the rc notice, the spec resolves at its `$id`. Open human choices: Wiki off, About website.
 
 ## Gate results (R2.1.md, rerun after the Go fix)
 - Static, licenses clean; PHP 7404/7404; Vitest 615/111/622/246; conformance 391/392.
