@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "latest": "2.1",
+  "copies": [
+    {
+      "minor": "2.1",
+      "version": "2.1.0-rc.4",
+      "tag": "v2.1.0-rc.4",
+      "prerelease": true,
+      "builtWith": "209fe4a77b9beb94902de2853e380af4e4ea0e15"
+    }
+  ]
+}
