@@ -428,3 +428,7 @@
 - Docs run 39940103599 (workflow_run) published the 2.1 copy; `/latest/` shows the rc notice, spec byte-identical at
   its `$id`. cosign verify/verify-blob and anonymous access to all 7 digests x 2 platforms pass from outside CI
   (`evidence/R2.1/postpublish-v2.1.0-rc.4.txt`).
+
+## 2026-10-23 plans out of git (maint-untrack-plans)
+- Human decision (QUESTIONS 79): `docs/plans/` and `docs/brainstorms/` untracked and git-ignored, kept on disk; no
+  history rewrite. AGENTS.md says plan paths in ADRs and agent records are local only.

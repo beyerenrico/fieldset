@@ -390,3 +390,9 @@ Format: question · chosen option · impact · how to reverse.
    **78 resolved (2026-10-23):** human answer "Yes, go live (Recommended)" for (a)–(d), done by the agent via the API:
    Pages source GitHub Actions; `github-pages` and `docs-store` deploy from `main` only; ruleset 25700020 "Docs site
    storage (docs-site)" (deletion, non-fast-forward). (e) and (f) not decided.
+79. Plans out of git (2026-10-23). Human: "Currently the plans are checked into the repository. I would like to remove
+   them from git." Answers "Untrack, keep locally (Recommended)" and, for `docs/brainstorms/`, "Yes, same treatment
+   (Recommended)".
+   **79 resolved (2026-10-23):** `docs/plans/` and `docs/brainstorms/` removed from the index (`git rm --cached`) and
+   git-ignored; the files stay on the human's disk; history is not rewritten. `docs/agent/` stays tracked (restart
+   protocol). Paths to plans in ADRs and agent records stay as written (AGENTS.md notes they are local only).

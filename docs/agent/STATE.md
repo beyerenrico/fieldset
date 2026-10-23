@@ -1,6 +1,6 @@
 # State: 2026-10-23 — Fieldset 2.1.0-rc.4 published; docs site live with the 2.1 copy
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
-Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
+Rename to Fieldset (human decision, QUESTIONS 1/25; plans and brainstorms are local only, QUESTIONS 79;
 ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
 merged into `rename-fieldset`, which is merged `--no-ff` into `main`; local tags `rename-done` and annotated `v2.1.0` on
 that merge commit. No tag pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.

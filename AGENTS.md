@@ -2,10 +2,10 @@
 
 Autonomous build, now at v2. Specs (never edit): `docs/agent/BUILD_PROMPT_V2.md` (2.0: Docker
 distribution; its CLI `fsa` is now `fieldset`) and `docs/agent/BUILD_PROMPT.md` (product spec for everything 2.0 does not
-change). Implementation plan: `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`
-(units U1–U23, KTDs, test scenarios); the rename to Fieldset (2.1.0):
-`docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`; the docs site (ADR 0094):
-`docs/plans/2026-10-22-001-feat-docs-site-plan.md`. No human is available: never ask, never wait. Decide per
+change). Plans (`docs/plans/`) and brainstorm docs (`docs/brainstorms/`) are local only and git-ignored (human
+decision 2026-10-23, QUESTIONS 79); paths to them in ADRs and `docs/agent/` records may not exist in a clone: v2
+`2026-10-17-001-feat-docker-distribution-v2-plan.md` (U1–U23), rename `2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
+docs site `2026-10-22-001-feat-docs-site-plan.md` (ADR 0094). No human is available: never ask, never wait. Decide per
 spec §0/§15, record ADRs in `docs/adr/`, log human-review items in `docs/agent/QUESTIONS.md`.
 
 ## Restart protocol (every new session / after compaction) — BUILD_PROMPT_V2 §15.3
