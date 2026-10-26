@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Docker\CliDockerGateway;
+use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\Docker\SymfonyCommandRunner;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Release\ManifestSchema;
@@ -10,6 +11,7 @@ use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\Release\SignerIdentity;
 use App\Domain\Instance\Release\TrustPolicy;
 use App\Domain\Instance\State\InstanceState;
+use Carbon\CarbonImmutable;
 use Symfony\Component\Process\Process;
 use Tests\Support\Docker\Cosign;
 use Tests\Support\Docker\ReleaseHarness;
@@ -142,14 +144,43 @@ function bootstrapInstall(object $test, string $name, array $arguments = [], arr
     return [$process, $directory];
 }
 
+/** A state as 2.1.1's install saves it (U3, KTD5): the measured in-container owner and the runtime it was measured under. */
 function bootstrapWriteState(object $test, string $directory): void
 {
     $uid = posix_getuid();
-    // The in-container owner UID (KTD2): 0 under Docker Desktop, where container root writes as the host user.
-    $desktop = PHP_OS_FAMILY === 'Darwin' || str_contains((string) shell_exec('docker info --format "{{.OperatingSystem}}"'), 'Docker Desktop');
-    $state = InstanceState::create('6a0f3c1e-2b4d-4e8f-9a1b-3c5d7e9f0a2b', $directory, $uid, posix_getgid(), $desktop ? 0 : $uid)
-        ->withRelease(ReleaseHarness::version(), ['app' => $test->appReference]);
+    $state = InstanceState::create('6a0f3c1e-2b4d-4e8f-9a1b-3c5d7e9f0a2b', $directory, $uid, posix_getgid(), bootstrapMeasuredOwner($test, $directory))
+        ->withRelease(ReleaseHarness::version(), ['app' => $test->appReference])
+        ->withOwnerMeasurement(bootstrapRuntime(), null, CarbonImmutable::now('UTC'));
     file_put_contents($directory.'/state.json', $state->toJson());
+}
+
+/**
+ * The in-container owner as the shim measures it (2.1.1 U3, KTD2): container root of the app image reads the owner of a
+ * file the host user wrote, here install.sh's marker. 0 means container root is the host user (Docker Desktop, rootless),
+ * the host UID that IDs pass through (rootful Linux, WSL 2). Only a root reader tells them apart: Docker Desktop for macOS
+ * shows a host file as owned by whoever reads it (the image's default user www-data would see 33). Any other value is a
+ * host the shim refuses (owner_mapping_unknown), where these journeys cannot run.
+ */
+function bootstrapMeasuredOwner(object $test, string $directory): int
+{
+    $process = new Process(['docker', 'run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'stat',
+        '-v', "{$directory}:{$directory}:ro", $test->appReference, '-L', '-c', '%u', $directory.'/.fieldset-instance']);
+    $process->setTimeout(120);
+    $process->run();
+    $owner = trim($process->getOutput());
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and($owner)->toBeIn(['0', (string) posix_getuid()], "Containers see the host user's files as UID {$owner}: the shim stops there (owner_mapping_unknown).");
+
+    return (int) $owner;
+}
+
+/** The runtime the shim detects by product name (KTD3: still per run, for the socket and when to measure again). */
+function bootstrapRuntime(): DockerRuntime
+{
+    $desktop = PHP_OS_FAMILY === 'Darwin' || str_contains((string) shell_exec('docker info --format "{{.OperatingSystem}}"'), 'Docker Desktop');
+
+    return $desktop ? DockerRuntime::Desktop : DockerRuntime::Rootful;
 }
 
 it('(a) runs nothing from a truncated install.sh', function (): void {
@@ -214,7 +245,7 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
     $calls = bootstrapDockerCalls($this);
     $order = array_map(fn (array $call): string => $call[0].(in_array($call[0], ['pull', 'run'], true) ? ' '.implode(' ', array_slice($call, -2)) : ''), $calls);
     $ops = array_values(array_filter($calls, fn (array $call): bool => $call[0] === 'run' && in_array('fieldset', $call, true)))[0];
-    $desktop = PHP_OS_FAMILY === 'Darwin' || str_contains((string) shell_exec('docker info --format "{{.OperatingSystem}}"'), 'Docker Desktop');
+    $owner = bootstrapMeasuredOwner($this, $directory); // what the shim's measuring container read before the ops container
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
         ->and(array_search('create', $order, true))->toBeLessThan(array_search('pull -q '.$this->appReference, $order, true))
@@ -229,12 +260,12 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and($probe['env'])->toMatchArray([
             'HOME' => '/run/fieldset-home', 'DOCKER_CONFIG' => '/run/fieldset-home/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock',
             'FIELDSET_LAUNCHER' => 'install.sh', 'FIELDSET_TTY' => '0', 'FIELDSET_HOST_UID' => (string) posix_getuid(), 'FIELDSET_HOST_GID' => (string) posix_getgid(),
-            'FIELDSET_INSTANCE_DIR' => $directory, 'FIELDSET_DOCKER_RUNTIME' => $desktop ? 'desktop' : 'rootful',
-            'FIELDSET_CONTAINER_UID' => $desktop ? '0' : (string) posix_getuid(), 'FIELDSET_REGISTRY' => $this->harness->registry(),
+            'FIELDSET_INSTANCE_DIR' => $directory, 'FIELDSET_DOCKER_RUNTIME' => bootstrapRuntime()->value,
+            'FIELDSET_CONTAINER_UID' => (string) $owner, 'FIELDSET_OWNER_SOURCE' => 'measured', 'FIELDSET_REGISTRY' => $this->harness->registry(),
             'FIELDSET_RELEASE_MANIFEST' => "{$directory}/releases/".ReleaseHarness::version().'/release-manifest.json',
             'FIELDSET_TRUST_KEY' => realpath($this->harness->cosign->publicKey()),
         ])
-        ->and($probe['uid'])->toBe($desktop ? 0 : posix_getuid())
+        ->and($probe['uid'])->toBe($owner)
         ->and(substr(sprintf('%o', fileperms($directory)), -3))->toBe('700')
         ->and(file_get_contents($directory.'/fieldset'))->toBe(file_get_contents(TestImage::repository().'/distribution/shim.sh'))
         ->and(file_get_contents($directory.'/releases/'.ReleaseHarness::version().'/release-manifest.json'))->toBe(file_get_contents($this->release->manifestPath()))

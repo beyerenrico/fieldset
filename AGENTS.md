@@ -47,7 +47,7 @@ API_VERSION=dev php artisan scramble:export --path=storage/agent-logs/openapi.js
 node docs/site/scripts/build.mjs dev --out <empty dir> --export storage/agent-logs/openapi.json   # local site build, all checks
 node docs/site/scripts/build.mjs dev --out <empty dir> --stub-export   # same without a database (stub API reference)
 # docs site publish/redeploy: RELEASING.md "Docs site" (dispatch only an existing tag or mode=redeploy; never create tags)
-docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fieldset distribution/*.sh
+docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fieldset distribution/*.sh scripts/wsl/facts.sh
 docker run --rm -i hadolint/hadolint:v2.15.1 hadolint - < docker/app/Dockerfile
 docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
 ```

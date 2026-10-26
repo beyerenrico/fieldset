@@ -20,6 +20,15 @@ use Tests\Support\Instance\InstanceCommandFixture;
 
 const LAUNCHER_IMAGE = 'ghcr.io/beyerenrico/fieldset@sha256:2222222222222222222222222222222222222222222222222222222222222222';
 
+/**
+ * The SHA-256 of distribution/shim.sh per `fieldset_shim_version` (2.1.1 U8). ScriptRefresh hands the image's script only
+ * to instances whose script declares a lower version, so a release that changes the shim without raising the version never
+ * reaches upgraded instances. Older entries stay as a record of what each version shipped.
+ */
+const SHIM_SHA256 = [
+    1 => '97b04c85bfe2f83b81ff18bfb92e50b369d6cabbc1cb1786d5c529e0f8834bd5', // 2.1.1
+];
+
 beforeEach(function (): void {
     $this->scripts = new DistributionScripts;
     mkdir($this->scripts->root.'/home');
@@ -50,6 +59,17 @@ it('declares its version once, as a plain number the image reads', function (): 
         ->and($this->version)->toBeGreaterThanOrEqual(1)
         ->and(LauncherScript::bundled()?->version)->toBe($this->version)
         ->and($this->scripts->source(base_path('distribution/shim.sh'), 'printf %s "$fieldset_shim_version"')->getOutput())->toBe((string) $this->version);
+});
+
+it('pins the shim to its declared version, so a release that changes the shim raises fieldset_shim_version (KTD7)', function (): void {
+    $hash = hash_file('sha256', base_path('distribution/shim.sh'));
+    $pinned = max(array_keys(SHIM_SHA256));
+    $fix = 'Raise fieldset_shim_version in distribution/shim.sh when the shim changes for a release, then update the pinned hash '
+        .'in SHIM_SHA256 (tests/Unit/Distribution/LauncherVersionTest.php); a change to a version no release has shipped yet only '
+        .'updates its hash.';
+
+    expect($this->version)->toBe($pinned, "fieldset_shim_version is {$this->version}, the newest pinned version {$pinned}. {$fix}")
+        ->and(SHIM_SHA256[$this->version] ?? null)->toBe($hash, "distribution/shim.sh changed (SHA-256 {$hash}) but still declares fieldset_shim_version={$this->version}. {$fix}");
 });
 
 it('passes its version to the ops container (KTD7)', function (): void {
