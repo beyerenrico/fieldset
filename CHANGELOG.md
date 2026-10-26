@@ -49,6 +49,10 @@ guessing it.
 - **Ownership hint** — a mismatch names both owners and `fieldset repair-ownership`, never a chown of files that already
   belong to you (ADR 0095).
 
+### Security
+- **Livewire 4.4.8** — fixes an authorization bypass in Livewire's `#[Authorize]` with reordered parameter keys and the
+  `#[Json]` execution order (GHSA-mhf7-xp6r-6qrc; 2.1.0 shipped 4.4.7).
+
 ## 2.1.0 — 2026-10-23
 
 The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes
