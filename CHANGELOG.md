@@ -52,6 +52,8 @@ guessing it.
 ### Security
 - **Livewire 4.4.8** — fixes an authorization bypass in Livewire's `#[Authorize]` with reordered parameter keys and the
   `#[Json]` execution order (GHSA-mhf7-xp6r-6qrc; 2.1.0 shipped 4.4.7).
+- **Docs site API reference** — `@scalar/api-reference` 1.76.0 pulls a fixed undici (GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472,
+  GHSA-xjj6-f33q-929c); a docs-site dependency, not part of the app or its image (ADR 0094).
 
 ## 2.1.0 — 2026-10-23
 

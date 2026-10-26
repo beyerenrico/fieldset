@@ -22,7 +22,7 @@ Constraints found while planning:
 ## Decision
 **Generator.** VitePress `2.0.0-alpha.20`, pinned exactly. The human chose the alpha over 1.6 (requirements,
 "Dependencies / Assumptions"); it uses Vite 8 like the rest of the repo. Beside it, `github-slugger` `2.0.0` gives
-GitHub-compatible anchors and `@scalar/api-reference` `1.75.0` renders the interactive reference. The Scalar page is
+GitHub-compatible anchors and `@scalar/api-reference` `1.75.0` renders the interactive reference (amended 2026-10-27: `1.76.0`, for the undici advisories GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472 and GHSA-xjj6-f33q-929c). The Scalar page is
 vendored from the lockfile-checked `node_modules` at build time: never committed, never loaded from a CDN (ADR 0040
 lists CDN scripts without SRI as an open gap).
 
