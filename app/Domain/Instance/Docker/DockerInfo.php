@@ -36,6 +36,12 @@ final readonly class DockerInfo
         );
     }
 
+    /** On a WSL 2 host: Docker Desktop or Docker Engine in the distro, by the prefix of OperatingSystem (as the shim reads it). */
+    public function wslBackend(): WslBackend
+    {
+        return WslBackend::fromOperatingSystem($this->operatingSystem);
+    }
+
     /** `amd64` or `arm64` (Docker reports `x86_64` and `aarch64`), else what the engine said. */
     public function platformArchitecture(): string
     {

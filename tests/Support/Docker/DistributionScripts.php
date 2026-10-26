@@ -18,10 +18,18 @@ use Symfony\Component\Process\Process;
  * file is HTTP 404, exit 22), STUB_CURL_EXIT (a network failure: that curl exit code, HTTP code 000) and STUB_UNAME
  * (`uname -s`). Every docker call also logs its subcommand with the DOCKER_DEFAULT_PLATFORM it saw (`dockerPlatforms()`),
  * and the ops-container dump includes that variable next to the FIELDSET_* ones.
+ *
+ * The launchers read the kernel release, the WSL interop marker and the mount table under FIELDSET_TEST_PROC instead of
+ * /proc. It points at `<root>/proc`, empty unless a test writes there (`proc()`, `wsl()`), so a run on a WSL or Linux
+ * machine sees no host of its own; WSL_DISTRO_NAME is unset unless a test passes it.
  */
 final readonly class DistributionScripts
 {
     public string $root;
+
+    public const string WSL2_KERNEL = '6.6.87.2-microsoft-standard-WSL2';
+
+    public const string WSL1_KERNEL = '4.4.0-19041-Microsoft';
 
     public string $bin;
 
@@ -135,6 +143,25 @@ final readonly class DistributionScripts
         return $this->write($name, $contents);
     }
 
+    /** Writes a file the launchers read under FIELDSET_TEST_PROC, e.g. `mounts` or `sys/kernel/osrelease`. */
+    public function proc(string $file, string $contents): void
+    {
+        $path = $this->root.'/proc/'.$file;
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0700, true);
+        }
+        file_put_contents($path, $contents);
+    }
+
+    /** A WSL host: its kernel release and, unless null, the interop marker binfmt_misc registers. */
+    public function wsl(string $kernel = self::WSL2_KERNEL, ?string $marker = 'WSLInterop'): void
+    {
+        $this->proc('sys/kernel/osrelease', $kernel."\n");
+        if ($marker !== null) {
+            $this->proc('sys/fs/binfmt_misc/'.$marker, "enabled\n");
+        }
+    }
+
     public function cleanUp(): void
     {
         // The shared parent stays (git-ignored): removing it while it is momentarily empty races another parallel
@@ -164,6 +191,8 @@ final readonly class DistributionScripts
             'DISPLAY' => false,
             'WAYLAND_DISPLAY' => false,
             'SSH_CONNECTION' => false,
+            'WSL_DISTRO_NAME' => false,
+            'FIELDSET_TEST_PROC' => $this->root.'/proc',
             'TZ' => 'Europe/Berlin',
             ...$env,
         ]);

@@ -8,8 +8,9 @@
 #
 # The first argument that is not a flag (or a flag's value) is the command; `--dir <instance>` goes right after
 # it. HOME and DOCKER_CONFIG live on a container-private tmpfs, and no mount may cover a system path of the
-# image or a directory other users can write to (fieldset_reserved_path, LaunchGuard). With --json, stdout carries only
-# the command's JSON document and stderr only NDJSON events (KTD3). Docker's DOCKER_DEFAULT_PLATFORM, when set
+# image or a directory other users can write to (fieldset_reserved_path, LaunchGuard). On WSL it refuses WSL 1 and an
+# instance directory on a Windows drive, and names the Docker Desktop step when Docker is missing or down. With --json,
+# stdout carries only the command's JSON document and stderr only NDJSON events (KTD3). Docker's DOCKER_DEFAULT_PLATFORM, when set
 # (linux/amd64 or linux/arm64), picks the platform of the ops container and, passed on, of every image fieldset runs.
 #
 # Contract with install.sh (keep stable): FIELDSET_SHIM_LIBRARY=1 only defines the functions, and
@@ -120,6 +121,56 @@ fieldset_browser_opener() { # sets fieldset_opener when a desktop session can op
 	esac
 }
 
+fieldset_wsl_detect() { # sets fieldset_wsl (2: WSL 2, 1: WSL 1, else 0) and fieldset_wsl_distro (a plain WSL_DISTRO_NAME)
+	# A "microsoft" kernel release counts only with an interop marker or WSL_DISTRO_NAME, as some cloud kernels carry the
+	# word too; WSL 1 is the capital-M kernel without "WSL2". FIELDSET_TEST_PROC replaces /proc in the tests only.
+	fieldset_wsl=0 fieldset_wsl_distro=''
+	case ${WSL_DISTRO_NAME:-} in '' | *[!A-Za-z0-9._-]*) ;; *) fieldset_wsl_distro=$WSL_DISTRO_NAME ;; esac
+	fieldset_proc=${FIELDSET_TEST_PROC:-/proc}
+	[ -e "$fieldset_proc/sys/fs/binfmt_misc/WSLInterop" ] || [ -e "$fieldset_proc/sys/fs/binfmt_misc/WSLInterop-late" ] ||
+		[ -n "${WSL_DISTRO_NAME:-}" ] || return 0
+	fieldset_kernel=$(cat "$fieldset_proc/sys/kernel/osrelease" 2>/dev/null) || fieldset_kernel=''
+	case $fieldset_kernel in *WSL2*) fieldset_wsl=2 ;; *Microsoft*) fieldset_wsl=1 ;; *microsoft*) fieldset_wsl=2 ;; esac
+}
+
+fieldset_wsl_check() { # fieldset_wsl_detect, then exit 3 wsl1_unsupported on WSL 1 (R25)
+	fieldset_wsl_detect
+	[ "$fieldset_wsl" != 1 ] || fieldset_fail 3 wsl1_unsupported 'fieldset needs WSL 2, and this distro runs on WSL 1.' \
+		"Convert it in PowerShell on Windows: wsl --set-version ${fieldset_wsl_distro:-<distro>} 2 (wsl -l -v lists the distros), then run the command again."
+}
+
+fieldset_windows_drive() { # <absolute path>: true when its physical path lies on a Windows drive (KTD11): the mount that holds
+	# it is drvfs, 9p with drvfs options, or any 9p under WSL 2. A part that does not exist yet is kept as written. Kept
+	# identical to install.sh's fieldset_install_windows_drive (WslScriptsTest).
+	case $1 in /*) ;; *) return 1 ;; esac
+	fieldset_base=$1 fieldset_rest=''
+	while [ ! -d "$fieldset_base" ]; do
+		fieldset_rest=/${fieldset_base##*/}$fieldset_rest
+		fieldset_base=${fieldset_base%/*}
+		[ -n "$fieldset_base" ] || fieldset_base=/
+	done
+	fieldset_real=$(cd -P "$fieldset_base" 2>/dev/null && pwd -P) || fieldset_real=$fieldset_base
+	fieldset_real=${fieldset_real%/}$fieldset_rest
+	awk -v path="${fieldset_real:-/}" -v wsl="${fieldset_wsl:-0}" '{ mp = $2; gsub(/\\040/, " ", mp); gsub(/\\011/, "\t", mp)
+		if ((mp == "/" || path == mp || index(path, mp "/") == 1) && length(mp) >= best) { best = length(mp); type = $3; opts = $4 } }
+		END { exit !(type == "drvfs" || (type == "9p" && (wsl == 2 || opts ~ /drvfs/))) }' "${FIELDSET_TEST_PROC:-/proc}/mounts" 2>/dev/null
+}
+
+fieldset_docker_missing() { # exit 10 docker_missing; on WSL 2 naming Docker Desktop's WSL integration and Docker Engine (R26)
+	[ "${fieldset_wsl:-0}" = 2 ] || fieldset_fail 10 docker_missing 'Docker is not installed.' 'Install Docker, then run the command again.'
+	fieldset_fail 10 docker_missing 'Docker is not available in this WSL distro.' \
+		"Start Docker Desktop on Windows and turn on its WSL integration for ${fieldset_wsl_distro:-this distro} (Settings > Resources > WSL integration), or install Docker Engine in this distro, then run the command again."
+}
+
+fieldset_docker_unreachable() { # `docker info` failed: exit 10 docker_unavailable; on WSL 2 the Docker Desktop step (R26)
+	[ "${fieldset_wsl:-0}" = 2 ] || fieldset_fail 10 docker_unavailable 'The Docker daemon is not reachable.' \
+		'Start Docker (or check DOCKER_HOST and your docker group membership), then run the command again.' true
+	# Docker Desktop's docker in a distro without its WSL integration only says that the integration is off.
+	! docker info 2>&1 | grep -qi 'WSL integration' || fieldset_docker_missing
+	fieldset_fail 10 docker_unavailable 'The Docker daemon is not reachable.' \
+		'Start Docker Desktop on Windows (Docker Engine in WSL: sudo service docker start), then run the command again.' true
+}
+
 fieldset_host_facts() { # exports the FIELDSET_* host facts; sets fieldset_user, fieldset_group and fieldset_socket (KTD2)
 	FIELDSET_HOST_UID=$(id -u)
 	FIELDSET_HOST_GID=$(id -g)
@@ -129,8 +180,13 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts; sets fieldset_user,
 	fieldset_browser_opener
 	FIELDSET_DESKTOP=0
 	[ -z "$fieldset_opener" ] || FIELDSET_DESKTOP=1
-	fieldset_info=$(docker info --format '{{.OperatingSystem}}|{{.Name}}|{{json .SecurityOptions}}' 2>/dev/null) ||
-		fieldset_fail 10 docker_unavailable 'The Docker daemon is not reachable.' 'Start Docker (or check DOCKER_HOST and your docker group membership), then run the command again.' true
+	fieldset_info=$(docker info --format '{{.OperatingSystem}}|{{.Name}}|{{json .SecurityOptions}}' 2>/dev/null) || fieldset_docker_unreachable
+	FIELDSET_WSL=${fieldset_wsl:-0}
+	case "$FIELDSET_WSL|$fieldset_info" in # the backend by the prefix of OperatingSystem, as DockerInfo::wslBackend()
+	2\|'Docker Desktop'*) FIELDSET_WSL_BACKEND=desktop ;;
+	2\|*) FIELDSET_WSL_BACKEND=engine ;;
+	*) FIELDSET_WSL_BACKEND='' ;;
+	esac
 	case "$FIELDSET_HOST_OS|$fieldset_info" in
 	*name=rootless*) FIELDSET_DOCKER_RUNTIME=rootless ;;
 	linux\|*'Docker Desktop'* | linux\|*OrbStack* | linux\|*\|colima*\|* | linux\|*\|lima-*\|* | linux\|*\|rancher-desktop\|*) FIELDSET_DOCKER_RUNTIME=desktop ;;
@@ -153,7 +209,8 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts; sets fieldset_user,
 		fieldset_user=0:0
 	fi
 	FIELDSET_DOCKER_SOCKET=$fieldset_socket
-	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET
+	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET \
+		FIELDSET_WSL FIELDSET_WSL_BACKEND
 }
 
 fieldset_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: a platform releases ship, optionally with a variant (ADR 0070)
@@ -290,6 +347,10 @@ fieldset_run_setup() { # host facts, the terminal decision, the nonce and the ha
 	! fieldset_reserved_path "$fieldset_dir" || fieldset_fail 2 path_reserved \
 		"fieldset does not run an instance in $fieldset_dir: Docker would mount it over files of the fieldset container." \
 		'Install the instance under your home directory or /opt (install.sh --dir).'
+	fieldset_wsl_check
+	! fieldset_windows_drive "$fieldset_dir" || fieldset_fail 2 path_on_windows_drive \
+		"fieldset does not run an instance on a Windows drive: $fieldset_dir is on one, where Linux file owners and permissions do not work." \
+		'Install the instance in the Linux file system of the distro: install.sh --dir ~/fieldset (a directory, not a link to a Windows drive).'
 	if [ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && ! fieldset_platform_ok "$DOCKER_DEFAULT_PLATFORM"; then
 		fieldset_fail 2 invalid_platform "DOCKER_DEFAULT_PLATFORM must be linux/amd64 or linux/arm64 (a variant such as linux/arm64/v8 is fine), not $DOCKER_DEFAULT_PLATFORM." \
 			"Unset DOCKER_DEFAULT_PLATFORM to use the engine's own platform."
@@ -368,7 +429,7 @@ fieldset_run_container() { # <fieldset args…>: the ops container (ADR 0070); r
 	# FIELDSET_TEST_DNS: fixed DNS answers for the doctor; FIELDSET_TEST_TUNNEL: the fake tunnel image and lifetime. Both are
 	# honoured only by release-harness images (ADR 0075, ADR 0082).
 	for fieldset_var in FIELDSET_LAUNCHER FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
-		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
+		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
 		FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
 		set -- -e "$fieldset_var" "$@"
 	done
@@ -481,7 +542,7 @@ fieldset_shim_main() {
 		case $fieldset_link in /*) fieldset_self=$fieldset_link ;; *) fieldset_self=$(dirname "$fieldset_self")/$fieldset_link ;; esac
 	done
 	fieldset_home=$(cd "$(dirname "$fieldset_self")" && pwd)
-	command -v docker >/dev/null 2>&1 || fieldset_fail 10 docker_missing 'Docker is not installed.' 'Install Docker, then run the command again.'
+	command -v docker >/dev/null 2>&1 || { fieldset_wsl_check && fieldset_docker_missing; }
 	fieldset_image=$(fieldset_state_image "$fieldset_home/state.json") ||
 		fieldset_fail 3 no_state "$fieldset_home has no usable state.json; the installation did not finish." 'Run install.sh again with the same flags to finish it.'
 	FIELDSET_LAUNCHER=shim

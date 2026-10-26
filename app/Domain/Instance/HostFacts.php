@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance;
 
 use App\Domain\Instance\Docker\DockerRuntime;
+use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\Release\ImagePin;
 
 /**
@@ -24,6 +25,10 @@ use App\Domain\Instance\Release\ImagePin;
  * - FIELDSET_DOCKER_RUNTIME: rootful | rootless | desktop (DockerRuntime)
  * - FIELDSET_CONTAINER_UID: the in-container owner UID (host UID on rootful, 0 otherwise)
  * - FIELDSET_DOCKER_SOCKET: the socket path the daemon mounted into the ops container
+ * - FIELDSET_WSL: `2` when the launcher runs in a WSL 2 distro, `0` elsewhere (the launchers refuse WSL 1); launchers
+ *   before 2.1.1 do not pass it (null: unknown)
+ * - FIELDSET_WSL_BACKEND: with FIELDSET_WSL=2, `desktop` (Docker Desktop's WSL integration) or `engine` (Docker Engine in
+ *   the distro), WslBackend
  * - FIELDSET_NONCE: name of the nonce file the launcher wrote into the instance directory and every writable mount
  * - FIELDSET_MOUNTS: one `ro:<path>` or `rw:<path>` line per parent directory of a file-path flag
  * - FIELDSET_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
@@ -71,6 +76,8 @@ final readonly class HostFacts
         public ?string $registry = null,
         public ?string $platform = null,
         public ?string $releaseUrl = null,
+        public ?int $wslVersion = null,
+        public ?WslBackend $wslBackend = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -79,6 +86,7 @@ final readonly class HostFacts
         $int = static fn (string $key): ?int => isset($env[$key]) && ctype_digit($env[$key]) ? (int) $env[$key] : null;
         $bool = static fn (string $key): ?bool => isset($env[$key]) ? filter_var($env[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
         $match = static fn (string $key, string $pattern): ?string => isset($env[$key]) && preg_match($pattern, $env[$key]) === 1 ? $env[$key] : null;
+        $wsl = $match('FIELDSET_WSL', '/^[02]$/D');
 
         return new self(
             tty: $bool('FIELDSET_TTY'),
@@ -100,6 +108,8 @@ final readonly class HostFacts
             registry: $match('FIELDSET_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
             platform: $match('DOCKER_DEFAULT_PLATFORM', self::PLATFORM_PATTERN),
             releaseUrl: $match('FIELDSET_RELEASE_URL', '#^https?://[A-Za-z0-9._~:/%-]+$#D'),
+            wslVersion: $wsl === null ? null : (int) $wsl,
+            wslBackend: $wsl === '2' ? WslBackend::tryFrom($env['FIELDSET_WSL_BACKEND'] ?? '') : null,
         );
     }
 

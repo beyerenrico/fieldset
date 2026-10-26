@@ -6,6 +6,7 @@ use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Console\FilePathFlags;
 use App\Domain\Instance\Console\LaunchGuard;
 use App\Domain\Instance\Docker\DockerRuntime;
+use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ProgressReporter;
@@ -86,6 +87,18 @@ it('reads the whole host-facts contract and drops invalid values', function (): 
         ->each->toBeNull()
         ->and($invalid->launched())->toBeFalse()
         ->and(HostFacts::fromEnvironment(['FIELDSET_INSTANCE_DIR' => '/'])->instanceDir)->toBe('/');
+});
+
+it('reads the WSL facts of 2.1.1 launchers: WSL 2 with its Docker backend, else none (2.1.1 U2)', function (): void {
+    $read = fn (array $env): array => [HostFacts::fromEnvironment($env)->wslVersion, HostFacts::fromEnvironment($env)->wslBackend];
+
+    expect($read(['FIELDSET_WSL' => '2', 'FIELDSET_WSL_BACKEND' => 'desktop']))->toBe([2, WslBackend::DockerDesktop])
+        ->and($read(['FIELDSET_WSL' => '2', 'FIELDSET_WSL_BACKEND' => 'engine']))->toBe([2, WslBackend::Engine])
+        ->and($read(['FIELDSET_WSL' => '0', 'FIELDSET_WSL_BACKEND' => 'engine']))->toBe([0, null])
+        ->and($read([]))->toBe([null, null])
+        ->and($read(['FIELDSET_WSL' => '1', 'FIELDSET_WSL_BACKEND' => 'engine']))->toBe([null, null])
+        ->and($read(['FIELDSET_WSL' => '2 ', 'FIELDSET_WSL_BACKEND' => 'desktop']))->toBe([null, null])
+        ->and($read(['FIELDSET_WSL' => '2', 'FIELDSET_WSL_BACKEND' => 'podman']))->toBe([2, null]);
 });
 
 it('derives the in-container owner UID from the runtime (KTD2)', function (): void {

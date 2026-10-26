@@ -275,6 +275,7 @@ final readonly class DetachedSupervisor
             'FIELDSET_TZ' => $facts->timezone, 'FIELDSET_DOCKER_RUNTIME' => $facts->runtime?->value, 'FIELDSET_DOCKER_SOCKET' => $facts->socket,
             'FIELDSET_CONTAINER_UID' => $facts->containerUid === null ? null : (string) $facts->containerUid,
             'FIELDSET_REGISTRY' => $facts->registry, 'FIELDSET_RELEASE_URL' => $facts->releaseUrl, 'DOCKER_DEFAULT_PLATFORM' => $facts->platform,
+            'FIELDSET_WSL' => $facts->wslVersion === null ? null : (string) $facts->wslVersion, 'FIELDSET_WSL_BACKEND' => $facts->wslBackend?->value,
         ], static fn (?string $value): bool => $value !== null && $value !== '');
         foreach (self::PASSED as $name) {
             $value = getenv($name);
