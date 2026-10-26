@@ -27,7 +27,9 @@ use Symfony\Component\Process\Process;
  *
  * The launchers read the kernel release, the WSL interop marker and the mount table under FIELDSET_TEST_PROC instead of
  * /proc. It points at `<root>/proc`, empty unless a test writes there (`proc()`, `wsl()`), so a run on a WSL or Linux
- * machine sees no host of its own; WSL_DISTRO_NAME is unset unless a test passes it.
+ * machine sees no host of its own; WSL_DISTRO_NAME is unset unless a test passes it. Likewise FIELDSET_TEST_WINDOWS
+ * (`<root>/windows`) stands for /mnt/c/Windows, where the shim looks for powershell.exe when PATH lacks it (U5).
+ * DISPLAY, WAYLAND_DISPLAY, SSH_CONNECTION and SSH_TTY are unset unless a test passes them.
  */
 final readonly class DistributionScripts
 {
@@ -217,8 +219,10 @@ final readonly class DistributionScripts
             'DISPLAY' => false,
             'WAYLAND_DISPLAY' => false,
             'SSH_CONNECTION' => false,
+            'SSH_TTY' => false,
             'WSL_DISTRO_NAME' => false,
             'FIELDSET_TEST_PROC' => $this->root.'/proc',
+            'FIELDSET_TEST_WINDOWS' => $this->root.'/windows',
             'TZ' => 'Europe/Berlin',
             ...$env,
         ]);

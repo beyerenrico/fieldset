@@ -121,12 +121,38 @@ fieldset_lan_addresses() { # candidate LAN addresses, without loopback and conta
 	fi
 }
 
-fieldset_browser_opener() { # sets fieldset_opener when a desktop session can open a browser
+fieldset_browser_opener() { # sets fieldset_opener when a desktop session can open a browser (after fieldset_wsl_detect)
+	# Never over SSH: the browser would open on the far side. WSL 2 with interop opens the Windows default browser, also
+	# when WSLg sets DISPLAY; WSL without interop opens nothing (KTD8).
 	fieldset_opener=''
+	[ -z "${SSH_CONNECTION:-}${SSH_TTY:-}" ] || return 0
+	if [ "${fieldset_wsl:-0}" = 2 ]; then
+		fieldset_powershell
+		[ -z "$fieldset_powershell" ] || fieldset_opener=fieldset_windows_browser
+		return 0
+	fi
 	case $FIELDSET_HOST_OS in
-	darwin) [ -n "${SSH_CONNECTION:-}" ] || ! command -v open >/dev/null 2>&1 || fieldset_opener=open ;;
+	darwin) ! command -v open >/dev/null 2>&1 || fieldset_opener=open ;;
 	linux) [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || ! command -v xdg-open >/dev/null 2>&1 || fieldset_opener=xdg-open ;;
 	esac
+}
+
+fieldset_powershell() { # sets fieldset_powershell to a powershell.exe WSL interop can start, else '' (KTD8)
+	# Interop runs Windows programs only while its binfmt_misc entry is enabled. PATH may lack the Windows directories
+	# (appendWindowsPath=false), so the default location on C: comes next. FIELDSET_TEST_WINDOWS replaces /mnt/c/Windows
+	# in the tests only.
+	fieldset_powershell=''
+	fieldset_binfmt=${FIELDSET_TEST_PROC:-/proc}/sys/fs/binfmt_misc
+	grep -qsx enabled "$fieldset_binfmt/WSLInterop" || grep -qsx enabled "$fieldset_binfmt/WSLInterop-late" || return 0
+	for fieldset_ps in "$(command -v powershell.exe 2>/dev/null)" "${FIELDSET_TEST_WINDOWS:-/mnt/c/Windows}/System32/WindowsPowerShell/v1.0/powershell.exe"; do
+		case $fieldset_ps in /*) [ ! -f "$fieldset_ps" ] || [ ! -x "$fieldset_ps" ] || { fieldset_powershell=$fieldset_ps && return 0; } ;; esac
+	done
+}
+
+fieldset_windows_browser() { # <url>: asks the Windows default browser to open it; powershell.exe's exit code says nothing
+	# One argument, no shell: fieldset_open_url's grammar admits no quote of any kind (ASCII only), so the URL cannot end
+	# the single-quoted PowerShell string. stdin from /dev/null keeps interop away from the terminal.
+	"$fieldset_powershell" -NoProfile -NonInteractive -Command "Start-Process '$1'" </dev/null >/dev/null 2>&1 || true
 }
 
 fieldset_wsl_detect() { # sets fieldset_wsl (2: WSL 2, 1: WSL 1, else 0) and fieldset_wsl_distro (a plain WSL_DISTRO_NAME)
@@ -415,20 +441,29 @@ fieldset_open_url() { # the URL a command handed over in FIELDSET_OPEN_URL_FILE:
 	fieldset_url_file=$fieldset_dir/$FIELDSET_OPEN_URL_FILE
 	chmod 0600 "$fieldset_url_file" 2>/dev/null || true
 	fieldset_url=$(head -n 1 "$fieldset_url_file")
-	if ! printf '%s\n' "$fieldset_url" | grep -Eqx 'https?://[][A-Za-z0-9._~:/?#@!$&()*+,;=%-]+'; then
+	if ! printf '%s\n' "$fieldset_url" | LC_ALL=C grep -Eqx 'https?://[][A-Za-z0-9._~:/?#@!$&()*+,;=%-]+'; then
 		rm -f "$fieldset_url_file"
 		fieldset_say warn 'Ignored a hand-over URL that is not a plain http(s) link.'
 		return 0
 	fi
 	# The file goes only once the link reached a person: the browser, or the terminal (never stdout or stderr,
-	# which an agent's transcript keeps). Otherwise it stays (0600) for the owner to read.
-	if [ -n "${fieldset_opener:-}" ] && "$fieldset_opener" "$fieldset_url" >/dev/null 2>&1; then
+	# which an agent's transcript keeps). Otherwise it stays (0600) for the owner to read. Whether the Windows browser
+	# opened is unknown on WSL, so the link goes to the terminal as well.
+	fieldset_url_lead='fieldset: could not open a browser. Open this link to sign in:'
+	fieldset_url_warn="Could not open a browser; the sign-in link is in $fieldset_url_file (readable only by you)."
+	if [ "${fieldset_opener:-}" = fieldset_windows_browser ]; then
+		fieldset_windows_browser "$fieldset_url"
+		fieldset_url_lead='fieldset: sent the link to your Windows browser. If it does not open, open this link to sign in:'
+		fieldset_url_warn="Sent the sign-in link to your Windows browser; it is also in $fieldset_url_file (readable only by you)."
+	elif [ -n "${fieldset_opener:-}" ] && "$fieldset_opener" "$fieldset_url" >/dev/null 2>&1; then
 		rm -f "$fieldset_url_file"
-	elif (printf 'fieldset: could not open a browser. Open this link to sign in:\n  %s\n' "$fieldset_url" >"$fieldset_tty_device") 2>/dev/null; then
+		return 0
+	fi
+	if (printf '%s\n  %s\n' "$fieldset_url_lead" "$fieldset_url" >"$fieldset_tty_device") 2>/dev/null; then
 		rm -f "$fieldset_url_file"
 	else
 		fieldset_keep_file "$fieldset_url_file"
-		fieldset_say warn "Could not open a browser; the sign-in link is in $fieldset_url_file (readable only by you)." \
+		fieldset_say warn "$fieldset_url_warn" \
 			"Open it from there and delete the file, or issue a new link: fieldset login-link <email> --secrets-file <file>"
 	fi
 }
