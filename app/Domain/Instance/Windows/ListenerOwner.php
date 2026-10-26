@@ -9,7 +9,7 @@ namespace App\Domain\Instance\Windows;
  * further than this classification (KTD9).
  *
  * - docker: Docker Desktop's port forwarding (com.docker.backend and friends), e.g. this instance's own edge
- * - wsl: WSL's localhost relay
+ * - wsl: WSL's localhost relay or its VM process (vmmem, vmmemWSL; ports a mirrored-mode distro listens on)
  * - system: PID 4, the kernel's HTTP server (http.sys: IIS, WinRM, other HTTP.sys services)
  * - service: a service host (svchost, e.g. the IP Helper that serves `netsh interface portproxy`)
  * - other: any other program
@@ -27,7 +27,7 @@ enum ListenerOwner: string
         return match (true) {
             $pid === 4 || strcasecmp($name, 'System') === 0 => self::System,
             preg_match('/^(com\.docker\.|docker|vpnkit)/i', $name) === 1 => self::Docker,
-            preg_match('/^(wslrelay|wslhost|wslservice)$/i', $name) === 1 => self::Wsl,
+            preg_match('/^(wslrelay|wslhost|wslservice|vmmem|vmmemwsl)$/i', $name) === 1 => self::Wsl,
             strcasecmp($name, 'svchost') === 0 => self::Service,
             default => self::Other,
         };

@@ -20,8 +20,9 @@ use Illuminate\Console\Attributes\Signature;
 /**
  * `fieldset doctor` (§7, R10, ADR 0072): Docker and Compose versions, architecture, memory, disk, path sharing,
  * permissions of the instance files, stale hand-over files (removed), DNS in domain mode, registry reachability,
- * clock skew, ports and, in proxy mode, whether the trusted proxy address still matches (`proxy_address_changed`);
- * with --post also the running services. Any failed check is exit 3 (10 for a too old
+ * clock skew, ports and, in proxy mode, whether the trusted proxy address still matches (`proxy_address_changed`); on
+ * WSL 2 with phones on the local CA, whether Windows lets them through (`windows_network`, 2.1.1 U14); with --post also
+ * the running services. Any failed check is exit 3 (10 for a too old
  * Docker) with the full report under `data.checks`; warnings and `unknown` results (a check that could not find out,
  * 2.1.1 U4) pass with exit 0. The permissions check compares the owner the shim measured with the saved one; the first
  * doctor under 2.1.1 saves a matching measurement with the instance (recordsOwner, KTD6).
