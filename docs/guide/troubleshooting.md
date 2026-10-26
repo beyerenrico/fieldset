@@ -21,9 +21,11 @@ half-way, `fieldset status` and every other command name the command that contin
 
 | Answer | Cause and fix |
 |---|---|
-| exit 10 `docker_missing`, `docker_unavailable` | Docker is not installed, not running, or you may not use its socket. Start Docker (or add your user to the `docker` group) and run the command again. |
+| exit 10 `docker_missing`, `docker_unavailable` | Docker is not installed, not running, or you may not use its socket. Start Docker (or add your user to the `docker` group) and run the command again. In WSL, see [Docker is missing or not running in WSL](#docker-is-missing-or-not-running-in-wsl). |
 | exit 10 `docker_too_old` | Docker Engine older than 24. Upgrade Docker. |
-| exit 3 `doctor_failed` | `data.checks` (or the human output) names the failed check and its fix: `ports` (a port is in use: pick another `--port`, or stop what uses 80/443), `dns` (the domain does not point to this host yet), `disk`, `memory`, `clock`, `registry` (images cannot be pulled), `path_sharing`. |
+| exit 3 `doctor_failed` | `data.checks` (or the human output) names the failed check and its fix: `ports` (a port is in use: pick another `--port`, or stop what uses 80/443), `dns` (the domain does not point to this host yet), `disk`, `memory`, `clock`, `registry` (images cannot be pulled), `path_sharing`, `permissions` (see [ownership errors](#ownership-errors)), `windows_network` (see [phones on Windows](#phones-cannot-reach-the-instance-on-windows)). |
+| exit 3 `wsl1_unsupported`, exit 2 `path_on_windows_drive` | On Windows: see [WSL 1 and Windows drives](#wsl-1-and-windows-drives). |
+| exit 3 `owner_mapping_unknown`, `socket_no_group_access` | Docker maps user IDs in a way fieldset does not support, or its socket is closed to its group: see [ownership errors](#ownership-errors). |
 | exit 3 `path_not_shared` | On Docker Desktop the instance directory is not shared with Docker. Use a directory under your home directory, or add its parent in Docker Desktop's file-sharing settings. |
 | exit 3 `verify_failed`, `manifest_signature_invalid` | The release manifest did not verify. Do not work around it: download again; if it persists, report it. |
 | exit 7 `project_conflict` | Another instance or a leftover uses the same Compose project. `fieldset uninstall --orphans <uuid>` removes the leftovers of an instance whose directory is gone. |
@@ -72,6 +74,159 @@ healthy) and `fieldset logs gotenberg` and `fieldset logs queue`. The `/platform
 they stopped otherwise, `fieldset logs queue` or `fieldset logs scheduler` says why; `fieldset doctor --post` fails while a service
 is unhealthy. Backups need the `backup` service; `fieldset status` warns when it does not run.
 
+## Windows (WSL 2)
+
+Fieldset runs in a WSL 2 distro ([install guide](install.md#windows-wsl-2)). `fieldset doctor` checks the Windows side
+too; each problem below names the doctor's code. Commands for PowerShell come from the doctor with your instance's
+values filled in; the ones here show the form, with `<id>` for the first 8 characters of the instance ID.
+
+### Ownership errors
+
+**2.1.0: "The instance directory belongs to UID 1000, not the instance owner (UID 0 inside containers)".** Fieldset
+2.1.0 guessed the owner from the product name and got it wrong for Docker Desktop in WSL 2, where containers see your
+files with your own user ID. The chmod and chown in its hint do not help: the files already belong to you. Fix: run the
+2.1.1 install command again with the same `--dir`. It measures the owner, gives back what the failed install left to
+root, and completes the install.
+
+**Doctor's `permissions` check fails with "the instance was set up for UID … but containers now see your files as UID
+…".** Docker maps user IDs differently than when the instance was set up: rootful Docker became rootless, or the
+instance moved to WSL 2 or another host. Run `fieldset repair-ownership`: it asks first, gives the instance files to the
+measured owner (owners only: modes, symlinks and Docker volumes stay as they are), saves that owner and recreates the
+backup service. Then run `fieldset doctor` again.
+
+| Code | Meaning and fix |
+|---|---|
+| warning `owner_not_measured` (doctor status `unknown`) | The short-lived container that measures the owner could not run, so fieldset used its rules. Not a mismatch. Run `fieldset doctor` again once Docker can start containers. |
+| exit 3 `owner_not_measured` | `fieldset repair-ownership` needs a measurement from this run. Run it through the instance's own `fieldset` script once Docker can start containers. |
+| exit 4 `owner_repair_failed` | Giving the files to the new owner failed; the saved owner is unchanged. Fix the cause in the message, then run `fieldset repair-ownership` again. |
+| exit 4 `secrets_exposed` | An env file is no longer mode 0600 after the change. Run the `chmod 600` the hint names, then `fieldset repair-ownership` again. |
+| exit 3 `owner_mapping_unknown` | Containers see your files as a third user ID (Docker with user-namespace remapping). Use Docker Desktop, rootless Docker, or Docker Engine without remapping. |
+| exit 3 `socket_no_group_access` | The Docker socket grants its group no write access inside containers, so fieldset cannot reach Docker as your user. Docker Engine: the `docker` group and mode 660 on the socket. Docker Desktop: restart it. |
+
+### Docker is missing or not running in WSL
+
+| Answer | Cause and fix |
+|---|---|
+| exit 10 `docker_missing`, "Docker is not available in this WSL distro" | Docker Desktop's WSL integration is off for this distro (new versions leave it off). Turn it on in Docker Desktop: Settings > Resources > WSL integration. Or install Docker Engine in the distro. |
+| exit 10 `docker_unavailable`, "Start Docker Desktop on Windows" | Docker Desktop is not running. Start it on Windows and wait until it says it is running. Docker Engine in the distro: `sudo service docker start`. |
+
+### WSL 1 and Windows drives
+
+- **exit 3 `wsl1_unsupported`.** The distro runs on WSL 1, where Docker cannot run. In PowerShell: `wsl -l -v` lists the
+  distros, `wsl --set-version <distro> 2` converts one. Then run the command again.
+- **exit 2 `path_on_windows_drive`.** The instance directory, or a link on its path, is on a Windows drive (`/mnt/c/…`),
+  where Linux owners and permissions do not work. Install into the distro's Linux file system: leave out `--dir` (the
+  default is `~/fieldset`) or pass `--dir ~/fieldset`. Backups and files you pass with flags may stay on a Windows drive.
+
+### Interop is off
+
+WSL interop lets the distro start Windows programs. Without it (`[interop] enabled=false` in `/etc/wsl.conf`, or a
+broken interop setup), fieldset cannot ask Windows anything:
+
+- no browser opens: the sign-in link is printed in the terminal (or kept in a file only you can read, named in the
+  warning);
+- phone facts are unknown: doctor's `windows_network` check reports `unknown` (`windows_facts_unknown`) with manual
+  steps, and phones get no Windows address by detection. Set it yourself:
+  `fieldset config set lan-address <Windows LAN IPv4> --yes` (`ipconfig` in PowerShell shows it);
+- with Docker Engine, `wsl_lifecycle` reports `unknown`: it cannot read `.wslconfig`.
+
+Turn interop back on (remove the setting, then `wsl --shutdown` in PowerShell) for the automatic checks.
+
+### Pulls fail with docker-credential-desktop.exe
+
+Docker Desktop's WSL integration writes `"credsStore": "desktop.exe"` into `~/.docker/config.json` in the distro. When
+interop is off, or after you switched to Docker Engine, the Docker CLI cannot start that helper and pulls fail with
+"error getting credentials" or "docker-credential-desktop.exe: executable file not found". Remove the `credsStore`
+line from `~/.docker/config.json` (keep the rest of the file), then run the command again. With Docker Desktop and
+interop working, leave it.
+
+### Clock skew after sleep
+
+After Windows sleeps or hibernates, the clock in WSL 2 can lag behind Windows. Doctor's `clock` check warns above 30
+seconds and fails above 5 minutes, and certificate checks (downloads, the release signature) can fail too. Run
+`wsl --shutdown` in PowerShell, open the distro again, then run the command again.
+
+### Phones cannot reach the instance on Windows
+
+With the local CA on, doctor's `windows_network` check looks at what Windows does with phone traffic and prints one set
+of commands for the first problem it finds, under "Run in PowerShell as administrator:" (in `--json`:
+`details.commands`). Run them, then `fieldset doctor` again. Fieldset never runs them. Install only warns about these,
+so the instance installs and its result carries the commands.
+
+#### The network is Public
+
+Windows blocks incoming connections on networks it treats as Public. Set the network's profile to Private (Windows
+Settings > Network & internet > your network > Network profile type), or run the printed
+`Set-NetConnectionProfile … -NetworkCategory Private`.
+
+#### Docker Desktop publishes ports on localhost only
+
+Docker Desktop's port binding setting is local-only, so nothing outside the PC reaches the edge. Change the port
+binding behavior in Docker Desktop's settings back to the default, then run `fieldset doctor` again.
+
+#### No firewall rule for ports 80 and 443
+
+The Windows firewall has no inbound rule for TCP 80 and 443 on the Private profile. The printed rule allows them from
+your local network only:
+`New-NetFirewallRule -Name fieldset-<id>-https -DisplayName fieldset-<id>-https -Direction Inbound -Action Allow -Protocol TCP -LocalPort 80,443 -Profile Private -RemoteAddress LocalSubnet`.
+
+#### A portproxy is missing or stale (Docker Engine)
+
+With Docker Engine behind WSL's default NAT networking, Windows must forward ports 80 and 443 from its LAN address to
+the distro with a portproxy. WSL's internal address changes after `wsl --shutdown` or a Windows restart, which leaves
+the portproxy pointing at the old one. Doctor then prints `netsh interface portproxy delete …` lines for the stale
+entries, an add line per port, and the firewall rule when it is missing:
+`netsh interface portproxy add v4tov4 listenaddress=<LAN address> listenport=443 connectaddress=<WSL address> connectport=443`.
+Run `fieldset doctor` after every restart of WSL. Docker Desktop, or WSL's mirrored networking, avoids this.
+
+#### No Hyper-V firewall rule (mirrored networking)
+
+With WSL's mirrored networking, the Hyper-V firewall filters traffic to WSL. The printed rule lets TCP 80 and 443 in:
+`New-NetFirewallHyperVRule -Name fieldset-<id>-https-wsl -DisplayName fieldset-<id>-https-wsl -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 80,443`.
+
+#### Port 80 or 443 is in use on Windows
+
+Another program listens on 80 or 443 on Windows, often IIS or another service of the Windows HTTP server (PID 4).
+Doctor fails and names it. Stop IIS (`Stop-Service W3SVC` in PowerShell as administrator) or the program with that PID
+(Task Manager, Details), then run `fieldset doctor` again.
+
+#### Windows' LAN address changed (`lan_address_changed`)
+
+The certificate is for an address Windows no longer has, for example after the PC joined another network. Re-issue it
+for the current address, which the warning names: `fieldset config set lan-address <address> --yes`. Phones then open
+the new address and trust the same CA.
+
+#### Windows facts unknown (`windows_facts_unknown`)
+
+Fieldset could not ask Windows ([interop is off](#interop-is-off)), or Windows did not report something the check needs
+(`details.unknown` lists it). The check reports `unknown`, never a pass. Check by hand that the network is Private, that
+the firewall allows inbound TCP 80 and 443 from the local network, that nothing else uses those ports and, for Docker
+Engine, that a portproxy or a Hyper-V rule forwards them. Doctor prints the commands it can build.
+
+### The instance stops with the distro
+
+Doctor's `wsl_lifecycle` check (WSL 2 only):
+
+- **Docker Engine, warning "The distro stops when its last terminal closes".** WSL stops a distro without a terminal
+  after its idle timeout, and Docker Engine and the instance stop with it. Add `instanceIdleTimeout=-1` under
+  `[general]` to `%UserProfile%\.wslconfig` on Windows.
+- **Docker Engine, warning "Docker Engine does not start with the distro".** systemd is not running. Add
+  `systemd=true` under `[boot]` to `/etc/wsl.conf` in the distro.
+- After either change, run `wsl --shutdown` in PowerShell and open the distro again.
+- **`unknown` (`wsl_lifecycle_unknown`).** The check could not read `.wslconfig` (interop off) or did not learn whether
+  systemd runs. Check both settings by hand.
+- **Docker Desktop** passes as information: it starts only after you sign in to Windows. Whether WSL stopping an idle
+  distro affects the instance is not verified yet; if the app stops loading after you closed every WSL terminal, open
+  the distro again.
+
+### Windows rules after uninstall
+
+`fieldset uninstall` on WSL with the local CA warns `windows_rules` and prints the commands that remove what the doctor
+suggested for this instance (in `--json`: `data.windows_cleanup`), for example
+`Remove-NetFirewallRule -Name fieldset-<id>-https` and, for Docker Engine,
+`netsh interface portproxy delete v4tov4 listenaddress=<LAN address> listenport=443`. Run them in PowerShell as administrator. A rule or portproxy you never added is reported as not found;
+nothing else changes.
+
 ## Field App
 
 **Work stays "Wartet auf Synchronisierung" ("Waiting to sync").** The device tries every minute while the app is
@@ -95,7 +250,8 @@ or `fieldset tunnel start`. On iPhone and iPad, install from Safari's share menu
 
 **The phone does not reach the local instance.** The phone must be in the same network as the computer, and the
 computer's firewall must allow the HTTPS port. `fieldset status` shows `phone_https.lan_address`; if the computer's
-address changed, `fieldset config set lan-address <IPv4>`.
+address changed, `fieldset config set lan-address <IPv4>`. On Windows, see [phones on
+Windows](#phones-cannot-reach-the-instance-on-windows).
 
 **"Die Formulare sind offline noch nicht verfügbar."** The device has not downloaded the forms yet; connect once.
 

@@ -1,6 +1,7 @@
 # 0078: Config safety and the agent contract of fsa config
 - Status: accepted; amended 2026-10-18 by ADR 0080 (completion step, SMTP credential stash) and ADR 0082 (tunnel
-  cleanup before `config set`)
+  cleanup before `config set`); amended 2026-10-26 by ADR 0095 (reason codes, the doctor status `unknown`,
+  `fieldset repair-ownership`)
 - Date: 2026-10-18
 - Amends: ADR 0077 (result of a reverted change, flow, resume), ADR 0066 (supervisor resume check, progress events),
   ADR 0072 (repeated install, ports check), ADR 0074 (runtime writer), ADR 0075 (certificate wait, uninstall warning,
@@ -94,6 +95,18 @@ trusted-proxy auto` when the trusted address no longer matches (closes QUESTIONS
 `data.proxy {setup, network, container, trusted, current, moved}` and the same warning when the proxy has a known new
 address (a proxy no longer attached warns in the doctor only). Check results may carry their own warning code
 (`CheckResult::warningCode()`).
+(Amended 2026-10-26 by ADR 0095: a check's status may also be `unknown`, when it could not find out (the owner
+measurement did not run, Windows facts missing): it counts like `warn`, so the doctor passes with exit 0 and lists it
+under `warnings` with the check's code (`owner_not_measured`, `windows_facts_unknown`, `wsl_lifecycle_unknown`). New
+check keys on WSL 2: `windows_network` (whether Windows lets phones reach the local-CA edge; `details.row` and
+`details.commands`, the copy-ready lines to run in PowerShell as administrator) and `wsl_lifecycle`; `lan_address_changed`
+comes from `windows_network` there. The `permissions` check's `details` gain `saved_owner_uid`, `measured_owner_uid`,
+`owner_source` and `owner_mismatch`. New reason codes: exit 3 `wsl1_unsupported`, `owner_mapping_unknown`,
+`socket_no_group_access` and `owner_not_measured`; exit 2 `path_on_windows_drive`; exit 4 `owner_repair_failed`
+(retryable) and `secrets_exposed`. `fieldset repair-ownership` joins the commands that ask first (exit 6
+`confirmation_required` with `data.owner` without `--yes`) and refuse while an operation is unfinished; it answers
+`data.owner`, `data.files_changed`, `data.backup_service` and `data.message`. `fieldset uninstall` on WSL 2 with the
+local CA adds `data.windows_cleanup` and the warning `windows_rules`.)
 
 **Runtime writer (amends ADR 0074).** A re-render keeps the gate raised (operation `unknown`) when the current file
 exists but cannot be parsed, and refuses (UnsafePath) when it exists but cannot be read; only a missing file starts

@@ -241,3 +241,6 @@
 179. A journey that compares a backup's missing files with all rendition rows races 1.0's queue: real renditions get
    their PDF when the worker was fast enough. Count only the load generator's `load-test/` renditions, which never have
    a file (J09, release run 39819962977: 34 missing of 44).
+180. Docker Desktop on macOS (VirtioFS) reports a bind-mounted host file as owned by the reading container user: container
+   root sees 0, `--user 4242` sees 4242, and a file root writes lands on the host as the host user (checked 2026-10-26,
+   Docker Desktop 29.2.1). Measure ownership as `--user 0:0`, never as the image's default user (www-data saw 33).

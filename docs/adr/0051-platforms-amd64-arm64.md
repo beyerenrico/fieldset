@@ -1,6 +1,6 @@
 # 0051: Platforms: linux/amd64 and linux/arm64
-- Status: accepted; amended by ADR 0071 (Compose built from source, no cosign in the image) and ADR 0072
-  (Docker floor)
+- Status: accepted; amended by ADR 0071 (Compose built from source, no cosign in the image), ADR 0072
+  (Docker floor) and ADR 0095 (WSL 2 supported and tested by hand per release)
 - Date: 2026-10-17
 
 ## Context
@@ -11,6 +11,10 @@ Docker CLI and Compose against the host daemon (ADR 0048).
 - Images are built for linux/amd64 and linux/arm64 with buildx (ADR 0060).
 - Supported hosts: Ubuntu 22.04 and 24.04, Debian 12, and macOS with Docker Desktop or OrbStack. Windows through
   WSL2 is documented but not tested. Native Windows is a non-goal (§4.2).
+  (Amended 2026-10-26 by ADR 0095: from 2.1.1, Windows through WSL 2 is supported with Docker Desktop's WSL integration
+  or Docker Engine inside the distro, documented in the install guide's Windows section and tested by hand on every
+  2.1.x release candidate with RELEASING's WSL checklist (a full run on Docker Desktop, a short one on Docker Engine);
+  CI has no WSL run. WSL 1 is refused with exit 3 `wsl1_unsupported`. Native Windows is still a non-goal.)
 - The ops container brings its own Docker CLI and Compose plugin. The host only needs Docker Engine and the
   `docker` CLI to start the ops container, so the host's Compose version does not matter to `fsa`. The binaries
   are static, chosen per `TARGETARCH`, and pinned by SHA-256 in the Dockerfile:
@@ -52,5 +56,6 @@ SHA-256. cosign is not in the image.)
   setting (plan Risks). A directory that Docker Desktop or Colima does not share fails the shim's nonce check
   with exit 3.
 - WSL2 and Docker Desktop quirks go to `docs/guide/troubleshooting.md` and QUESTIONS, never into silent
-  workarounds (§15.7).
+  workarounds (§15.7). (Amended 2026-10-26 by ADR 0095: the troubleshooting guide has a WSL section; the Windows facts
+  still unverified are QUESTIONS 81.)
 - Multi-arch builds and emulated journeys lengthen CI.

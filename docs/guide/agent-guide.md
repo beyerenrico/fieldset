@@ -25,6 +25,7 @@ The docs site [beyerenrico.github.io/fieldset](https://beyerenrico.github.io/fie
   [VPS install](#recipe-vps-install) ·
   [phone demo](#recipe-phone-demo) ·
   [change the domain](#recipe-change-the-domain) ·
+  [Windows (WSL 2)](#recipe-windows-wsl-2) ·
   [repair ownership](#recipe-repair-ownership) ·
   [remove an instance](#recipe-remove-an-instance)
 - [How this guide is tested](#how-this-guide-is-tested)
@@ -84,10 +85,10 @@ Every command lists its flags with `<dir>/fieldset <command> --help`.
 |---|---|---|
 | 0 | Success | Read `data`. Look at `warnings` too. |
 | 1 | Internal error | Report `errors[0]` to the person. Run `<dir>/fieldset status --json` to see what changed. |
-| 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. A failed install leaves its directory: see [a failed install](#a-failed-install). |
-| 3 | Preflight failed: the doctor (Docker, disk, ports, DNS) or a precondition of the command, such as `default_password_in_use` (accounts still sign in with the demo password `password`) | `data.checks` lists the doctor's checks, each `{key, status, summary, hint, details}` with `status` `ok`, `warn`, `fail`, `skipped` or `unknown` (the check could not find out; it counts like `warn`: listed under `warnings`, exit 0 when nothing fails); fix every `fail` as its `hint` says. A precondition names its fix in `errors[0].hint`. Then run the command again. Nothing changed; a failed install leaves its directory (see [a failed install](#a-failed-install)). |
+| 2 | Invalid input (a flag, a value, a missing file; `path_on_windows_drive`: the instance directory is on a Windows drive, see [Windows](#recipe-windows-wsl-2)) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. A failed install leaves its directory: see [a failed install](#a-failed-install). |
+| 3 | Preflight failed: the doctor (Docker, disk, ports, DNS) or a precondition of the command, such as `default_password_in_use` (accounts still sign in with the demo password `password`); the launcher's owner checks `owner_mapping_unknown` and `socket_no_group_access`, and `owner_not_measured` of `repair-ownership` (see [repair ownership](#recipe-repair-ownership)); `wsl1_unsupported` (see [Windows](#recipe-windows-wsl-2)) | `data.checks` lists the doctor's checks, each `{key, status, summary, hint, details}` with `status` `ok`, `warn`, `fail`, `skipped` or `unknown` (the check could not find out; it counts like `warn`: listed under `warnings`, exit 0 when nothing fails); fix every `fail` as its `hint` says. A precondition names its fix in `errors[0].hint`. Then run the command again. Nothing changed; a failed install leaves its directory (see [a failed install](#a-failed-install)). |
 | 3 | install.sh could not download or verify the release (`release_unavailable`, `image_unavailable`, `verify_failed`, `manifest_signature_invalid`, …) | `data` is empty: read `errors[0]`. `release_unavailable` and `image_unavailable` are network problems (`retryable: true`). On `verify_failed` or `manifest_signature_invalid`, stop and report `errors[0]` to the person: never retry with another install.sh or release URL, never bypass the check. Only if `errors[0].message` shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later. Nothing changed: no directory was created. |
-| 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fieldset logs app --json`. An install resumes when run again. |
+| 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step, `owner_repair_failed` or `secrets_exposed` of `repair-ownership`) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fieldset logs app --json`. An install resumes when run again. |
 | 5 | Rolled back | The instance is back where it was. `errors[0].code` is the cause. See below. |
 | 6 | Confirmation required | Show `data.question` and the other `data` facts to the person; run again with `--yes` if they agree. |
 | 7 | Incompatible (version, schema, another instance's data) | Nothing changed (a failed install leaves its directory, see [a failed install](#a-failed-install)). `errors[0].hint` names the way forward (for example `--to <version>` or `--major`). |
@@ -573,6 +574,48 @@ busy; `data.checks`); exit 5
 `certificate_failed` (no certificate could be obtained: the instance keeps its old domain; `data.fix_first` says what
 to fix). Back to local mode: `fieldset config set mode local --yes`.
 
+## Recipe: Windows (WSL 2)
+
+Fieldset runs on Windows inside a WSL 2 distro, with Docker Desktop's WSL integration or Docker Engine in the distro.
+Run every command in the distro's shell, never in PowerShell or Git Bash; the recipes above work unchanged there, with
+the instance in the distro's home (`~/forms`). Two steps are the person's, on Windows: checking WSL 2 in PowerShell
+(`wsl -l -v`, the `VERSION` column says 2) and turning on Docker Desktop's WSL integration for the distro (Settings >
+Resources > WSL integration).
+
+Refusals before anything is created:
+
+- Exit 3 `wsl1_unsupported`: the distro runs WSL 1. The hint names `wsl --set-version <distro> 2`; the person runs it in
+  PowerShell.
+- Exit 2 `path_on_windows_drive`: `--dir`, or a link on its path, is on a Windows drive (`/mnt/c/…`). Use a directory in
+  the distro's home. Backups and file flags may point to a Windows drive.
+- Exit 10 `docker_missing` ("Docker is not available in this WSL distro": the WSL integration is off, or no Docker is
+  installed) or `docker_unavailable` ("Start Docker Desktop on Windows"). Ask the person to fix it, then run the same
+  command again.
+
+On WSL 2 with interop, `--open` hands the sign-in link to the Windows browser and the shim prints it to the terminal
+too; without interop no browser opens. Prefer `--secrets-file` as everywhere.
+
+Phones: `~/forms/fieldset config set phone-https local-ca --yes --json` (or `--phone-https local-ca` at install) uses the
+Windows PC's LAN address. Windows decides whether phones get through, so check it:
+
+```sh
+~/forms/fieldset doctor --json
+```
+
+Two checks run only on WSL 2 (`skipped` elsewhere). Their `details`:
+
+| Check | `details` | Statuses |
+|---|---|---|
+| `windows_network` (with the local CA only) | `address` (the certificate's address), `setup` (`desktop`, `engine-nat`, `engine-mirrored` or `unknown`), `facts` (what fieldset learned from Windows: `full`, `addresses`, `unavailable` or `skipped`), `row` (the problem found: `public_profile`, `desktop_local_only`, `facts_unknown`, `host_rule`, `portproxy`, `hyperv_rule`, or `null`), `commands` (copy-ready lines), `unknown` (facts Windows did not report); `listeners` when another program uses port 80 or 443, `candidates` with `lan_address_changed` | `ok`; `fail` with `commands` (a warning in install's preflight, so the install completes and its result carries them); `unknown` with the warning `windows_facts_unknown`; `warn` `lan_address_changed` (the certificate's address is no longer Windows': run `~/forms/fieldset config set lan-address <address> --yes --json` with the address the hint names) |
+| `wsl_lifecycle` | `backend` (`desktop` or `engine`), `instance_idle_timeout` and `vm_idle_timeout` (milliseconds or `null`), `wslconfig` (`read` or `unknown`), `systemd` (`true`, `false` or `null`); `idle_distro: unknown` on Docker Desktop | `ok`; `warn` on Docker Engine when the distro stops without a terminal or Docker does not start with it (the hint has the `.wslconfig` and `/etc/wsl.conf` lines); `unknown` with the warning `wsl_lifecycle_unknown` |
+
+`details.commands` are PowerShell lines for the person to run as administrator on Windows. Show them with the `summary`
+and the `hint`; never run them yourself, and never change Windows settings. Then run `~/forms/fieldset doctor --json`
+again. On WSL 2 the `lan_address` check is skipped: `windows_network` compares the address instead.
+
+`~/forms/fieldset uninstall --yes --json` on WSL 2 with the local CA adds `data.windows_cleanup`, the lines that remove
+the rules the doctor suggested, and the warning `windows_rules`. Show both to the person.
+
 ## Recipe: repair ownership
 
 When Docker starts to map user IDs differently than when the instance was set up (rootful Docker became rootless, the
@@ -596,7 +639,13 @@ owner already match it changes nothing (`changed: false`). Then run `~/forms/fie
 Without `--yes` the command exits 6 and `data` names both owners (`data.owner`). Failures: exit 3 `owner_not_measured`
 (the owner could not be measured in this run: run it again through `<dir>/fieldset` once Docker can start containers);
 exit 4 `owner_repair_failed` or `services_unhealthy` (the saved owner is unchanged, `retryable: true`: fix the cause the
-message names, then run the same command again); exit 9 `instance_locked` or `operation_unfinished`.
+message names, then run the same command again); exit 4 `secrets_exposed` (an env file is no longer mode 0600: report
+it, the hint names the `chmod 600`); exit 9 `instance_locked` or `operation_unfinished`.
+
+The launcher itself refuses a host it cannot run on, for every command: exit 3 `owner_mapping_unknown` (containers see
+the person's files as a third user ID, as with Docker's user-namespace remapping; both IDs are in the message) and exit
+3 `socket_no_group_access` (the Docker socket grants its group no write access inside containers). Report them; the
+hint names the Docker setup that works.
 
 ## Recipe: remove an instance
 

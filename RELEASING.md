@@ -101,7 +101,12 @@ cannot do them.
      `vendor/bin/pest --testsuite=Install` (see [the harness](#building-and-testing-a-release-locally-harness));
    - the guide checks in the fast suite (`tests/Unit/Docs`): every `fieldset` command, flag, environment variable and
      link the guides name exists (ADR 0042), and no raw HTML tag or `<placeholder>` stands outside code (ADR 0094);
-   - the Trivy exception dates (see below).
+   - the Trivy exception dates (see below);
+   - `fieldset_shim_version` in `distribution/shim.sh`: raise it whenever the release changes the shim, or upgraded
+     instances never get the new script (ADR 0095). `tests/Unit/Distribution/LauncherVersionTest.php` pins the shim's
+     SHA-256 per version and fails until the version and the pinned hash are updated together;
+   - for a 2.1.x final: the [WSL checklist](#wsl-checklist-21x-release-candidates) passed on the release candidate it
+     is tagged from.
 2. Tag and push:
 
    ```sh
@@ -140,6 +145,68 @@ Scan policy (ADR 0071): the app image allows no exception. A third-party image m
 entry is scoped to one component and has a statement and an `expired_at` at most 90 days out. Before tagging,
 check the dates: an expired entry fails `scan`. Refresh the pin when a fixed image exists; otherwise renew the
 entry in a reviewed commit with a current statement. The `scan` log lists every suppressed finding.
+
+## WSL checklist (2.1.x release candidates)
+
+Windows through WSL 2 is tested by hand, not in CI (ADR 0051 as amended by ADR 0095). The human runs this list on a
+Windows PC for every 2.1.x release candidate before the final is tagged. Any failure means a fix on a branch and a new
+release candidate; the final waits for a run without failures. Record each run as evidence in
+`docs/agent/milestones/evidence/R2.1.1/` (for 2.1.2: `R2.1.2/`): one file per run, `wsl-checklist-<ver>.md`, with the
+Windows build, the Docker Desktop or Engine version, and pass or fail with the output of each failed step. Remove host
+names and anything else private first.
+
+**First: the fact-finding script** (plan U1). Run it in each distro before the checks below, and keep its output with the
+evidence. Take it from the tag, so it matches the release:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSLO https://raw.githubusercontent.com/beyerenrico/fieldset/v<ver>/scripts/wsl/facts.sh
+FIELDSET_FACTS_IMAGE=ghcr.io/beyerenrico/fieldset:<ver> sh facts.sh > wsl-facts-desktop.txt   # in the Docker Desktop distro
+FIELDSET_FACTS_IMAGE=ghcr.io/beyerenrico/fieldset:<ver> sh facts.sh > wsl-facts-engine.txt    # in the Docker Engine distro
+```
+
+It is read-only: it changes no Windows or Docker setting and removes the containers and the temporary directory it
+creates. Paste the outputs into `docs/agent/milestones/evidence/R2.1.1/wsl-facts-desktop.txt` and `wsl-facts-engine.txt`.
+They confirm or refute the Windows facts still open in QUESTIONS 81.
+
+**Full run on Docker Desktop** (its WSL integration on for the distro), with the release candidate's one-liner
+(`download/v<ver>/install.sh` with `--version <ver>`, see [Installing a release](#installing-a-release)):
+
+- [ ] Install into `~/fieldset`: exit 0; the owner's sign-in link opens in the Windows browser and is printed in the
+      terminal. If a failed 2.1.0 install left that directory behind, keep it: the install must complete there (R24).
+- [ ] The browser keeps a `#fragment`: in the distro, run
+      `powershell.exe -NoProfile -Command "Start-Process 'http://localhost:<port>/admin#fragment-check'"`; the address
+      bar shows `#fragment-check`.
+- [ ] `fieldset status` and `fieldset doctor`: no failure; `permissions` passes with the measured owner (your UID,
+      `owner_source` `measured`), `wsl_lifecycle` passes as information.
+- [ ] `fieldset backup`, then `fieldset restore <backup> --drill`.
+- [ ] Upgrade: from rc.2 on, an instance of the previous release candidate upgrades with `fieldset upgrade --to <ver>`
+      (the next command prints the script refresh line when the shim changed), then `fieldset rollback --yes` and the
+      upgrade again. Skip it for rc.1: no earlier release installs on WSL.
+- [ ] Phone over Wi-Fi: `fieldset config set lan-address <Windows LAN IPv4> --yes` (only if the detected address is
+      wrong) and `fieldset config set phone-https local-ca --yes`; `fieldset doctor` shows `windows_network`, run the
+      PowerShell lines it prints as administrator, `fieldset doctor` again passes; the phone opens the trust page,
+      trusts the CA, installs the Field App, works offline and syncs.
+- [ ] A domain-mode install (`--domain` with `--acme-staging`, the router forwarding 80 and 443 to the PC) or a
+      tunnel-mode install (`--phone-https tunnel`) in a second directory, reached from a phone on mobile data (R10).
+- [ ] Close every WSL terminal, wait 2 minutes, then open the app in the Windows browser: it still loads. Record the
+      result: it decides the Docker Desktop idle-distro fact.
+- [ ] `fieldset uninstall --keep-backups` prints the Windows cleanup lines (warning `windows_rules`); after running
+      them, `Get-NetFirewallRule -Name fieldset-*` in PowerShell finds nothing.
+
+**Short run on Docker Engine** in a second distro (Docker Desktop's WSL integration off for it; systemd on and
+`instanceIdleTimeout=-1` as the install guide says):
+
+- [ ] Install with the one-liner: exit 0, and the app opens in the Windows browser.
+- [ ] `fieldset status` and `fieldset doctor`: no failure; `wsl_lifecycle` passes.
+- [ ] A phone: `fieldset config set phone-https local-ca --yes`, run the portproxy and firewall lines `fieldset doctor`
+      prints, and the phone opens the app over Wi-Fi.
+
+**2.1.2 smoke run** (each 2.1.2 release candidate, on Docker Desktop, with an instance of 2.1.1 holding a saved
+report; install the 2.1.1 final with its one-liner if none is left):
+
+- [ ] `fieldset upgrade --to <ver>` from 2.1.1: exit 0; `fieldset status` and `fieldset doctor` show no failure.
+- [ ] Open a saved report in the admin dashboard: it shows results and when they were calculated; refresh recalculates
+      them.
 
 ## Docs site
 
@@ -266,7 +333,7 @@ Lint locally like CI:
 ```sh
 docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
 docker run --rm -i hadolint/hadolint:v2.15.1 hadolint - < docker/app/Dockerfile
-docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fieldset distribution/*.sh
+docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fieldset distribution/*.sh scripts/wsl/facts.sh
 ```
 
 ## Post-publish checklist

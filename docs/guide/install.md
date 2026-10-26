@@ -10,8 +10,8 @@ from a clone of the repository (1.0) are described in the [archive](archive/1.0-
 
 ## Requirements
 
-- Linux (amd64 or arm64) with Docker Engine 24 or later, or Docker Desktop on macOS. `fieldset`
-  brings its own Docker Compose.
+- Linux (amd64 or arm64) with Docker Engine 24 or later, Docker Desktop on macOS, or Windows with WSL 2 and Docker
+  Desktop or Docker Engine (see [Windows](#windows-wsl-2)). `fieldset` brings its own Docker Compose.
 - At least 2 GB of memory for Docker and 4 GB of free disk space (10 GB recommended). `fieldset doctor` checks both.
   With large data (around 100,000 submissions, a database over 1 GB) give Docker 4 GB of memory: on 2 GB, saved
   reports, the submission explorer's search and the submissions inbox can take up to two seconds.
@@ -54,6 +54,76 @@ either flag it asks, but only on a terminal and without `--yes` or `--json`; oth
 
 If an install stops (a failed check, a lost connection), fix the cause and run the same command again: it resumes
 where it stopped. Running it again after it finished changes nothing.
+
+## Windows (WSL 2)
+
+Fieldset runs on Windows inside WSL 2, the Linux system built into Windows. Every command in this guide runs in the
+terminal of a WSL 2 distro (for example Ubuntu), not in PowerShell or Git Bash. Native Windows is not supported.
+
+**1. Check WSL 2.** In PowerShell, `wsl -l -v` lists your distros. The `VERSION` column must say 2. Convert a WSL 1
+distro with `wsl --set-version <distro> 2`. `install.sh` refuses WSL 1 ([WSL 1 and Windows
+drives](troubleshooting.md#wsl-1-and-windows-drives)).
+
+**2. Choose a Docker.**
+
+- **Docker Desktop** (recommended, and the easier way for phones). Install it on Windows, then turn on Settings >
+  Resources > WSL integration for your distro: new versions of Docker Desktop leave it off. Docker Desktop must run
+  whenever you use Fieldset ([Docker is missing or not
+  running](troubleshooting.md#docker-is-missing-or-not-running-in-wsl)).
+- **Docker Engine inside the distro.** Install Docker Engine in the distro as on Linux. So that it starts with the
+  distro and keeps running without a terminal, turn on systemd in `/etc/wsl.conf` (`[boot]`, `systemd=true`), set
+  `instanceIdleTimeout=-1` under `[general]` in `%UserProfile%\.wslconfig` on Windows, then run `wsl --shutdown` in
+  PowerShell and open the distro again. `fieldset doctor` warns when either is missing ([the instance stops with the
+  distro](troubleshooting.md#the-instance-stops-with-the-distro)).
+
+**3. Keep the instance in the Linux home.** The default `~/fieldset` is right. Never put the instance on a Windows drive
+(`/mnt/c/…`) or on a link to one: Linux owners and permissions do not work there, and `install.sh` refuses it. Backups
+may be copied to a Windows drive.
+
+**4. Install.** Run the [install command](#install) in the distro's terminal, unchanged. `install.sh` measures how Docker
+shows your files inside containers and sets up the instance for it. A directory that a failed 2.1.0 install left behind
+is fine: run the command again ([ownership errors](troubleshooting.md#ownership-errors)).
+
+**5. Open the app.** The owner's sign-in link opens in your Windows default browser. It is also printed in the
+terminal, in case no browser opens ([interop is off](troubleshooting.md#interop-is-off)). The URL
+(`http://localhost:<port>` in local mode) works in the Windows browser.
+
+**6. Phones (optional).** Install with `--phone-https local-ca`, or later run
+`fieldset config set phone-https local-ca --yes`. Phones use the Windows PC's address in your Wi-Fi, never WSL's
+internal one. Windows has to let them in: run `fieldset doctor`, and its `windows_network` check prints the commands to
+run in PowerShell as administrator, such as a firewall rule for ports 80 and 443 limited to your local network. Fieldset
+never changes Windows settings itself. If something blocks phones, see [phones on
+Windows](troubleshooting.md#phones-cannot-reach-the-instance-on-windows).
+
+**Where the data lives.** The database, the uploaded files and the certificates are Docker volumes: inside Docker
+Desktop, or inside the distro with Docker Engine. The instance directory (`~/fieldset`: settings, secrets, backups) is
+in the distro. `wsl --unregister <distro>` deletes the distro and the instance directory with its backups; resetting or
+removing Docker Desktop deletes the volumes. Copy backups to Windows or another machine regularly ([backup and
+restore](backup-restore.md#copy-backups-off-the-host)), for example
+`cp -r ~/fieldset/backups /mnt/c/Users/<you>/fieldset-backups`.
+
+**Switch between Docker Desktop and Docker Engine.** The volumes stay with the old Docker, so a switch is a move:
+`fieldset uninstall --keep-backups` writes a final backup and prints the command that brings the instance back. Switch
+Docker (turn Docker Desktop's WSL integration off for the distro before you install Docker Engine, or the other way
+round), then run that command: the install one-liner with `--from-backup` and `--app-key-file`. See also [move to another
+server](backup-restore.md#move-to-another-server) and, if pulls fail afterwards, [the Docker Desktop credential
+helper](troubleshooting.md#pulls-fail-with-docker-credential-desktopexe).
+
+**Reach it from outside your network.** The quick tunnel (`--phone-https tunnel` or `fieldset tunnel start`) gives a
+temporary public address and needs no Windows firewall rule, since it connects outward.
+
+**HTTPS on the PC itself.** With the local CA, the instance's URL becomes `https://<LAN address>`, and the browser on the
+PC warns until Windows trusts the CA too. Open the trust page `http://<LAN address>/phone-trust` on the PC, download the
+certificate, compare its SHA-256 with `phone_https.root_sha256` from `fieldset status`, and import it into the current
+user's trusted root certificates: double-click it, choose "Install Certificate", "Current User", then "Trusted Root
+Certification Authorities". Or in PowerShell:
+`Import-Certificate -FilePath <file> -CertStoreLocation Cert:\CurrentUser\Root`.
+Firefox keeps its own certificate list (Settings, Certificates, Import).
+
+**The PC is the server.** The instance runs only while Windows is on and Docker runs. Docker Desktop starts after you
+sign in to Windows (turn on its "Start Docker Desktop when you sign in" setting). While the PC sleeps or is off, phones
+cannot sync: their work waits on the device. Scheduled backups run at 03:30 only if the PC is on then; pick another time
+with `fieldset config set backup-schedule <HH:MM>`.
 
 ## Modes
 
