@@ -20,6 +20,7 @@ use App\Domain\Instance\Doctor\Checks\RegistryCheck;
 use App\Domain\Instance\Doctor\Checks\ServicesCheck;
 use App\Domain\Instance\Doctor\Checks\StaleFilesCheck;
 use App\Domain\Instance\Doctor\Checks\WindowsNetworkCheck;
+use App\Domain\Instance\Doctor\Checks\WslLifecycleCheck;
 use App\Domain\Instance\InstanceException;
 use Throwable;
 
@@ -55,7 +56,7 @@ final readonly class Doctor
         return [
             new DockerVersionCheck, new ArchitectureCheck, new MemoryCheck, new DiskCheck, new PathShareCheck,
             new PermissionsCheck, new StaleFilesCheck, new DnsCheck, new RegistryCheck, new ClockCheck,
-            new PortsCheck($this->ports), new ProxyAddressCheck, new LanAddressCheck, new WindowsNetworkCheck,
+            new PortsCheck($this->ports), new ProxyAddressCheck, new LanAddressCheck, new WindowsNetworkCheck, new WslLifecycleCheck,
             ...($context->post ? [new ServicesCheck] : []),
         ];
     }

@@ -154,7 +154,7 @@ fieldset_windows_script() { # the PowerShell of fieldset_windows_facts, one stat
 	tr '\n' ' ' <<'EOF'
 $ErrorActionPreference='Stop';
 try { Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | ForEach-Object { $c=$_; $p=[string]$c.NetProfile.NetworkCategory; if(!$p){ $p='none' }; foreach($a in $c.IPv4Address){ 'ipv4=' + $a.IPAddress + ' ' + $p + ' ' + (($c.InterfaceAlias + ' / ' + $c.InterfaceDescription) -replace '[^ -~]','?') } }; 'checked=addresses' } catch {};
-if($f){ try { $m='nat'; $w=Join-Path $env:USERPROFILE '.wslconfig'; if(Test-Path $w){ $x=Select-String -Path $w -Pattern '^\s*networkingMode\s*=\s*([A-Za-z]+)' | Select-Object -Last 1; if($x){ $m=$x.Matches[0].Groups[1].Value.ToLower() } }; 'networking=' + $m } catch {} };
+if($f){ try { $m='nat'; $w=Join-Path $env:USERPROFILE '.wslconfig'; if(Test-Path $w){ $x=Select-String -Path $w -Pattern '^\s*networkingMode\s*=\s*([A-Za-z]+)' | Select-Object -Last 1; if($x){ $m=$x.Matches[0].Groups[1].Value.ToLower() }; foreach($k in 'instanceIdleTimeout','vmIdleTimeout'){ $x=Select-String -Path $w -Pattern ('^\s*' + $k + '\s*=\s*(-?\d+)\s*$') | Select-Object -Last 1; if($x){ $k.ToLower() + '=' + $x.Matches[0].Groups[1].Value } } }; 'networking=' + $m; 'checked=wslconfig' } catch {} };
 if($f){ try { foreach($n in 'settings-store.json','settings.json'){ $j=Join-Path (Join-Path $env:APPDATA 'Docker') $n; if(Test-Path $j){ $b=(Get-Content -Raw $j | ConvertFrom-Json).PortBindingBehavior; if($b){ 'binding=' + $b }; break } } } catch {} };
 if($f){ try { Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq 'TCP' -and ($_.LocalPort -contains '80' -or $_.LocalPort -contains '443') } | ForEach-Object { $l=$_.LocalPort; $r=$_ | Get-NetFirewallRule; if($r.Enabled -eq 'True' -and $r.Direction -eq 'Inbound' -and $r.Action -eq 'Allow'){ foreach($p in $l){ if($p -eq '80' -or $p -eq '443'){ 'rule=' + $p + ' ' + [int]$r.Profile } } } }; 'checked=rules' } catch {} };
 if($f){ try { $h=Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'; 'hyperv_enabled=' + $h.Enabled; 'hyperv_inbound=' + $h.DefaultInboundAction } catch {} };
@@ -279,10 +279,11 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts but the owner (field
 	2\|*) FIELDSET_WSL_BACKEND=engine ;;
 	*) FIELDSET_WSL_BACKEND='' ;;
 	esac
-	FIELDSET_WSL_ADDRESSES='' FIELDSET_WINDOWS_FACTS=''
+	FIELDSET_WSL_ADDRESSES='' FIELDSET_WINDOWS_FACTS='' FIELDSET_WSL_SYSTEMD=''
 	if [ "$FIELDSET_WSL" = 2 ]; then # phones reach Windows, never the distro's own interface (KTD13): its addresses go apart
 		FIELDSET_WSL_ADDRESSES=$FIELDSET_LAN_ADDRESSES FIELDSET_LAN_ADDRESSES=''
 		fieldset_windows_facts
+		case $(cat "${FIELDSET_TEST_PROC:-/proc}/1/comm" 2>/dev/null) in systemd) FIELDSET_WSL_SYSTEMD=1 ;; *) FIELDSET_WSL_SYSTEMD=0 ;; esac # Engine starts with the distro (U7)
 	fi
 	case "$FIELDSET_HOST_OS|$fieldset_info" in
 	*name=rootless*) FIELDSET_DOCKER_RUNTIME=rootless ;;
@@ -298,7 +299,7 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts but the owner (field
 	esac
 	FIELDSET_DOCKER_SOCKET=$fieldset_socket
 	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_DOCKER_SOCKET \
-		FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_WSL_ADDRESSES FIELDSET_WINDOWS_FACTS
+		FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_WSL_ADDRESSES FIELDSET_WINDOWS_FACTS FIELDSET_WSL_SYSTEMD
 }
 
 fieldset_state_owner() { # <state.json>: sets fieldset_saved_uid, _runtime and _group from a measured owner (state 1.1, KTD5)
@@ -629,7 +630,7 @@ fieldset_run_container() { # <fieldset args…>: the ops container (ADR 0070); r
 	# honoured only by release-harness images (ADR 0075, ADR 0082).
 	for fieldset_var in FIELDSET_LAUNCHER FIELDSET_LAUNCHER_VERSION FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
 		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_OWNER_SOURCE FIELDSET_SOCKET_GROUP FIELDSET_DOCKER_SOCKET FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
-		FIELDSET_WSL_ADDRESSES FIELDSET_WINDOWS_FACTS FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
+		FIELDSET_WSL_ADDRESSES FIELDSET_WINDOWS_FACTS FIELDSET_WSL_SYSTEMD FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
 		set -- -e "$fieldset_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin

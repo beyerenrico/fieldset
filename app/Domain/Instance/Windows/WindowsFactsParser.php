@@ -17,6 +17,8 @@ namespace App\Domain\Instance\Windows;
  * - `rule=<port> <profile flags>` then `checked=rules`; `hyperv_rule=<port>` then `checked=hyperv_rules`;
  *   `portproxy=<listen address|*> <port> <connect address> <port>` then `checked=portproxy`;
  *   `listen=<port> <address> <pid> <process name>` then `checked=listen`
+ * - `instanceidletimeout=<ms>` and `vmidletimeout=<ms>` (`.wslconfig`, each only when set) then `checked=wslconfig`
+ *   (2.1.1 U7): known only with that line, and only as integers
  *
  * A list is known only when its `checked` line came (the script's section ran to its end), and only when every line of
  * it is well-formed: one malformed line makes the whole list unknown, never a partial one. LAN candidates are private
@@ -62,7 +64,23 @@ final class WindowsFactsParser
             hyperVRules: self::section($lines, 'hyperv_rules', 'hyperv_rule', self::port(...)),
             portProxies: self::section($lines, 'portproxy', 'portproxy', self::portProxy(...)),
             listeners: self::section($lines, 'listen', 'listen', self::listener(...)),
+            idleTimeouts: self::idleTimeouts($lines),
         );
+    }
+
+    /** @param  array<string, list<string>>  $lines */
+    private static function idleTimeouts(array $lines): ?WslIdleTimeouts
+    {
+        $values = [];
+        foreach (['instanceidletimeout', 'vmidletimeout'] as $key) {
+            $value = array_values(array_unique($lines[$key] ?? []));
+            if (count($value) > 1 || ($value !== [] && preg_match('/^-?\d{1,10}$/D', $value[0]) !== 1)) {
+                return null;
+            }
+            $values[] = $value === [] ? null : (int) $value[0];
+        }
+
+        return in_array('wslconfig', $lines['checked'] ?? [], true) ? new WslIdleTimeouts(...$values) : null;
     }
 
     /** @return array<string, list<string>> values by key, in document order */

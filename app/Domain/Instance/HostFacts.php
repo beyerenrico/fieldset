@@ -31,6 +31,8 @@ use App\Domain\Instance\Windows\WindowsFactsParser;
  *   absent when the command needed no Windows facts, and then FIELDSET_LAN_ADDRESSES stands (the detached supervisor
  *   forwards the Windows addresses there)
  * - FIELDSET_WSL_ADDRESSES: on WSL 2, the distro's own candidate addresses (under NAT the portproxy target)
+ * - FIELDSET_WSL_SYSTEMD: on WSL 2, `1` when systemd runs as PID 1 in the distro, else `0` (2.1.1 U7: Docker Engine starts
+ *   with the distro only then); launchers before 2.1.1 do not pass it (null: unknown)
  * - FIELDSET_DESKTOP: 1 when a desktop session can open a browser (the shim opens what a command hands over in
  *   FIELDSET_OPEN_URL_FILE, ADR 0070)
  * - FIELDSET_TZ: the host time zone (IANA name)
@@ -100,6 +102,7 @@ final readonly class HostFacts
         public ?int $launcherVersion = null,
         public ?WindowsFacts $windows = null,
         public array $wslAddresses = [],
+        public ?bool $wslSystemd = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -138,6 +141,7 @@ final readonly class HostFacts
             launcherVersion: $int('FIELDSET_LAUNCHER_VERSION'),
             windows: $windows,
             wslAddresses: $wsl === '2' ? self::addresses($env['FIELDSET_WSL_ADDRESSES'] ?? '') : [],
+            wslSystemd: $wsl === '2' && $match('FIELDSET_WSL_SYSTEMD', '/^[01]$/D') !== null ? $env['FIELDSET_WSL_SYSTEMD'] === '1' : null,
         );
     }
 

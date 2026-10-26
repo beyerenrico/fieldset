@@ -26,6 +26,7 @@ final readonly class WindowsFacts
      * @param  list<int>|null  $hyperVRules  ports of enabled inbound allow Hyper-V rules for WSL's VM
      * @param  list<PortProxyEntry>|null  $portProxies
      * @param  list<WindowsListener>|null  $listeners  Windows listeners on 80 and 443
+     * @param  WslIdleTimeouts|null  $idleTimeouts  `.wslconfig`'s idle timeouts (2.1.1 U7); null: unknown
      */
     public function __construct(
         public FactsScope $scope,
@@ -38,6 +39,7 @@ final readonly class WindowsFacts
         private ?array $hyperVRules = null,
         public ?array $portProxies = null,
         public ?array $listeners = null,
+        public ?WslIdleTimeouts $idleTimeouts = null,
     ) {}
 
     public static function skipped(): self

@@ -7,6 +7,7 @@ use App\Domain\Instance\LocalCa\LanAddress;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\Windows\FactsScope;
 use App\Domain\Instance\Windows\Presence;
+use App\Domain\Instance\Windows\WslIdleTimeouts;
 use App\Domain\Instance\Windows\WslNetworking;
 use Tests\Support\Docker\DistributionScripts;
 
@@ -180,5 +181,31 @@ it('keeps the ip candidates and never calls powershell.exe outside WSL', functio
         ->and($env['FIELDSET_LAN_ADDRESSES'])->toBe(FACTS_WSL_ADDRESS.' ')
         ->and($env['FIELDSET_WINDOWS_FACTS'])->toBe('')
         ->and($env['FIELDSET_WSL_ADDRESSES'])->toBe('')
+        ->and($env['FIELDSET_WSL_SYSTEMD'])->toBe('')
         ->and(HostFacts::fromEnvironment($env)->lanAddresses)->toBe([FACTS_WSL_ADDRESS]);
 });
+
+it('reports whether systemd is PID 1 and asks .wslconfig for the idle timeouts in the same call (U7)', function (?string $comm, string $systemd): void {
+    $this->scripts->wsl();
+    if ($comm !== null) {
+        $this->scripts->proc('1/comm', $comm."\n");
+    }
+    file_put_contents($this->scripts->root.'/powershell-output', "instanceidletimeout=-1\r\nnetworking=nat\r\nchecked=wslconfig\r\nend=1\r\n");
+
+    $process = $this->scripts->run($this->dir.'/fieldset', ['doctor'], $this->env);
+    $env = $this->scripts->opsEnvironment();
+    $calls = factsShimCalls($this->scripts);
+    $facts = HostFacts::fromEnvironment($env);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and($calls)->toHaveCount(1)
+        ->and($calls[0][3])->toContain("foreach(\$k in 'instanceIdleTimeout','vmIdleTimeout')")->toContain("'checked=wslconfig'")
+        ->and($env['FIELDSET_WSL_SYSTEMD'])->toBe($systemd)
+        ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e FIELDSET_WSL_SYSTEMD ')
+        ->and($facts->wslSystemd)->toBe($systemd === '1')
+        ->and($facts->windows?->idleTimeouts)->toEqual(new WslIdleTimeouts(-1, null));
+})->with([
+    'systemd' => ['systemd', '1'],
+    'another init' => ['init', '0'],
+    'unreadable' => [null, '0'],
+]);
