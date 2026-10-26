@@ -8,13 +8,16 @@
 #
 # The first argument that is not a flag (or a flag's value) is the command; `--dir <instance>` goes right after
 # it. HOME and DOCKER_CONFIG live on a container-private tmpfs, and no mount may cover a system path of the
-# image or a directory other users can write to (fieldset_reserved_path, LaunchGuard). On WSL it refuses WSL 1 and an
+# image or a directory other users can write to (fieldset_reserved_path, LaunchGuard). The ops container runs as the
+# owner a throwaway container measured (or the one saved in state.json): root where container root is the host user, the
+# host user where IDs pass through (fieldset_owner). On WSL it refuses WSL 1 and an
 # instance directory on a Windows drive, and names the Docker Desktop step when Docker is missing or down. With --json,
 # stdout carries only the command's JSON document and stderr only NDJSON events (KTD3). Docker's DOCKER_DEFAULT_PLATFORM, when set
 # (linux/amd64 or linux/arm64), picks the platform of the ops container and, passed on, of every image fieldset runs.
 #
 # Contract with install.sh (keep stable): FIELDSET_SHIM_LIBRARY=1 only defines the functions, and
-# `fieldset_run <instance dir> <image> <fieldset command> [args...]` returns the command's exit code.
+# `fieldset_run <instance dir> <image> <fieldset command> [args...]` returns the command's exit code. install.sh sets
+# fieldset_leftover=1 when the instance directory held the marker before it ran (an install that did not finish).
 
 fieldset_json_string() {
 	printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\000-\037')"
@@ -171,7 +174,7 @@ fieldset_docker_unreachable() { # `docker info` failed: exit 10 docker_unavailab
 		'Start Docker Desktop on Windows (Docker Engine in WSL: sudo service docker start), then run the command again.' true
 }
 
-fieldset_host_facts() { # exports the FIELDSET_* host facts; sets fieldset_user, fieldset_group and fieldset_socket (KTD2)
+fieldset_host_facts() { # exports the FIELDSET_* host facts but the owner (fieldset_owner); sets fieldset_socket (KTD2)
 	FIELDSET_HOST_UID=$(id -u)
 	FIELDSET_HOST_GID=$(id -g)
 	FIELDSET_HOST_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -199,18 +202,108 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts; sets fieldset_user,
 	unix://*) [ "$FIELDSET_DOCKER_RUNTIME" = desktop ] || fieldset_socket=${DOCKER_HOST#unix://} ;;
 	*) fieldset_fail 10 docker_host_unsupported "fieldset needs the local Docker socket, not DOCKER_HOST=$DOCKER_HOST." 'Unset DOCKER_HOST or point it at a unix:// socket.' ;;
 	esac
-	fieldset_group=''
-	if [ "$FIELDSET_DOCKER_RUNTIME" = rootful ]; then
-		FIELDSET_CONTAINER_UID=$FIELDSET_HOST_UID
-		fieldset_user=$FIELDSET_HOST_UID:$FIELDSET_HOST_GID
-		fieldset_group=$(stat -L -c %g "$fieldset_socket" 2>/dev/null) || fieldset_group=''  # rootful means Linux: GNU or busybox stat
-	else
-		FIELDSET_CONTAINER_UID=0
-		fieldset_user=0:0
-	fi
 	FIELDSET_DOCKER_SOCKET=$fieldset_socket
-	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET \
+	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_DOCKER_SOCKET \
 		FIELDSET_WSL FIELDSET_WSL_BACKEND
+}
+
+fieldset_state_owner() { # <state.json>: sets fieldset_saved_uid, _runtime and _group from a measured owner (state 1.1, KTD5)
+	# or fails: a state without one (written before 2.1.1) or with a value out of grammar. InstanceState's 4-space layout.
+	[ -f "$1" ] || return 1
+	fieldset_saved=$(awk '/^    "owner": \{$/ { inside = 1; next }
+		inside && /^    \}/ { exit }
+		inside && /^        "[a-z_]+": / { key = $1; gsub(/[":]/, "", key); value = $0; sub(/^        "[a-z_]+": /, "", value)
+			sub(/,$/, "", value); sub(/^"/, "", value); sub(/"$/, "", value); owner[key] = value }
+		END { uid = owner["container_uid"]; runtime = owner["runtime"]; group = owner["socket_group"]
+			if (uid ~ /^[0-9]+$/ && runtime ~ /^(rootful|rootless|desktop)$/ && group ~ /^[0-9]*$/) print uid, runtime, group }' "$1" 2>/dev/null)
+	[ -n "$fieldset_saved" ] || return 1
+	fieldset_saved_uid=${fieldset_saved%% *}
+	fieldset_saved=${fieldset_saved#* }
+	fieldset_saved_runtime=${fieldset_saved%% *}
+	fieldset_saved_group=${fieldset_saved#* }
+}
+
+fieldset_measure() { # the measuring container (KTD2, KTD4); sets fieldset_measured_uid, _group and _mode
+	# Container root of the verified image reads the owner of the nonce file the host user just wrote (0: root maps to the
+	# host user; the host UID: IDs pass through) and the mounted socket as containers see it. Nothing is written.
+	fieldset_measured=$(docker run --rm --network none --label app.fieldset.role=owner --user 0:0 --entrypoint stat \
+		-v "$fieldset_socket:/var/run/docker.sock:ro" -v "$fieldset_dir:$fieldset_dir:ro" "$fieldset_image" \
+		-L -c '%u %g %a' "$fieldset_dir/$FIELDSET_NONCE" /var/run/docker.sock 2>"$fieldset_tmp/measure") || return 1
+	fieldset_measured=$(printf '%s\n' "$fieldset_measured" | awk 'NR == 1 { owner = $1 } NR == 2 { group = $2; mode = $3 }
+		END { if (NR == 2 && owner ~ /^[0-9]+$/ && group ~ /^[0-9]+$/ && mode ~ /^[0-7]+$/) print owner, group, mode; else exit 1 }') || return 1
+	fieldset_measured_uid=${fieldset_measured%% *}
+	fieldset_measured=${fieldset_measured#* }
+	fieldset_measured_group=${fieldset_measured%% *}
+	fieldset_measured_mode=${fieldset_measured#* }
+}
+
+fieldset_classify() { # <owner> <socket group> <socket mode> as container root read them: root-mapped, pass-through or a stop (R27)
+	if [ "$1" = 0 ]; then
+		fieldset_container_uid=0
+	elif [ "$1" = "$FIELDSET_HOST_UID" ]; then
+		fieldset_container_uid=$1 fieldset_inner_group=$2
+		case $3 in *[2367]? | *[2367]) ;; *) # the ops user reaches the socket through its group (or as one of the others)
+			fieldset_fail 3 socket_no_group_access "The Docker socket grants its group no access inside containers (group $2, mode $3), so fieldset cannot reach Docker as UID $1." \
+				"Let the socket's group read and write it (Docker Engine: the docker group and mode 660; Docker Desktop: restart it), then run the command again." ;;
+		esac
+	else
+		fieldset_fail 3 owner_mapping_unknown "Containers see files of UID $FIELDSET_HOST_UID as owned by UID $1: Docker maps user IDs in a way fieldset does not support (user-namespace remapping?)." \
+			'Use a Docker engine where container root is you (Docker Desktop, rootless Docker) or where user IDs pass through (Docker Engine without userns-remap, WSL 2), then run the command again.'
+	fi
+}
+
+fieldset_owner_rules() { # the measurement could not run (KTD3): WSL 2 passes IDs through unless rootless, else the product-name rules
+	if [ "$FIELDSET_WSL" = 2 ] && [ "$FIELDSET_DOCKER_RUNTIME" != rootless ]; then
+		fieldset_container_uid=$FIELDSET_HOST_UID
+		fieldset_measure_error=$(tail -n 1 "$fieldset_tmp/measure" 2>/dev/null) || fieldset_measure_error=''
+		fieldset_say warn "Could not measure who owns the instance files inside containers${fieldset_measure_error:+ ($fieldset_measure_error)}; WSL 2 passes user IDs through, so fieldset runs as UID $FIELDSET_HOST_UID."
+	elif [ "$FIELDSET_DOCKER_RUNTIME" = rootful ]; then
+		fieldset_container_uid=$FIELDSET_HOST_UID
+	else
+		fieldset_container_uid=0
+	fi
+}
+
+fieldset_owner() { # exports FIELDSET_CONTAINER_UID, FIELDSET_OWNER_SOURCE and FIELDSET_SOCKET_GROUP; sets fieldset_user, fieldset_group
+	# KTD3: install, doctor and repair-ownership measure afresh, and so does any command without a saved owner (adopt, an
+	# instance from before 2.1.1) or whose detected runtime differs from the saved one; otherwise the saved owner applies.
+	fieldset_saved_runtime='' fieldset_inner_group='' FIELDSET_OWNER_SOURCE=saved FIELDSET_SOCKET_GROUP=''
+	case $fieldset_command in
+	install | doctor | repair-ownership) ;;
+	*) fieldset_state_owner "$fieldset_dir/state.json" || fieldset_saved_runtime='' ;;
+	esac
+	if [ -n "$fieldset_saved_runtime" ] && [ "$fieldset_saved_runtime" = "$FIELDSET_DOCKER_RUNTIME" ]; then
+		fieldset_container_uid=$fieldset_saved_uid fieldset_inner_group=$fieldset_saved_group
+	elif fieldset_measure; then
+		FIELDSET_OWNER_SOURCE=measured
+		fieldset_classify "$fieldset_measured_uid" "$fieldset_measured_group" "$fieldset_measured_mode"
+	else
+		FIELDSET_OWNER_SOURCE=rules
+		fieldset_owner_rules
+	fi
+	fieldset_group=''
+	if [ "$fieldset_container_uid" = 0 ]; then
+		fieldset_user=0:0
+	else
+		fieldset_user=$FIELDSET_HOST_UID:$FIELDSET_HOST_GID
+		if [ "$FIELDSET_WSL" = 2 ] && [ -n "$fieldset_inner_group" ]; then # Docker Desktop's socket belongs to root inside containers
+			fieldset_group=$fieldset_inner_group FIELDSET_SOCKET_GROUP=$fieldset_inner_group
+		else
+			fieldset_group=$(stat -L -c %g "$fieldset_socket" 2>/dev/null) || fieldset_group='' # native Linux: GNU or busybox stat
+		fi
+	fi
+	FIELDSET_CONTAINER_UID=$fieldset_container_uid
+	export FIELDSET_CONTAINER_UID FIELDSET_OWNER_SOURCE FIELDSET_SOCKET_GROUP
+}
+
+fieldset_reclaim() { # R24, KTD12: entries a failed 2.1.0 install left to root go back to the measured owner before install runs
+	case $fieldset_command in install | adopt) ;; *) return 0 ;; esac
+	[ "${fieldset_leftover:-0}" = 1 ] && [ "$FIELDSET_OWNER_SOURCE" = measured ] && [ "$fieldset_container_uid" != 0 ] && [ ! -f "$fieldset_dir/state.json" ] || return 0
+	# Owners only, on the instance's file system, never of or through a symlink, never of a file with a second hard link.
+	docker run --rm --network none --label app.fieldset.role=owner --user 0:0 --entrypoint find -v "$fieldset_dir:$fieldset_dir" "$fieldset_image" \
+		"$fieldset_dir" -xdev -uid 0 ! -type l '(' -type d -o -links 1 ')' -exec chown -h "$fieldset_container_uid:$FIELDSET_HOST_GID" '{}' + >/dev/null 2>"$fieldset_tmp/reclaim" ||
+		fieldset_fail 3 instance_unwritable "Cannot give the files an earlier install left to root in $fieldset_dir back to UID $fieldset_container_uid: $(tail -n 1 "$fieldset_tmp/reclaim" 2>/dev/null)" \
+			"Give them back yourself (sudo chown -R -h $fieldset_container_uid:$FIELDSET_HOST_GID $fieldset_dir), then run install.sh again."
 }
 
 fieldset_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: a platform releases ship, optionally with a variant (ADR 0070)
@@ -371,6 +464,8 @@ fieldset_run_setup() { # host facts, the terminal decision, the nonce and the ha
 	fieldset_cleanup_files=$fieldset_dir/$FIELDSET_NONCE$fieldset_nl${FIELDSET_OPEN_URL_FILE:+$fieldset_dir/$FIELDSET_OPEN_URL_FILE$fieldset_nl}
 	{ : >"$fieldset_dir/$FIELDSET_NONCE"; } 2>/dev/null || fieldset_fail 3 instance_unwritable "Cannot write to $fieldset_dir." 'Run fieldset as the instance owner.'
 	fieldset_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fieldset-run.XXXXXX" 2>/dev/null) || fieldset_fail 3 tmp_unavailable 'Cannot create a temporary directory.'
+	fieldset_owner
+	fieldset_reclaim
 	if [ -n "${FIELDSET_TRUST_KEY:-}" ]; then
 		fieldset_add_mount "$(dirname "$FIELDSET_TRUST_KEY")" ro
 		FIELDSET_TRUST_KEY=$fieldset_mount_dir/$(basename "$FIELDSET_TRUST_KEY")
@@ -429,7 +524,7 @@ fieldset_run_container() { # <fieldset args…>: the ops container (ADR 0070); r
 	# FIELDSET_TEST_DNS: fixed DNS answers for the doctor; FIELDSET_TEST_TUNNEL: the fake tunnel image and lifetime. Both are
 	# honoured only by release-harness images (ADR 0075, ADR 0082).
 	for fieldset_var in FIELDSET_LAUNCHER FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
-		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
+		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_OWNER_SOURCE FIELDSET_SOCKET_GROUP FIELDSET_DOCKER_SOCKET FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
 		FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
 		set -- -e "$fieldset_var" "$@"
 	done

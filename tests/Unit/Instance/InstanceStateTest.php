@@ -25,7 +25,7 @@ afterEach(function (): void {
 it('creates a versioned state with slug, project name, owner and mode', function (): void {
     $state = InstanceState::create(STATE_UUID, '/srv/My Instance.v2', 1000, 1000, 0);
 
-    expect($state->schemaVersion())->toBe('1.0')
+    expect($state->schemaVersion())->toBe('1.1') // 2.1.1 U3: the measured owner (OwnerMeasurementStateTest)
         ->and($state->uuid())->toBe(STATE_UUID)
         ->and($state->slug())->toBe('my-instance-v2')
         ->and($state->project())->toMatch('/^fieldset-my-instance-v2-[0-9a-f]{4}$/')

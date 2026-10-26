@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\State;
 
 use App\Domain\Instance\Docker\ComposeProject;
+use App\Domain\Instance\Docker\DockerRuntime;
 
 /**
  * Type and grammar checks of the keys InstanceState knows. Unknown keys are not checked: they belong to a newer
@@ -45,6 +46,10 @@ final class StateValidator
         foreach (['host_uid', 'host_gid', 'container_uid'] as $key) {
             self::check(is_int($owner[$key] ?? null) && $owner[$key] >= 0, "owner.{$key} must be a non-negative integer");
         }
+        // Schema 1.1, the measured owner (KTD5); the shim reads runtime and socket_group too, so both stay in grammar.
+        self::check(! array_key_exists('runtime', $owner) || DockerRuntime::tryFrom(is_string($owner['runtime']) ? $owner['runtime'] : '') !== null, 'owner.runtime is unknown');
+        self::check(! array_key_exists('socket_group', $owner) || (is_int($owner['socket_group']) && $owner['socket_group'] >= 0), 'owner.socket_group must be a non-negative integer');
+        self::check(! array_key_exists('measured_at', $owner) || (is_string($owner['measured_at']) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/D', $owner['measured_at']) === 1), 'owner.measured_at must be a UTC time');
     }
 
     /** http(s) URL without userinfo, query or unsafe characters (InputGrammar). */

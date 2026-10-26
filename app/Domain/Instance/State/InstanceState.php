@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\State;
 
+use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
@@ -13,10 +14,14 @@ use Carbon\CarbonImmutable;
  * The instance state (KTD6): the single authority from which compose file, env files and runtime directory are
  * rendered. A versioned JSON document; keys this version does not know (a newer minor) are kept verbatim.
  * It never holds secrets: those live only in the per-service env files (KTD7, EnvFiles).
+ *
+ * Schema 1.1 (2.1.1, KTD5) adds the measured owner to `owner`: `runtime` (the DockerRuntime detected when it was measured),
+ * `socket_group` (the socket's group inside containers, when the ops container needs it) and `measured_at`. 1.0 readers
+ * check only host_uid, host_gid and container_uid, whose meaning stays.
  */
 final readonly class InstanceState
 {
-    public const string SCHEMA_VERSION = '1.0';
+    public const string SCHEMA_VERSION = '1.1';
 
     public const array MODES = ['local', 'domain', 'proxy'];
 
@@ -155,6 +160,30 @@ final readonly class InstanceState
         return $this->owner('container_uid');
     }
 
+    /** The runtime the saved owner was measured under (schema 1.1), or null when the owner was never measured. */
+    public function measuredRuntime(): ?DockerRuntime
+    {
+        $owner = $this->document['owner'];
+
+        return is_array($owner) && is_string($owner['runtime'] ?? null) ? DockerRuntime::tryFrom($owner['runtime']) : null;
+    }
+
+    /** The Docker socket's group inside containers, saved with a measured owner that needs it (schema 1.1). */
+    public function socketGroup(): ?int
+    {
+        $owner = $this->document['owner'];
+
+        return is_array($owner) && is_int($owner['socket_group'] ?? null) ? $owner['socket_group'] : null;
+    }
+
+    /** When the saved owner was measured (UTC, ISO 8601), or null. */
+    public function ownerMeasuredAt(): ?string
+    {
+        $owner = $this->document['owner'];
+
+        return is_array($owner) && is_string($owner['measured_at'] ?? null) ? $owner['measured_at'] : null;
+    }
+
     /** @return array<string, string> image role => `repository@sha256:…` */
     public function digests(): array
     {
@@ -199,6 +228,19 @@ final readonly class InstanceState
         }
 
         return $this->with('url', $url);
+    }
+
+    /**
+     * Records how the in-container owner was measured (KTD5): the runtime, the socket's group inside containers (null:
+     * not needed) and the time. `container_uid` stays as it is: only an owner repair changes it (KTD6).
+     */
+    public function withOwnerMeasurement(DockerRuntime $runtime, ?int $socketGroup, CarbonImmutable $measuredAt): self
+    {
+        $owner = is_array($this->document['owner']) ? $this->document['owner'] : [];
+        unset($owner['socket_group']);
+
+        return $this->with('owner', [...$owner, 'runtime' => $runtime->value, ...($socketGroup === null ? [] : ['socket_group' => $socketGroup]),
+            'measured_at' => $measuredAt->utc()->toIso8601ZuluString()]);
     }
 
     /** @param  array<string, string>  $digests */

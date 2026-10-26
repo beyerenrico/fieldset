@@ -15,6 +15,10 @@ namespace App\Domain\Instance\Docker;
  *   files written by container root to the host user.
  *
  * On rootless and desktop the ops container runs as container root, and the in-container owner UID is 0.
+ *
+ * Since 2.1.1 (U3, KTD2, KTD3) these are only the fallback: the shim measures the owner in a container (0: root maps to
+ * the host user; the host UID: IDs pass through, as on WSL 2 with Docker Desktop, whose runtime reads `desktop`) and saves
+ * it with the runtime it was measured under; the runtime then decides when to measure again and which socket to mount.
  */
 enum DockerRuntime: string
 {
@@ -22,7 +26,7 @@ enum DockerRuntime: string
     case Rootless = 'rootless';
     case Desktop = 'desktop';
 
-    /** The UID that owns instance files inside containers (backup chown, restore, doctor ownership check). */
+    /** The UID that owns instance files inside containers by the product-name rules, when no measurement is known. */
     public function containerOwnerUid(int $hostUid): int
     {
         return $this === self::Rootful ? $hostUid : 0;

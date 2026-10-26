@@ -238,10 +238,11 @@ it('keeps DOCKER_DEFAULT_PLATFORM for its docker calls but cosign\'s and hands i
     $p = $platform ?? '';
     $events = collect(explode("\n", trim($process->getErrorOutput())))->map(fn (string $line): array => json_decode($line, true) ?? []);
 
-    // version, inspect, pull + create cosign (the engine's platform), cp, start, rm, pull app, cat shim, docker info, ops container
+    // version, inspect, pull + create cosign (the engine's platform), cp, start, rm, pull app, cat shim, docker info, the owner
+    // measurement (2.1.1 U3), ops container
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(array_map(fn (array $call): string => $call[0].'='.$call[1], $this->scripts->dockerPlatforms()))
-        ->toBe(["version={$p}", "image={$p}", 'pull=', 'create=', "cp={$p}", "start={$p}", "rm={$p}", "pull={$p}", "run={$p}", "info={$p}", "run={$p}"])
+        ->toBe(["version={$p}", "image={$p}", 'pull=', 'create=', "cp={$p}", "start={$p}", "rm={$p}", "pull={$p}", "run={$p}", "info={$p}", "run={$p}", "run={$p}"])
         ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e DOCKER_DEFAULT_PLATFORM ')
         ->and($this->scripts->opsEnvironment()['DOCKER_DEFAULT_PLATFORM'] ?? null)->toBe($platform)
         ->and($events->firstWhere('phase', 'pull')['message'])->toEndWith('@'.ReleaseFixtures::APP_DIGEST.($platform === null ? '' : " for {$platform}"));

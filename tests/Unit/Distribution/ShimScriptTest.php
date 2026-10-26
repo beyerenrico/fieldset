@@ -63,7 +63,7 @@ it('runs the ops container as DOCKER_DEFAULT_PLATFORM and passes it on, so field
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e DOCKER_DEFAULT_PLATFORM ')
         ->and($this->scripts->opsEnvironment())->toMatchArray(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64', 'FIELDSET_LAUNCHER' => 'shim'])
-        ->and($this->scripts->dockerPlatforms())->toBe([['info', 'linux/amd64'], ['run', 'linux/amd64']]);
+        ->and($this->scripts->dockerPlatforms())->toBe([['info', 'linux/amd64'], ['run', 'linux/amd64'], ['run', 'linux/amd64']]); // owner measurement (U3), ops container
 });
 
 it('refuses an invalid DOCKER_DEFAULT_PLATFORM with exit 2 before calling Docker, and passes none when unset', function (): void {
@@ -301,8 +301,9 @@ it('selects the user, socket and owner UID per Docker runtime and reports WSL 2 
     'Docker Desktop on Linux' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]'], 'desktop', true, '/var/run/docker.sock'],
     'Colima on Linux' => [['STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|colima|[]', 'DOCKER_HOST' => 'unix:///home/u/.colima/default/docker.sock'], 'desktop', true, '/var/run/docker.sock'],
     'macOS' => [['STUB_UNAME' => 'Darwin', 'DOCKER_HOST' => 'unix:///Users/u/.docker/run/docker.sock'], 'desktop', true, '/var/run/docker.sock'],
-    // 2.1.1 U2: WSL facts only, the classification stays (U3 measures the owner); WSL 1 is refused (WslScriptsTest).
-    'WSL 2 with Docker Desktop' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]'], 'desktop', true, '/var/run/docker.sock', '2', 'desktop'],
+    // 2.1.1: WSL facts and, for Docker Desktop, the measured owner (U3: IDs pass through; OwnerMeasurementTest has every row
+    // measured); WSL 1 is refused (WslScriptsTest).
+    'WSL 2 with Docker Desktop' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]', 'STUB_MEASURE_OWNER' => (string) posix_getuid()], 'desktop', false, '/var/run/docker.sock', '2', 'desktop'],
     'Docker Engine in WSL 2' => [['STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS (containerized)|DESKTOP-PC|[]'], 'rootful', false, '/var/run/docker.sock', '2', 'engine'],
     'rootless Docker Engine in WSL 2' => [['STUB_DOCKER_INFO' => 'Ubuntu 22.04.5 LTS|DESKTOP-PC|["name=rootless"]', 'XDG_RUNTIME_DIR' => '/run/user/1000'], 'rootless', true, '/run/user/1000/docker.sock', '2', 'engine'],
 ]);

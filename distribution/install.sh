@@ -276,6 +276,8 @@ fieldset_install_prepare_dir() { # instance directory 0700, marker, verified rel
 	if ! { mkdir -p "$dir" && chmod 0700 "$dir"; } 2>/dev/null; then
 		fieldset_install_fail 2 invalid_dir "Cannot create $dir." 'Pass --dir with a directory you can write to.'
 	fi
+	leftover=0 # an earlier install that did not finish left the marker (R24: the shim gives root-owned leftovers back)
+	[ ! -f "$dir/.fieldset-instance" ] || leftover=1
 	[ -f "$dir/.fieldset-instance" ] || printf '{"schema_version":"1.0","kind":"fieldset instance"}\n' >"$dir/.fieldset-instance"
 	releases=$dir/releases/$release
 	{ mkdir -p "$releases" && chmod 0700 "$dir/releases" "$releases"; } 2>/dev/null || fieldset_install_fail 2 invalid_dir "Cannot write to $dir."
@@ -372,7 +374,7 @@ fieldset_install_main() {
 	fieldset_install_phase handover "Starting fieldset $command $release in $dir"
 	# The shim from the verified image runs the handover; FIELDSET_SHIM_LIBRARY=1 makes it define its functions only.
 	# shellcheck disable=SC2034 # read by the sourced shim
-	FIELDSET_SHIM_LIBRARY=1 FIELDSET_LAUNCHER=install.sh
+	FIELDSET_SHIM_LIBRARY=1 FIELDSET_LAUNCHER=install.sh fieldset_leftover=$leftover
 	# shellcheck source=/dev/null # distribution/shim.sh, linted on its own
 	. "$dir/fieldset"
 	FIELDSET_RELEASE_MANIFEST=$releases/release-manifest.json

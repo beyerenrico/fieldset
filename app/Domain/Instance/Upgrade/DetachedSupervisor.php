@@ -141,14 +141,25 @@ final readonly class DetachedSupervisor
         foreach ($facts->mounts as $path => $writable) {
             $volumes[] = $path.':'.$path.($writable ? '' : ':ro');
         }
-        $socketGroup = @filegroup('/var/run/docker.sock');
+        $uid = function_exists('posix_getuid') ? posix_getuid() : 0;
 
         return new ContainerSpec(
             image: $state->digests()['app'], command: ['upgrade', '--supervise', '--dir', $root, ...$request->flags(), '--json'],
             env: $this->environment($facts, $result), volumes: $volumes,
-            user: (function_exists('posix_getuid') ? posix_getuid() : 0).':'.(function_exists('posix_getgid') ? posix_getgid() : 0),
-            entrypoint: 'fieldset', workdir: $root, groupAdd: is_int($socketGroup) && $socketGroup > 0 ? [(string) $socketGroup] : [],
+            user: $uid.':'.(function_exists('posix_getgid') ? posix_getgid() : 0),
+            entrypoint: 'fieldset', workdir: $root, groupAdd: self::socketGroups(@filegroup('/var/run/docker.sock'), $uid),
         );
+    }
+
+    /**
+     * The supervisor's supplementary group: the socket's group as this ops container sees it, also group 0 for an ops user
+     * other than root (2.1.1: on WSL 2 with Docker Desktop the socket is root:root 0660 inside containers, KTD4).
+     *
+     * @return list<string>
+     */
+    public static function socketGroups(int|false $socketGroup, int $uid): array
+    {
+        return is_int($socketGroup) && ($socketGroup > 0 || $uid !== 0) ? [(string) $socketGroup] : [];
     }
 
     /** The supervisor's side: the result envelope (redacted) for the foreground, when the foreground named a file. */
@@ -276,6 +287,7 @@ final readonly class DetachedSupervisor
             'FIELDSET_CONTAINER_UID' => $facts->containerUid === null ? null : (string) $facts->containerUid,
             'FIELDSET_REGISTRY' => $facts->registry, 'FIELDSET_RELEASE_URL' => $facts->releaseUrl, 'DOCKER_DEFAULT_PLATFORM' => $facts->platform,
             'FIELDSET_WSL' => $facts->wslVersion === null ? null : (string) $facts->wslVersion, 'FIELDSET_WSL_BACKEND' => $facts->wslBackend?->value,
+            'FIELDSET_OWNER_SOURCE' => $facts->ownerSource?->value, 'FIELDSET_SOCKET_GROUP' => $facts->socketGroup === null ? null : (string) $facts->socketGroup,
         ], static fn (?string $value): bool => $value !== null && $value !== '');
         foreach (self::PASSED as $name) {
             $value = getenv($name);

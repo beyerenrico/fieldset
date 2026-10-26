@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance;
 
 use App\Domain\Instance\Docker\DockerRuntime;
+use App\Domain\Instance\Docker\OwnerSource;
 use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\Release\ImagePin;
 
@@ -23,7 +24,11 @@ use App\Domain\Instance\Release\ImagePin;
  *   FIELDSET_OPEN_URL_FILE, ADR 0070)
  * - FIELDSET_TZ: the host time zone (IANA name)
  * - FIELDSET_DOCKER_RUNTIME: rootful | rootless | desktop (DockerRuntime)
- * - FIELDSET_CONTAINER_UID: the in-container owner UID (host UID on rootful, 0 otherwise)
+ * - FIELDSET_CONTAINER_UID: the in-container owner UID: 0 where container root is the host user, the host UID where IDs
+ *   pass through (2.1.1: measured, saved or by rules, see FIELDSET_OWNER_SOURCE; before: host UID on rootful, else 0)
+ * - FIELDSET_OWNER_SOURCE: measured | saved | rules (OwnerSource), where the launcher took FIELDSET_CONTAINER_UID from
+ * - FIELDSET_SOCKET_GROUP: on WSL 2 with an ops user other than root, the socket's group as containers see it (measured or
+ *   saved; Docker Desktop's socket belongs to root:root 0660 there), which the ops container got with --group-add
  * - FIELDSET_DOCKER_SOCKET: the socket path the daemon mounted into the ops container
  * - FIELDSET_WSL: `2` when the launcher runs in a WSL 2 distro, `0` elsewhere (the launchers refuse WSL 1); launchers
  *   before 2.1.1 do not pass it (null: unknown)
@@ -78,6 +83,8 @@ final readonly class HostFacts
         public ?string $releaseUrl = null,
         public ?int $wslVersion = null,
         public ?WslBackend $wslBackend = null,
+        public ?OwnerSource $ownerSource = null,
+        public ?int $socketGroup = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -110,6 +117,8 @@ final readonly class HostFacts
             releaseUrl: $match('FIELDSET_RELEASE_URL', '#^https?://[A-Za-z0-9._~:/%-]+$#D'),
             wslVersion: $wsl === null ? null : (int) $wsl,
             wslBackend: $wsl === '2' ? WslBackend::tryFrom($env['FIELDSET_WSL_BACKEND'] ?? '') : null,
+            ownerSource: OwnerSource::tryFrom($env['FIELDSET_OWNER_SOURCE'] ?? ''),
+            socketGroup: $int('FIELDSET_SOCKET_GROUP'),
         );
     }
 

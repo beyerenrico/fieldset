@@ -19,6 +19,12 @@ use Symfony\Component\Process\Process;
  * (`uname -s`). Every docker call also logs its subcommand with the DOCKER_DEFAULT_PLATFORM it saw (`dockerPlatforms()`),
  * and the ops-container dump includes that variable next to the FIELDSET_* ones.
  *
+ * The owner measurement (2.1.1 U3, `docker run … --entrypoint stat`) fails like a container that cannot start (exit
+ * STUB_MEASURE_EXIT, default 125, with STUB_MEASURE_STDERR) unless STUB_MEASURE_OWNER is set: then it prints that UID as
+ * the owner of the nonce file and STUB_MEASURE_SOCKET (`<gid> <mode>`, default `0 660`) for the mounted socket, as
+ * container root reads them. The leftover fix (`--entrypoint find`) runs STUB_RECLAIM_HOOK with the run's argv, prints
+ * STUB_RECLAIM_STDERR and exits STUB_RECLAIM_EXIT (default 0). `measureRuns()` and `reclaimRuns()` return those runs.
+ *
  * The launchers read the kernel release, the WSL interop marker and the mount table under FIELDSET_TEST_PROC instead of
  * /proc. It points at `<root>/proc`, empty unless a test writes there (`proc()`, `wsl()`), so a run on a WSL or Linux
  * machine sees no host of its own; WSL_DISTRO_NAME is unset unless a test passes it.
@@ -105,6 +111,26 @@ final readonly class DistributionScripts
             && ($call[array_search('fieldset', $call, true) - 1] ?? '') === '--entrypoint');
 
         return array_values(array_map(static fn (array $call): array => array_slice($call, 1), $runs));
+    }
+
+    /**
+     * The `docker run … --entrypoint stat …` calls (the owner measurement, U3), without the program name.
+     *
+     * @return list<list<string>>
+     */
+    public function measureRuns(): array
+    {
+        return $this->runsWithEntrypoint('stat');
+    }
+
+    /**
+     * The `docker run … --entrypoint find …` calls (the leftover fix of a failed 2.1.0 install, U3), without the program name.
+     *
+     * @return list<list<string>>
+     */
+    public function reclaimRuns(): array
+    {
+        return $this->runsWithEntrypoint('find');
     }
 
     /**
@@ -202,6 +228,15 @@ final readonly class DistributionScripts
         return $process;
     }
 
+    /** @return list<list<string>> */
+    private function runsWithEntrypoint(string $entrypoint): array
+    {
+        $runs = array_filter($this->calls('docker'), static fn (array $call): bool => ($call[1] ?? '') === 'run' && in_array($entrypoint, $call, true)
+            && ($call[array_search($entrypoint, $call, true) - 1] ?? '') === '--entrypoint');
+
+        return array_values(array_map(static fn (array $call): array => array_slice($call, 1), $runs));
+    }
+
     private function write(string $name, string $contents): string
     {
         file_put_contents($this->bin.'/'.$name, $contents);
@@ -231,6 +266,16 @@ final readonly class DistributionScripts
         for a in "$@"; do
             [ "$a" != /var/www/html/distribution/shim.sh ] || exec cat "$STUB_SHIM"
         done
+        case " $* " in
+        *' --entrypoint stat '*)
+            [ -n "${STUB_MEASURE_OWNER:-}" ] || { printf '%s\n' "${STUB_MEASURE_STDERR:-docker: Error response from daemon: the stub measures nothing unless STUB_MEASURE_OWNER is set.}" >&2; exit "${STUB_MEASURE_EXIT:-125}"; }
+            printf '%s 0 600\n0 %s\n' "$STUB_MEASURE_OWNER" "${STUB_MEASURE_SOCKET:-0 660}"
+            exit 0 ;;
+        *' --entrypoint find '*)
+            [ -z "${STUB_RECLAIM_HOOK:-}" ] || "$STUB_RECLAIM_HOOK" "$@"
+            [ -z "${STUB_RECLAIM_STDERR:-}" ] || printf '%s\n' "$STUB_RECLAIM_STDERR" >&2
+            exit "${STUB_RECLAIM_EXIT:-0}" ;;
+        esac
         : > "$STUB_ROOT/ops-env"
         for v in $(env | sed -n -e 's/^\(FIELDSET_[A-Z_]*\)=.*/\1/p' -e 's/^\(DOCKER_DEFAULT_PLATFORM\)=.*/\1/p'); do
             eval "val=\${$v}"
