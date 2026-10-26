@@ -232,15 +232,16 @@ final readonly class InstanceState
 
     /**
      * Records how the in-container owner was measured (KTD5): the runtime, the socket's group inside containers (null:
-     * not needed) and the time. `container_uid` stays as it is: only an owner repair changes it (KTD6).
+     * not needed) and the time. `container_uid` stays as it is unless the owner repair passes the measured one (KTD6,
+     * `fieldset repair-ownership`, 2.1.1 U4).
      */
-    public function withOwnerMeasurement(DockerRuntime $runtime, ?int $socketGroup, CarbonImmutable $measuredAt): self
+    public function withOwnerMeasurement(DockerRuntime $runtime, ?int $socketGroup, CarbonImmutable $measuredAt, ?int $containerUid = null): self
     {
         $owner = is_array($this->document['owner']) ? $this->document['owner'] : [];
         unset($owner['socket_group']);
 
-        return $this->with('owner', [...$owner, 'runtime' => $runtime->value, ...($socketGroup === null ? [] : ['socket_group' => $socketGroup]),
-            'measured_at' => $measuredAt->utc()->toIso8601ZuluString()]);
+        return $this->with('owner', [...$owner, ...($containerUid === null ? [] : ['container_uid' => $containerUid]), 'runtime' => $runtime->value,
+            ...($socketGroup === null ? [] : ['socket_group' => $socketGroup]), 'measured_at' => $measuredAt->utc()->toIso8601ZuluString()]);
     }
 
     /** @param  array<string, string>  $digests */

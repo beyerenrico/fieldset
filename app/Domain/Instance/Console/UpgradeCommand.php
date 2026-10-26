@@ -32,6 +32,12 @@ use Illuminate\Console\Attributes\Signature;
         {--supervise : Run the upgrade in this process (the detached supervisor; used by fieldset itself)}')]
 final class UpgradeCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function perform(FieldsetContext $context): CommandResult
     {
         if ($this->option('follow') === true) {

@@ -25,6 +25,7 @@ The docs site [beyerenrico.github.io/fieldset](https://beyerenrico.github.io/fie
   [VPS install](#recipe-vps-install) ·
   [phone demo](#recipe-phone-demo) ·
   [change the domain](#recipe-change-the-domain) ·
+  [repair ownership](#recipe-repair-ownership) ·
   [remove an instance](#recipe-remove-an-instance)
 - [How this guide is tested](#how-this-guide-is-tested)
 
@@ -34,7 +35,7 @@ The docs site [beyerenrico.github.io/fieldset](https://beyerenrico.github.io/fie
    progress as one JSON object per line. Parse stdout, never the progress lines.
 2. **Branch on the exit code and `errors[0].code`,** never on message text. Messages and hints are for people.
 3. **Pass `--yes` only for a step the person asked for.** Destructive commands (`uninstall`, `restore`, `rollback`,
-   `reset`, `adopt`, and `config set` of a key that changes the URL) exit with 6 `confirmation_required` without it,
+   `reset`, `adopt`, `repair-ownership`, and `config set` of a key that changes the URL) exit with 6 `confirmation_required` without it,
    and `data` then holds the question and the facts it is about. Show those to the person, then run the command again
    with `--yes`.
 4. **Never put a secret on the command line.** `fieldset` refuses any flag whose name says password, passphrase, secret,
@@ -84,7 +85,7 @@ Every command lists its flags with `<dir>/fieldset <command> --help`.
 | 0 | Success | Read `data`. Look at `warnings` too. |
 | 1 | Internal error | Report `errors[0]` to the person. Run `<dir>/fieldset status --json` to see what changed. |
 | 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. A failed install leaves its directory: see [a failed install](#a-failed-install). |
-| 3 | Preflight failed: the doctor (Docker, disk, ports, DNS) or a precondition of the command, such as `default_password_in_use` (accounts still sign in with the demo password `password`) | `data.checks` lists the doctor's checks, each `{key, status, summary, hint, details}` with `status` `ok`, `warn`, `fail` or `skipped`; fix every `fail` as its `hint` says. A precondition names its fix in `errors[0].hint`. Then run the command again. Nothing changed; a failed install leaves its directory (see [a failed install](#a-failed-install)). |
+| 3 | Preflight failed: the doctor (Docker, disk, ports, DNS) or a precondition of the command, such as `default_password_in_use` (accounts still sign in with the demo password `password`) | `data.checks` lists the doctor's checks, each `{key, status, summary, hint, details}` with `status` `ok`, `warn`, `fail`, `skipped` or `unknown` (the check could not find out; it counts like `warn`: listed under `warnings`, exit 0 when nothing fails); fix every `fail` as its `hint` says. A precondition names its fix in `errors[0].hint`. Then run the command again. Nothing changed; a failed install leaves its directory (see [a failed install](#a-failed-install)). |
 | 3 | install.sh could not download or verify the release (`release_unavailable`, `image_unavailable`, `verify_failed`, `manifest_signature_invalid`, …) | `data` is empty: read `errors[0]`. `release_unavailable` and `image_unavailable` are network problems (`retryable: true`). On `verify_failed` or `manifest_signature_invalid`, stop and report `errors[0]` to the person: never retry with another install.sh or release URL, never bypass the check. Only if `errors[0].message` shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later. Nothing changed: no directory was created. |
 | 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fieldset logs app --json`. An install resumes when run again. |
 | 5 | Rolled back | The instance is back where it was. `errors[0].code` is the cause. See below. |
@@ -571,6 +572,31 @@ is not a demo account, change its password); exit 3 `doctor_failed` (DNS does no
 busy; `data.checks`); exit 5
 `certificate_failed` (no certificate could be obtained: the instance keeps its old domain; `data.fix_first` says what
 to fix). Back to local mode: `fieldset config set mode local --yes`.
+
+## Recipe: repair ownership
+
+When Docker starts to map user IDs differently than when the instance was set up (rootful Docker became rootless, the
+instance directory moved to WSL 2 or another host), `fieldset doctor --json` fails its `permissions` check (exit 3
+`doctor_failed`) with `details.owner_mismatch: true`. `details.saved_owner_uid` is the owner saved with the instance,
+`details.measured_owner_uid` the one measured just now (both as containers see the files), and `details.owner_source`
+says who measured: `measured` (a container, just now), `saved` (state.json) or `rules` (the measurement could not run).
+With `rules` the check is `unknown` (a warning, never a mismatch): run `fieldset doctor` again once Docker can start
+containers. A mismatch's hint names the repair; ask the person first:
+
+```sh
+~/forms/fieldset repair-ownership --yes --json
+```
+
+It gives the instance files to the measured owner (owners only: modes, symlinks, hard-linked files and Docker volumes
+stay as they are), saves that owner in state.json and recreates the backup service for it. `data.owner` is `{from, to,
+group, runtime, source}`, `data.files_changed` how many entries got the new owner, `data.backup_service` `recreated`
+(or `unchanged` when nothing was to do) and `data.message` a sentence for the person. When the saved and the measured
+owner already match it changes nothing (`changed: false`). Then run `~/forms/fieldset doctor --json` again.
+
+Without `--yes` the command exits 6 and `data` names both owners (`data.owner`). Failures: exit 3 `owner_not_measured`
+(the owner could not be measured in this run: run it again through `<dir>/fieldset` once Docker can start containers);
+exit 4 `owner_repair_failed` or `services_unhealthy` (the saved owner is unchanged, `retryable: true`: fix the cause the
+message names, then run the same command again); exit 9 `instance_locked` or `operation_unfinished`.
 
 ## Recipe: remove an instance
 

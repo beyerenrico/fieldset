@@ -34,6 +34,12 @@ use Illuminate\Console\Attributes\Signature;
         {--passphrase-stdin : With --encrypt: read the identity\'s passphrase from stdin (a hidden prompt, twice, in a terminal)}')]
 final class BackupCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function perform(FieldsetContext $context): CommandResult
     {
         $encryption = null;

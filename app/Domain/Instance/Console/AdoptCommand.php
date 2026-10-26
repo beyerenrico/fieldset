@@ -27,6 +27,12 @@ use Illuminate\Console\Attributes\Signature;
         {--abandon : Undo an adopt that stopped half-way: start 1.0 again and remove what adopt created here}')]
 final class AdoptCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     /** `data` names the checkout and the new instance's directory (M12 gate O6). */
     protected function confirmationPrompt(FieldsetContext $context): Confirmation
     {

@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Doctor;
 
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerInfo;
+use App\Domain\Instance\Docker\OwnerSource;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\State\InstanceDirectory;
@@ -55,10 +56,34 @@ final class DoctorContext
         return $this->info ??= $this->docker->info();
     }
 
-    /** The UID instance files must belong to as containers see them (KTD2, ADR 0070). */
+    /**
+     * The UID instance files must belong to as containers see them (KTD2, ADR 0070): the owner the launcher measured in this
+     * run, which this run's ops user follows (2.1.1 KTD3), else the one saved with the instance, else the launcher's.
+     */
     public function ownerUid(): int
     {
-        return $this->state?->containerUid() ?? $this->facts->ownerUidInContainers();
+        return $this->measuredOwnerUid() ?? $this->state?->containerUid() ?? $this->facts->ownerUidInContainers();
+    }
+
+    /** The owner saved with the instance (state.json's `owner.container_uid`), or null before the state exists. */
+    public function savedOwnerUid(): ?int
+    {
+        return $this->state?->containerUid();
+    }
+
+    /** The owner the launcher measured in a container during this run (install, doctor and repair always do), or null. */
+    public function measuredOwnerUid(): ?int
+    {
+        return $this->facts->ownerSource === OwnerSource::Measured ? $this->facts->containerUid : null;
+    }
+
+    /** Whether the measured owner differs from the saved one: `fieldset repair-ownership` fixes it (2.1.1 U4). */
+    public function ownerMismatch(): bool
+    {
+        $measured = $this->measuredOwnerUid();
+        $saved = $this->savedOwnerUid();
+
+        return $measured !== null && $saved !== null && $measured !== $saved;
     }
 
     public function installed(): bool

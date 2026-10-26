@@ -17,6 +17,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\Tunnel\TunnelSweeper;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
+use Symfony\Component\Console\Input\InputInterface;
 
 /**
  * `fieldset config show` and `fieldset config set <key> <value>` (§7, R31, R32, R54, ADR 0077). `show` prints the effective
@@ -65,6 +66,12 @@ final class ConfigCommand extends FieldsetCommand
 {
     /** Container key of a closure that returns stdin (tests); the real stdin otherwise (SmtpInput). */
     public const string STDIN = SmtpInput::STDIN;
+
+    /** `config set` changes the instance and saves the measured owner with it (2.1.1 U4, KTD6); `config show` only reads. */
+    protected function recordsOwner(): bool
+    {
+        return $this->input instanceof InputInterface && $this->input->hasArgument('action') && $this->input->getArgument('action') === 'set';
+    }
 
     protected function perform(FieldsetContext $context): CommandResult
     {

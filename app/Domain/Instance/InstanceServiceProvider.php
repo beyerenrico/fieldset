@@ -13,6 +13,7 @@ use App\Domain\Instance\Console\DoctorCommand;
 use App\Domain\Instance\Console\InstallCommand;
 use App\Domain\Instance\Console\LoginLinkCommand;
 use App\Domain\Instance\Console\LogsCommand;
+use App\Domain\Instance\Console\RepairOwnershipCommand;
 use App\Domain\Instance\Console\ResetCommand;
 use App\Domain\Instance\Console\RestoreCommand;
 use App\Domain\Instance\Console\RestorePrepareCommand;
@@ -51,6 +52,7 @@ final class InstanceServiceProvider extends ServiceProvider
         TunnelCommand::class, BackupCommand::class, BackupDaemonCommand::class, RestorePrepareCommand::class, RestoreCommand::class,
         AdoptCommand::class,
         ResetCommand::class, UpgradeCommand::class, UpgradeChildCommand::class, RollbackCommand::class,
+        RepairOwnershipCommand::class,
     ];
 
     public function register(): void

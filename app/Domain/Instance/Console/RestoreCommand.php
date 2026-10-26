@@ -39,6 +39,12 @@ use Illuminate\Console\Attributes\Signature;
         {--without-files : Restore a backup that carries no storage archive: the database only, the current files kept aside}')]
 final class RestoreCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function perform(FieldsetContext $context): CommandResult
     {
         if ($this->option('abandon') === true) {

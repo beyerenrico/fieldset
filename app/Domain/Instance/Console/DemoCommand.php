@@ -22,6 +22,12 @@ use Illuminate\Console\Attributes\Signature;
         {--open : Open the demo owner\'s sign-in link in the browser of a desktop session instead of printing it}')]
 final class DemoCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function opensBrowser(): bool
     {
         return (bool) $this->option('open');

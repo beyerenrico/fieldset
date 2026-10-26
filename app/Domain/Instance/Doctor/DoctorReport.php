@@ -21,10 +21,10 @@ final readonly class DoctorReport
         return $this->withStatus(CheckStatus::Fail);
     }
 
-    /** @return list<CheckResult> */
+    /** @return list<CheckResult> warnings and unknown results (which count like warnings), in check order */
     public function warnings(): array
     {
-        return $this->withStatus(CheckStatus::Warn);
+        return array_values(array_filter($this->results, static fn (CheckResult $result): bool => in_array($result->status, [CheckStatus::Warn, CheckStatus::Unknown], true)));
     }
 
     public function result(string $key): ?CheckResult

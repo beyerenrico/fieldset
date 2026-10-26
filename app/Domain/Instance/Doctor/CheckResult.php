@@ -41,6 +41,16 @@ final readonly class CheckResult
         return new self($key, CheckStatus::Fail, $summary, $hint, $details);
     }
 
+    /**
+     * The check could not find out (2.1.1 U4): counts like a warning, never like a failure.
+     *
+     * @param  array<string, mixed>  $details
+     */
+    public static function unknown(string $key, string $summary, string $hint, array $details = [], ?string $code = null): self
+    {
+        return new self($key, CheckStatus::Unknown, $summary, $hint, $details, $code);
+    }
+
     /** @param  array<string, mixed>  $details */
     public static function skipped(string $key, string $summary, array $details = []): self
     {
