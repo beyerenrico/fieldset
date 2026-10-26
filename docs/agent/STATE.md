@@ -1,21 +1,19 @@
-# State: 2026-10-23 — Fieldset 2.1.0 published (stable, Latest); docs site serves the final 2.1 copy
+# State: 2026-10-26 — 2.1.1 WSL parity implemented on `maint-wsl-parity` (PR #1); 2.1.0 is the published stable
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
 Rename to Fieldset (human decision, QUESTIONS 1/25; plans and brainstorms are local only, QUESTIONS 79;
 ADR 0092): U1–U8 done; Trivy fix ADR 0093 (QUESTIONS 77a). Published tags, each human-approved and pushed by name:
 `v2.1.0-rc.1` to `rc.4` and `v2.1.0` (2c224db8). Local only: `v2.0.0`, `rename-done`, `mX-done`.
 Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
 
-GitHub repo renamed to `beyerenrico/fieldset` by the human; they pushed `main` (ff5646ba), then allowed the agent to
-push to get CI green ("you are allowed to push … make sure that the CI is green"; never tags, never force). Fixes on
-main: `ci-services` (d362fc1f), `ci-e2e-scheduler` (963c07c0), `ci-classic-builder-lock` (c82c31f0: ClassicBuilderSlot,
-one classic-builder render at a time, ADR 0083 amendment; Dogfood records container deaths and a timeline) and
-`ci-nightly-journeys` (89abe7e2: human decision "Nightly + release", ADR 0091 amendment; sync backoff test and dev
-compose start-order flakes). Both branches green on GitHub before the merge (runs 39715804524 with journeys 148 passed /
-7 skipped / 3 warnings, and 39728456302). `fix-shell-session-race`: `/app/shell` without session middleware (ADR 0035
-amendment; CI run 39747027552 lost the SSO start token). Human decisions 2026-10-22: move `v2.1.0` to a green main
-commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old dev resources deleted (77d).
+Repo `beyerenrico/fieldset`; the agent may push branches and main to get CI green, never tags without approval, never force
+(human: "you are allowed to push … make sure that the CI is green"). The 2.1.0 CI fixes and human decisions are in JOURNAL 2026-10-21..23 and QUESTIONS 77–80.
 
 ## Next actions
+00. 2.1.1 WSL parity (plan `docs/plans/2026-10-26-001-feat-wsl-parity-and-query-tuning-plan.md`, local only; ADR 0095):
+   branch `maint-wsl-parity`, PR https://github.com/beyerenrico/fieldset/pull/1 (LFG run: U1–U8, U14, U15, simplify, review).
+   Seven validated review residuals (1 P1, 6 P2) in `docs/residual-review-findings/maint-wsl-parity.md`: fix before merge.
+   Human steps: run `scripts/wsl/facts.sh` on Windows (QUESTIONS 81), approve `v2.1.1-rc.1`, run the RELEASING WSL
+   checklist. Phase 2 (2.1.2 query tuning, plan U9–U13) follows on its own branch.
 0. Nightly `Install journeys` runs (02:17 UTC): fix a red one before anything else.
 1. `v2.1.0` (2c224db8, human: "Go ahead") published as stable and Latest: Release run 39970942791 green; checks from
    outside CI (cosign, SHA256SUMS, anonymous pulls, tags 2.1.0/2.1/2/latest, update feed, docs) in

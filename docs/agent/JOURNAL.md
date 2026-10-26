@@ -443,3 +443,10 @@
   Latest, 9 assets.
 - Docs run 39994845764 replaced the 2.1 rc.4 copy with the final; no pre-release banner. cosign, SHA256SUMS, anonymous
   pulls of all 7 digests x 2 platforms, stable tags and the update feed pass (`evidence/R2.1/postpublish-v2.1.0.txt`).
+
+## 2026-10-26 2.1.1 WSL parity (maint-wsl-parity, LFG)
+- User feedback: WSL install failed (doctor: UID 1000 vs expected 0). Brainstorm + plan (local), human choices: full
+  parity, user tests each rc on Windows, WSL first (2.1.1) then tuning (2.1.2), measure ownership.
+- Measured on this Mac: VirtioFS shows host files owned by the reader; measurement runs as container root (LEARNINGS 180).
+- Units U1–U8, U14, U15 committed; simplify; 11-agent review, 8 findings validated, #1 fixed, 7 recorded as residuals.
+  Full suite 7847/7847 before simplify; PR #1 opened; no tags pushed.

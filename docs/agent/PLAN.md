@@ -207,3 +207,17 @@ Human decision 2026-10-21 (QUESTIONS 1, 25): product, CLI, format and libraries 
 - [x] R-U6 App config, translations, SSO TXT record, Keycloak realm, dev stack `fieldset` (a762456, 1eabfd9, 1cbc221, 63ed78f)
 - [x] R-U7 Current docs and docs tests (a1ffe69, 23ab5dc)
 - [x] R-U8 Gate and 2.1.0 release: ADR 0092, CHANGELOG 2.1.0, gate (`milestones/R2.1.md`); Trivy CVE-2026-111943 fixed on `sec-go-x509` (Go 1.27.3, FrankenPHP, Docker CLI 29.9.2, cloudflared 2026.10.2, dated exceptions for postgres/gotenberg/mailpit/caddy; ADR 0093, QUESTIONS 77a), full gate rerun green; merged to `main`, tags `rename-done`, `v2.1.0` (local only)
+
+## 2.1.1 WSL parity (branch `maint-wsl-parity`, plan `docs/plans/2026-10-26-001-feat-wsl-parity-and-query-tuning-plan.md`, local only)
+- [x] U1 `scripts/wsl/facts.sh` read-only Windows fact-finding (56400ec6)
+- [x] U2 WSL detection, guidance, WSL 1 and Windows-drive refusals (6d64bd42)
+- [x] U3 owner measured as container root, schema 1.1, leftover reclaim (3b38a81e)
+- [x] U15 newer images refresh an older `fieldset` script (af835c02)
+- [x] U4 doctor re-check, first-use recording, `repair-ownership` (6a91af98)
+- [x] U5 Windows browser opener (b895e97f)
+- [x] U6 Windows facts, LAN addresses, edge binding per setup (d4c16563)
+- [x] U14 `windows_network` doctor check, uninstall hints (24c99992)
+- [x] U7 `wsl_lifecycle` doctor check (67a23904)
+- [x] U8 docs, ADR 0095, RELEASING WSL checklist, shim version pin (ea633a55, 754b06dd)
+- [x] Simplify (18973971), code review fix #1 (f7a289bc), residuals recorded (de807c0f), PR #1
+- [ ] Residual review findings (docs/residual-review-findings/maint-wsl-parity.md), merge, human: facts.sh run, `v2.1.1-rc.1`
