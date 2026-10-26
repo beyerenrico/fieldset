@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Console;
 
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Lifecycle\ScriptRefresh;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationUnfinished;
@@ -44,7 +45,9 @@ use Throwable;
  * - asks for confirmation of destructive commands, or exits 6 without a TTY (or with --json) and without --yes, with the
  *   facts the question names under `data` (Confirmation, M12 gate O6);
  * - maps exceptions to exit codes and renders the envelope, with progress on stderr; if rendering itself fails,
- *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace.
+ *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace;
+ * - afterwards, success or failure, gives the instance this image's `fieldset` script when the shim that started the
+ *   command is older (ScriptRefresh, 2.1.1 U15), unless `refreshesLauncher()` is false.
  */
 abstract class FieldsetCommand extends Command
 {
@@ -87,6 +90,7 @@ abstract class FieldsetCommand extends Command
         $json = (bool) $this->option('json');
         $redactor = new SecretRedactor;
         $secretsFile = null;
+        $context = null;
 
         try {
             $this->checkLaunch($facts);
@@ -101,10 +105,13 @@ abstract class FieldsetCommand extends Command
         }
 
         try {
-            return new ResultRenderer($redactor)->render($result, $this->output, $json, $secretsFile);
+            $exitCode = new ResultRenderer($redactor)->render($result, $this->output, $json, $secretsFile);
         } catch (Throwable $e) {
-            return $this->renderFallback($result, $e, $json);
+            $exitCode = $this->renderFallback($result, $e, $json);
         }
+        $this->refreshLauncher($context);
+
+        return $exitCode;
     }
 
     abstract protected function perform(FieldsetContext $context): CommandResult;
@@ -148,6 +155,12 @@ abstract class FieldsetCommand extends Command
         return ! $context->json && ($ignoreYes || ! $context->yes) && $context->facts->hasTerminal($this->input->isInteractive());
     }
 
+    /** Whether the instance's `fieldset` script may be refreshed after this command (ScriptRefresh); not by `uninstall`. */
+    protected function refreshesLauncher(): bool
+    {
+        return true;
+    }
+
     /** Whether the caller asked for the browser hand-over of a sign-in link (`--open` of install and login-link). */
     protected function opensBrowser(): bool
     {
@@ -172,6 +185,20 @@ abstract class FieldsetCommand extends Command
         }
 
         return new FieldsetContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory, $this->opensBrowser());
+    }
+
+    /** An older shim gets this image's script once the command is done (KTD7); this never changes the command's result. */
+    private function refreshLauncher(?FieldsetContext $context): void
+    {
+        if (! $context instanceof FieldsetContext || ! $context->hasDirectory() || ! $this->refreshesLauncher()) {
+            return;
+        }
+
+        try {
+            $this->laravel->make(ScriptRefresh::class)->afterCommand($context->facts, $context->progress);
+        } catch (Throwable) {
+            // ScriptRefresh reports its own failures; only resolving it can throw here, and the script then stays as it is
+        }
     }
 
     /** Nonce and file-path checks for a command started by the shim or install.sh (LaunchGuard, ADR 0070). */

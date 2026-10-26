@@ -15,6 +15,9 @@ use App\Domain\Instance\Release\ImagePin;
  * dropped (null or empty), never trusted:
  *
  * - FIELDSET_LAUNCHER: `install.sh` or `shim`
+ * - FIELDSET_LAUNCHER_VERSION: the version of the shim that started the command (its `fieldset_shim_version`, KTD7);
+ *   launchers before 2.1.1 do not pass it (null: older than any). After the command, a shim older than this image's own
+ *   is replaced with it (ScriptRefresh)
  * - FIELDSET_TTY: 1/0, whether the ops container got a terminal (`-it` only then; never with --json)
  * - FIELDSET_HOST_UID / FIELDSET_HOST_GID: the invoking host user (recorded in the journal and the state)
  * - FIELDSET_HOST_OS: `uname -s` in lower case, e.g. linux, darwin
@@ -85,6 +88,7 @@ final readonly class HostFacts
         public ?WslBackend $wslBackend = null,
         public ?OwnerSource $ownerSource = null,
         public ?int $socketGroup = null,
+        public ?int $launcherVersion = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -119,6 +123,7 @@ final readonly class HostFacts
             wslBackend: $wsl === '2' ? WslBackend::tryFrom($env['FIELDSET_WSL_BACKEND'] ?? '') : null,
             ownerSource: OwnerSource::tryFrom($env['FIELDSET_OWNER_SOURCE'] ?? ''),
             socketGroup: $int('FIELDSET_SOCKET_GROUP'),
+            launcherVersion: $int('FIELDSET_LAUNCHER_VERSION'),
         );
     }
 

@@ -19,6 +19,11 @@
 # `fieldset_run <instance dir> <image> <fieldset command> [args...]` returns the command's exit code. install.sh sets
 # fieldset_leftover=1 when the instance directory held the marker before it ran (an install that did not finish).
 
+# This script's version, passed to the ops container as FIELDSET_LAUNCHER_VERSION (KTD7). After a command, an image whose
+# distribution/shim.sh has a higher version replaces <instance dir>/fieldset with that script (ScriptRefresh); launchers
+# before 2.1.1 pass none. Raise it with every change to this file that a release ships.
+fieldset_shim_version=1
+
 fieldset_json_string() {
 	printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\000-\037')"
 }
@@ -450,6 +455,7 @@ fieldset_run_setup() { # host facts, the terminal decision, the nonce and the ha
 	fi
 	fieldset_host_facts
 	FIELDSET_LAUNCHER=${FIELDSET_LAUNCHER:-shim}
+	FIELDSET_LAUNCHER_VERSION=$fieldset_shim_version
 	fieldset_stdin_tty=0 fieldset_stdout_tty=0 fieldset_tty_usable=0
 	[ ! -t 0 ] || fieldset_stdin_tty=1
 	[ ! -t 1 ] || fieldset_stdout_tty=1
@@ -523,7 +529,7 @@ fieldset_run_container() { # <fieldset args…>: the ops container (ADR 0070); r
 	[ -z "$fieldset_group" ] || set -- --group-add "$fieldset_group" "$@"
 	# FIELDSET_TEST_DNS: fixed DNS answers for the doctor; FIELDSET_TEST_TUNNEL: the fake tunnel image and lifetime. Both are
 	# honoured only by release-harness images (ADR 0075, ADR 0082).
-	for fieldset_var in FIELDSET_LAUNCHER FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
+	for fieldset_var in FIELDSET_LAUNCHER FIELDSET_LAUNCHER_VERSION FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
 		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_OWNER_SOURCE FIELDSET_SOCKET_GROUP FIELDSET_DOCKER_SOCKET FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
 		FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
 		set -- -e "$fieldset_var" "$@"
@@ -616,7 +622,7 @@ fieldset_run() { # <instance dir> <image> <fieldset command> [args...]: runs it 
 	done
 	[ "$fieldset_found" = 0 ] || set -- "$fieldset_command" --dir "$fieldset_dir" "$@"
 	FIELDSET_MOUNTS=$fieldset_mounts
-	export FIELDSET_LAUNCHER FIELDSET_TTY FIELDSET_INSTANCE_DIR FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE
+	export FIELDSET_LAUNCHER FIELDSET_LAUNCHER_VERSION FIELDSET_TTY FIELDSET_INSTANCE_DIR FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE
 
 	fieldset_status=0
 	fieldset_run_container "$@" || fieldset_status=$?
