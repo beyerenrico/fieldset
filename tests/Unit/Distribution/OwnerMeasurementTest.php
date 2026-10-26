@@ -79,6 +79,8 @@ it('runs every runtime as the measured owner: user, owner UID and socket group (
     'rootless Linux' => [['STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|host|["name=rootless"]', 'XDG_RUNTIME_DIR' => '/run/user/1000'], '0', null, true, null, ''],
     'Docker Desktop on Linux' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]'], '0', null, true, null, ''],
     'Colima' => [['STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|colima|[]'], '0', null, true, null, ''],
+    'macOS VM engine passing IDs through: the in-container group, not BSD stat' => [['STUB_UNAME' => 'Darwin', 'STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|colima|[]'], 'host', '991 660', false, '991', '991'],
+    'Docker Desktop on Linux passing IDs through: the in-container group' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]'], 'host', '0 660', false, '0', '0'],
     'WSL 2 with Docker Desktop: root\'s socket inside containers' => [['wsl' => true, 'STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]'], 'host', '0 660', false, '0', '0'],
     'Docker Engine in WSL 2: the in-container group' => [['wsl' => true, 'STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS (containerized)|PC|[]'], 'host', '999 660', false, '999', '999'],
     'rootless Docker Engine in WSL 2' => [['wsl' => true, 'STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|PC|["name=rootless"]', 'XDG_RUNTIME_DIR' => '/run/user/1000'], '0', null, true, null, ''],

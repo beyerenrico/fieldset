@@ -26,7 +26,7 @@ const LAUNCHER_IMAGE = 'ghcr.io/beyerenrico/fieldset@sha256:22222222222222222222
  * reaches upgraded instances. Older entries stay as a record of what each version shipped.
  */
 const SHIM_SHA256 = [
-    1 => '58d36718bb2197cf82f090dac2266dcef3f0a30060487de82d2cc4c69dcace68', // 2.1.1
+    1 => '8eb05ccd5637a7f8e840d1bb325ecba8c7cf8acf2ebd0ef8a738be6cc1c9894a', // 2.1.1
 ];
 
 beforeEach(function (): void {

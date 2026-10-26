@@ -385,7 +385,9 @@ fieldset_owner() { # exports FIELDSET_CONTAINER_UID, FIELDSET_OWNER_SOURCE and F
 		fieldset_user=0:0
 	else
 		fieldset_user=$FIELDSET_HOST_UID:$FIELDSET_HOST_GID
-		if [ "$FIELDSET_WSL" = 2 ] && [ -n "$fieldset_inner_group" ]; then # Docker Desktop's socket belongs to root inside containers
+		# A VM engine's socket inside containers is not the host's (Docker Desktop: root's), and macOS has no GNU stat: use the
+		# group the measuring container read; only native Linux Docker reads the host socket.
+		if [ -n "$fieldset_inner_group" ] && { [ "$FIELDSET_DOCKER_RUNTIME" != rootful ] || [ "$FIELDSET_WSL" = 2 ]; }; then
 			fieldset_group=$fieldset_inner_group FIELDSET_SOCKET_GROUP=$fieldset_inner_group
 		else
 			fieldset_group=$(stat -L -c %g "$fieldset_socket" 2>/dev/null) || fieldset_group='' # native Linux: GNU or busybox stat
