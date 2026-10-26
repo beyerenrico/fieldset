@@ -11,7 +11,8 @@
 # image or a directory other users can write to (fieldset_reserved_path, LaunchGuard). The ops container runs as the
 # owner a throwaway container measured (or the one saved in state.json): root where container root is the host user, the
 # host user where IDs pass through (fieldset_owner). On WSL it refuses WSL 1 and an
-# instance directory on a Windows drive, and names the Docker Desktop step when Docker is missing or down. With --json,
+# instance directory on a Windows drive, and names the Docker Desktop step when Docker is missing or down; phones get the
+# Windows LAN addresses there, from one powershell.exe call for the commands that need them (KTD8). With --json,
 # stdout carries only the command's JSON document and stderr only NDJSON events (KTD3). Docker's DOCKER_DEFAULT_PLATFORM, when set
 # (linux/amd64 or linux/arm64), picks the platform of the ops container and, passed on, of every image fieldset runs.
 #
@@ -121,6 +122,63 @@ fieldset_lan_addresses() { # candidate LAN addresses, without loopback and conta
 	fi
 }
 
+fieldset_windows_scope() { # <fieldset args>: sets fieldset_scope to the Windows facts the command needs (KTD8): full for install,
+	# doctor, uninstall and `config set phone-https|lan-address`, else none (fieldset_windows_facts adds the addresses for phones)
+	fieldset_scope=none fieldset_words=0 fieldset_skip=0
+	case $fieldset_command in install | doctor | uninstall) fieldset_scope=full && return 0 ;; config) ;; *) return 0 ;; esac
+	for fieldset_arg in "$@"; do
+		if [ "$fieldset_skip" = 1 ]; then fieldset_skip=0 && continue; fi
+		case $fieldset_arg in
+		--) return 0 ;;
+		--*=*) ;;
+		-*) ! fieldset_takes_value "$fieldset_arg" || fieldset_skip=1 ;;
+		*)
+			fieldset_words=$((fieldset_words + 1))
+			case "$fieldset_words|$fieldset_arg" in 2\|set) ;; 3\|phone-https | 3\|lan-address) fieldset_scope=full && return 0 ;; [23]\|*) return 0 ;; esac ;;
+		esac
+	done
+}
+
+fieldset_phone_on() { # <state.json>: true while phones use the local CA (settings.phone_https, InstanceState's 4-space layout)
+	awk '/^    "settings": \{$/ { inside = 1; next } inside && /^    \}/ { exit } inside && /^        "phone_https": "local-ca",?$/ { found = 1; exit }
+		END { exit !found }' "$1" 2>/dev/null
+}
+
+fieldset_bounded() { # <seconds> <command> [args...]: runs it, ended after <seconds> where timeout(1) exists
+	if command -v timeout >/dev/null 2>&1; then timeout "$@"; else shift && "$@"; fi
+}
+
+fieldset_windows_script() { # the PowerShell of fieldset_windows_facts, one statement per line, joined into one argument
+	# without double quotes (KTD8, KTD9). It prints key=value lines and a `checked=` line after each list; adapter and process
+	# names go out as printable ASCII only, for WindowsFactsParser to match and drop. $f=1 asks for every fact.
+	tr '\n' ' ' <<'EOF'
+$ErrorActionPreference='Stop';
+try { Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | ForEach-Object { $c=$_; $p=[string]$c.NetProfile.NetworkCategory; if(!$p){ $p='none' }; foreach($a in $c.IPv4Address){ 'ipv4=' + $a.IPAddress + ' ' + $p + ' ' + (($c.InterfaceAlias + ' / ' + $c.InterfaceDescription) -replace '[^ -~]','?') } }; 'checked=addresses' } catch {};
+if($f){ try { $m='nat'; $w=Join-Path $env:USERPROFILE '.wslconfig'; if(Test-Path $w){ $x=Select-String -Path $w -Pattern '^\s*networkingMode\s*=\s*([A-Za-z]+)' | Select-Object -Last 1; if($x){ $m=$x.Matches[0].Groups[1].Value.ToLower() } }; 'networking=' + $m } catch {} };
+if($f){ try { foreach($n in 'settings-store.json','settings.json'){ $j=Join-Path (Join-Path $env:APPDATA 'Docker') $n; if(Test-Path $j){ $b=(Get-Content -Raw $j | ConvertFrom-Json).PortBindingBehavior; if($b){ 'binding=' + $b }; break } } } catch {} };
+if($f){ try { Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq 'TCP' -and ($_.LocalPort -contains '80' -or $_.LocalPort -contains '443') } | ForEach-Object { $l=$_.LocalPort; $r=$_ | Get-NetFirewallRule; if($r.Enabled -eq 'True' -and $r.Direction -eq 'Inbound' -and $r.Action -eq 'Allow'){ foreach($p in $l){ if($p -eq '80' -or $p -eq '443'){ 'rule=' + $p + ' ' + [int]$r.Profile } } } }; 'checked=rules' } catch {} };
+if($f){ try { $h=Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'; 'hyperv_enabled=' + $h.Enabled; 'hyperv_inbound=' + $h.DefaultInboundAction } catch {} };
+if($f){ try { Get-NetFirewallHyperVRule | Where-Object { $_.VMCreatorId -eq '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -and $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' } | ForEach-Object { foreach($p in $_.LocalPorts){ if($p -eq '80' -or $p -eq '443'){ 'hyperv_rule=' + $p } } }; 'checked=hyperv_rules' } catch {} };
+if($f){ try { $o=netsh interface portproxy show v4tov4; if($LASTEXITCODE -eq 0){ $o | ForEach-Object { if($_ -match '^\s*(\S+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$'){ 'portproxy=' + $Matches[1] + ' ' + $Matches[2] + ' ' + $Matches[3] + ' ' + $Matches[4] } }; 'checked=portproxy' } } catch {} };
+if($f){ try { Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 80 -or $_.LocalPort -eq 443 } | ForEach-Object { $q=(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName; 'listen=' + $_.LocalPort + ' ' + $_.LocalAddress + ' ' + $_.OwningProcess + ' ' + ($q -replace '[^ -~]','?') }; 'checked=listen' } catch {} };
+'end=1'
+EOF
+}
+
+fieldset_windows_facts() { # on WSL 2: sets FIELDSET_WINDOWS_FACTS from at most one powershell.exe call (KTD8, after fieldset_windows_scope)
+	# Other commands ask only for the addresses, and only while phones use the local CA. The document starts with the scope
+	# asked for (`unavailable` without interop); control characters and a byte order mark go, and only key=value lines stay.
+	FIELDSET_WINDOWS_FACTS='' fieldset_scope=${fieldset_scope:-none}
+	[ "$fieldset_scope" = full ] || ! fieldset_phone_on "$fieldset_dir/state.json" || fieldset_scope=addresses
+	[ "$fieldset_scope" != none ] || return 0
+	fieldset_powershell
+	[ -n "$fieldset_powershell" ] || { FIELDSET_WINDOWS_FACTS=scope=unavailable && return 0; }
+	fieldset_full=0
+	[ "$fieldset_scope" != full ] || fieldset_full=1
+	FIELDSET_WINDOWS_FACTS="scope=$fieldset_scope$fieldset_nl$(fieldset_bounded 60 "$fieldset_powershell" -NoProfile -NonInteractive -Command "\$f=$fieldset_full; $(fieldset_windows_script)" </dev/null 2>/dev/null |
+		LC_ALL=C tr -d '\000-\010\013-\037\177' | LC_ALL=C awk -v bom="$(printf '\357\273\277')" 'NR == 1 { sub("^" bom, "") } /^[a-z][a-z0-9_]*=/ && NR <= 400')"
+}
+
 fieldset_browser_opener() { # sets fieldset_opener when a desktop session can open a browser (after fieldset_wsl_detect)
 	# Never over SSH: the browser would open on the far side. WSL 2 with interop opens the Windows default browser, also
 	# when WSLg sets DISPLAY; WSL without interop opens nothing (KTD8).
@@ -221,6 +279,11 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts but the owner (field
 	2\|*) FIELDSET_WSL_BACKEND=engine ;;
 	*) FIELDSET_WSL_BACKEND='' ;;
 	esac
+	FIELDSET_WSL_ADDRESSES='' FIELDSET_WINDOWS_FACTS=''
+	if [ "$FIELDSET_WSL" = 2 ]; then # phones reach Windows, never the distro's own interface (KTD13): its addresses go apart
+		FIELDSET_WSL_ADDRESSES=$FIELDSET_LAN_ADDRESSES FIELDSET_LAN_ADDRESSES=''
+		fieldset_windows_facts
+	fi
 	case "$FIELDSET_HOST_OS|$fieldset_info" in
 	*name=rootless*) FIELDSET_DOCKER_RUNTIME=rootless ;;
 	linux\|*'Docker Desktop'* | linux\|*OrbStack* | linux\|*\|colima*\|* | linux\|*\|lima-*\|* | linux\|*\|rancher-desktop\|*) FIELDSET_DOCKER_RUNTIME=desktop ;;
@@ -235,7 +298,7 @@ fieldset_host_facts() { # exports the FIELDSET_* host facts but the owner (field
 	esac
 	FIELDSET_DOCKER_SOCKET=$fieldset_socket
 	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_DOCKER_SOCKET \
-		FIELDSET_WSL FIELDSET_WSL_BACKEND
+		FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_WSL_ADDRESSES FIELDSET_WINDOWS_FACTS
 }
 
 fieldset_state_owner() { # <state.json>: sets fieldset_saved_uid, _runtime and _group from a measured owner (state 1.1, KTD5)
@@ -566,7 +629,7 @@ fieldset_run_container() { # <fieldset args…>: the ops container (ADR 0070); r
 	# honoured only by release-harness images (ADR 0075, ADR 0082).
 	for fieldset_var in FIELDSET_LAUNCHER FIELDSET_LAUNCHER_VERSION FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
 		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_OWNER_SOURCE FIELDSET_SOCKET_GROUP FIELDSET_DOCKER_SOCKET FIELDSET_WSL FIELDSET_WSL_BACKEND FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
-		FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
+		FIELDSET_WSL_ADDRESSES FIELDSET_WINDOWS_FACTS FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
 		set -- -e "$fieldset_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin
@@ -596,6 +659,7 @@ fieldset_run() { # <instance dir> <image> <fieldset command> [args...]: runs it 
 '
 	fieldset_tty_device=/dev/tty
 	fieldset_find_command "$@"
+	fieldset_windows_scope "$@"
 	fieldset_run_setup
 
 	# The command moves to the front with --dir <instance> after it. File-path flags become absolute, physical

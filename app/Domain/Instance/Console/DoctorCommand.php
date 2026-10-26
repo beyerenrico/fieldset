@@ -10,6 +10,7 @@ use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\Doctor\DoctorFailed;
 use App\Domain\Instance\Doctor\DoctorProbes;
 use App\Domain\Instance\Lifecycle\ComposeFile;
+use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
@@ -40,6 +41,7 @@ final class DoctorCommand extends FieldsetCommand
         $directory = $context->directory();
         $state = $directory->hasState() ? $directory->state() : null;
         $domain = $state?->setting('domain');
+        $localCa = $state instanceof InstanceState && InstanceSettings::of($state)->localCa() ? EdgeBinding::fromSettings(InstanceSettings::of($state)) : null;
         $report = $this->laravel->make(Doctor::class)->run(new DoctorContext(
             $context->facts, $directory, $this->laravel->make(DockerGateway::class), $this->laravel->make(DoctorProbes::class), $state,
             domain: $state?->mode() === 'domain' && is_string($domain) ? $domain : null,
@@ -47,7 +49,8 @@ final class DoctorCommand extends FieldsetCommand
             images: $this->images($state, ComposeFile::document($directory)),
             uuid: $state?->uuid(),
             post: (bool) $this->option('post'),
-            lanAddress: $state instanceof InstanceState && InstanceSettings::of($state)->localCa() ? InstanceSettings::of($state)->lanAddress() : null,
+            lanAddress: $localCa?->advertised,
+            edgeBinding: $localCa,
         ));
         if (! $report->passed()) {
             throw new DoctorFailed($report);

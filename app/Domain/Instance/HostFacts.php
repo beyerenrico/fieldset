@@ -8,6 +8,8 @@ use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\Docker\OwnerSource;
 use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\Release\ImagePin;
+use App\Domain\Instance\Windows\WindowsFacts;
+use App\Domain\Instance\Windows\WindowsFactsParser;
 
 /**
  * Facts about the host that the ops container cannot observe itself, and how it was launched. The shim and
@@ -22,7 +24,13 @@ use App\Domain\Instance\Release\ImagePin;
  * - FIELDSET_HOST_UID / FIELDSET_HOST_GID: the invoking host user (recorded in the journal and the state)
  * - FIELDSET_HOST_OS: `uname -s` in lower case, e.g. linux, darwin
  * - FIELDSET_INSTANCE_DIR: the instance directory, mounted at the same absolute path
- * - FIELDSET_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its bridge)
+ * - FIELDSET_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its
+ *   bridge); empty from a 2.1.1 launcher on WSL 2, where the distro's own addresses are none a phone can reach (KTD13)
+ * - FIELDSET_WINDOWS_FACTS: on WSL 2, what one powershell.exe call reported (WindowsFactsParser, KTD8): its LAN
+ *   addresses replace FIELDSET_LAN_ADDRESSES (none when interop was unavailable: no guess from WSL's own interface);
+ *   absent when the command needed no Windows facts, and then FIELDSET_LAN_ADDRESSES stands (the detached supervisor
+ *   forwards the Windows addresses there)
+ * - FIELDSET_WSL_ADDRESSES: on WSL 2, the distro's own candidate addresses (under NAT the portproxy target)
  * - FIELDSET_DESKTOP: 1 when a desktop session can open a browser (the shim opens what a command hands over in
  *   FIELDSET_OPEN_URL_FILE, ADR 0070)
  * - FIELDSET_TZ: the host time zone (IANA name)
@@ -63,6 +71,7 @@ final readonly class HostFacts
     /**
      * @param  list<string>  $lanAddresses
      * @param  array<string, bool>  $mounts  absolute directory => writable
+     * @param  list<string>  $wslAddresses
      */
     public function __construct(
         public ?bool $tty = null,
@@ -89,6 +98,8 @@ final readonly class HostFacts
         public ?OwnerSource $ownerSource = null,
         public ?int $socketGroup = null,
         public ?int $launcherVersion = null,
+        public ?WindowsFacts $windows = null,
+        public array $wslAddresses = [],
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -98,6 +109,7 @@ final readonly class HostFacts
         $bool = static fn (string $key): ?bool => isset($env[$key]) ? filter_var($env[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
         $match = static fn (string $key, string $pattern): ?string => isset($env[$key]) && preg_match($pattern, $env[$key]) === 1 ? $env[$key] : null;
         $wsl = $match('FIELDSET_WSL', '/^[02]$/D');
+        $windows = $wsl === '2' ? WindowsFactsParser::parse($env['FIELDSET_WINDOWS_FACTS'] ?? null) : null;
 
         return new self(
             tty: $bool('FIELDSET_TTY'),
@@ -106,7 +118,7 @@ final readonly class HostFacts
             os: $match('FIELDSET_HOST_OS', '/^[a-z0-9_-]{1,32}$/D'),
             instanceDir: self::absolutePath($env['FIELDSET_INSTANCE_DIR'] ?? null),
             launcher: $match('FIELDSET_LAUNCHER', '/^(install\.sh|shim)$/D'),
-            lanAddresses: self::addresses($env['FIELDSET_LAN_ADDRESSES'] ?? ''),
+            lanAddresses: self::lanAddresses($windows, $env['FIELDSET_LAN_ADDRESSES'] ?? ''),
             desktop: $bool('FIELDSET_DESKTOP'),
             timezone: $match('FIELDSET_TZ', self::TIMEZONE_PATTERN),
             runtime: DockerRuntime::tryFrom($env['FIELDSET_DOCKER_RUNTIME'] ?? ''),
@@ -124,6 +136,8 @@ final readonly class HostFacts
             ownerSource: OwnerSource::tryFrom($env['FIELDSET_OWNER_SOURCE'] ?? ''),
             socketGroup: $int('FIELDSET_SOCKET_GROUP'),
             launcherVersion: $int('FIELDSET_LAUNCHER_VERSION'),
+            windows: $windows,
+            wslAddresses: $wsl === '2' ? self::addresses($env['FIELDSET_WSL_ADDRESSES'] ?? '') : [],
         );
     }
 
@@ -175,6 +189,16 @@ final readonly class HostFacts
         }
 
         return rtrim($path, '/') === '' ? '/' : rtrim($path, '/');
+    }
+
+    /**
+     * On WSL 2 the Windows LAN addresses whenever the launcher asked Windows (none when that failed), else the list.
+     *
+     * @return list<string>
+     */
+    private static function lanAddresses(?WindowsFacts $windows, string $list): array
+    {
+        return $windows?->asked() === true ? $windows->lanAddresses() ?? [] : self::addresses($list);
     }
 
     /** @return list<string> */

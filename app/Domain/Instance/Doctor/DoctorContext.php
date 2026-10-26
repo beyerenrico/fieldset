@@ -9,6 +9,7 @@ use App\Domain\Instance\Docker\DockerInfo;
 use App\Domain\Instance\Docker\OwnerSource;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Install\InstallRecord;
+use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
@@ -31,6 +32,7 @@ final class DoctorContext
      * @param  bool  $publishesAppPort  false for an install on a shared proxy network: the app gets no loopback port
      * @param  string|null  $lanAddress  local-CA mode (ADR 0082): the edge publishes 80 and 443 on this address
      * @param  bool  $catcher  false for an install with --smtp-host (ADR 0080 amendment): no catcher UI port to choose
+     * @param  EdgeBinding|null  $edgeBinding  local-CA mode: where the edge binds 80 and 443 (KTD13); default: on $lanAddress
      */
     public function __construct(
         public readonly HostFacts $facts,
@@ -49,7 +51,14 @@ final class DoctorContext
         public readonly bool $publishesAppPort = true,
         public readonly ?string $lanAddress = null,
         public readonly bool $catcher = true,
+        public readonly ?EdgeBinding $edgeBinding = null,
     ) {}
+
+    /** Where the local-CA edge publishes 80 and 443: as given, else on the LAN address itself; null outside local-CA mode. */
+    public function lanBinding(): ?EdgeBinding
+    {
+        return $this->edgeBinding ?? ($this->lanAddress === null ? null : EdgeBinding::recorded($this->lanAddress, null));
+    }
 
     public function info(): DockerInfo
     {

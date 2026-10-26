@@ -62,6 +62,8 @@ final class InputGrammar
         // `phone_https` stays plain text, so a value of a newer version reads (ADR 0081: it still counts as exposure);
         // only `local-ca` and `tunnel` render anything (InstanceSettings), and the flags accept only those (PHONE_HTTPS).
         'phone_https' => 'text', 'tunnel_subnet' => 'subnet',
+        // Where the local-CA edge publishes (2.1.1 U6, KTD13): `all` for Docker Engine in WSL 2 with NAT (EdgeBinding).
+        'lan_bind' => ['all'],
         // A local-CA deletion that failed on `phone-https off` and is retried (LocalCaDeletion, M11 gate).
         'local_ca_delete' => ['pending'],
         // Backups (U16, ADR 0084): the daily time (`HH:MM` or `off`), how many scheduled backups to keep, and the

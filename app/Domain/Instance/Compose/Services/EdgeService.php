@@ -13,6 +13,7 @@ use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ServiceDefinition;
 use App\Domain\Instance\Compose\ServiceEnvironments;
 use App\Domain\Instance\Compose\ServiceSpec;
+use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\State\InvalidState;
 
 /**
@@ -31,8 +32,9 @@ use App\Domain\Instance\State\InvalidState;
  * - Starts once the app is healthy; its healthcheck asks a loopback-only site inside the container.
  *
  * Local-CA mode (R19, ADR 0082) uses the same service in local mode: Caddy's internal CA instead of ACME, and 80 and
- * 443/tcp published on the LAN address only (never 0.0.0.0). The CA's key lives on the same certificate volume
- * (`pki/`), which `fieldset config set phone-https off` deletes (LocalCaStore).
+ * 443/tcp published on the LAN address only (never 0.0.0.0), except Docker Engine in WSL 2 with NAT networking, which
+ * publishes them on every address of the distro behind Windows (EdgeBinding, KTD13). The CA's key lives on the same
+ * certificate volume (`pki/`), which `fieldset config set phone-https off` deletes (LocalCaStore).
  */
 final readonly class EdgeService implements ServiceDefinition
 {
@@ -69,7 +71,7 @@ final readonly class EdgeService implements ServiceDefinition
             'cap_drop' => ['ALL'],
             'cap_add' => ['NET_BIND_SERVICE'],
             'security_opt' => ['no-new-privileges:true'],
-            'ports' => $localCa ? $this->lanPorts((string) $context->settings->lanAddress()) : [$this->port(80, 'tcp'), $this->port(443, 'tcp'), $this->port(443, 'udp')],
+            'ports' => $localCa ? $this->lanPorts($context) : [$this->port(80, 'tcp'), $this->port(443, 'tcp'), $this->port(443, 'udp')],
             'volumes' => [
                 ['type' => 'volume', 'source' => self::CERTIFICATE_VOLUME, 'target' => self::DATA_PATH],
                 ['type' => 'bind', 'source' => './'.self::DIRECTORY, 'target' => CaddyfileRenderer::CONTAINER_DIR, 'read_only' => true, 'bind' => ['create_host_path' => false]],
@@ -105,13 +107,17 @@ final readonly class EdgeService implements ServiceDefinition
     }
 
     /**
-     * Local-CA mode: 80 and 443/tcp on the LAN address only (R19); no HTTP/3.
+     * Local-CA mode: 80 and 443/tcp on the bind address the state records (R19, KTD13): the LAN address, or every
+     * address for Docker Engine in WSL 2 with NAT; no HTTP/3.
      *
-     * @return list<array{target: int, published: string, host_ip: string, protocol: string}>
+     * @return list<array{target: int, published: string, host_ip?: string, protocol: string}>
      */
-    private function lanPorts(string $address): array
+    private function lanPorts(RenderContext $context): array
     {
-        return array_map(static fn (int $port): array => ['target' => $port, 'published' => (string) $port, 'host_ip' => $address, 'protocol' => 'tcp'], [80, 443]);
+        $binding = EdgeBinding::fromSettings($context->settings) ?? throw new InvalidState('Local-CA mode needs the setting [lan_address].');
+        $host = $binding->bindAddress === null ? [] : ['host_ip' => $binding->bindAddress];
+
+        return array_map(static fn (int $port): array => ['target' => $port, 'published' => (string) $port, ...$host, 'protocol' => 'tcp'], [80, 443]);
     }
 
     /** @return array{target: int, published: string, protocol: string} published on every host address */

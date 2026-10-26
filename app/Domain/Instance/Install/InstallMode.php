@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\Compose\EdgeNetwork;
 use App\Domain\Instance\HostFacts;
+use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\LocalCa\LanAddress;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceState;
@@ -18,7 +19,8 @@ use Closure;
  * mode has its own `proxy` entry (ProxySetup). The state phase applies both.
  *
  * Local-CA mode (`--phone-https local-ca`, R19, ADR 0082) is local mode with the edge: journaled under `phone` with the
- * LAN address (the flag, else the launcher's best candidate) and the edge subnet; the URL becomes https://<address>.
+ * LAN address (the flag, else the launcher's best candidate), the edge subnet and, for Docker Engine in WSL 2 with NAT,
+ * `lan_bind: all` (EdgeBinding, KTD13); the URL becomes https://<address>.
  * `--phone-https tunnel` is journaled there as `{phone_https: tunnel}` only, so a resume with the same flags matches;
  * the state does not take it (the tunnel starts after the install, InstallCommand).
  */
@@ -61,7 +63,7 @@ final class InstallMode
      * Local-CA mode's settings, null without `--phone-https local-ca`; exit 2 when no LAN address is known.
      *
      * @param  Closure(): list<string>  $takenSubnets
-     * @return array{phone_https: string, lan_address: string, edge_subnet: string}|null
+     * @return array{phone_https: string, lan_address: string, edge_subnet: string, lan_bind?: string|null}|null
      */
     public static function localCa(InstallRequest $request, ?InstanceState $state, string $uuid, HostFacts $facts, Closure $takenSubnets): ?array
     {
@@ -71,8 +73,9 @@ final class InstallMode
         $address = $request->lanAddress() ?? LanAddress::best($facts)
             ?? throw new InvalidInput('No LAN address of this host is known for the local CA.', 'lan_address_required', 'Pass --lan-address with the IPv4 address of this machine in your LAN, such as 192.168.1.20.');
         $subnet = $state?->setting('edge_subnet');
+        $edge = is_string($subnet) ? $subnet : EdgeNetwork::choose($uuid, $takenSubnets());
 
-        return ['phone_https' => 'local-ca', 'lan_address' => $address, 'edge_subnet' => is_string($subnet) ? $subnet : EdgeNetwork::choose($uuid, $takenSubnets())];
+        return ['phone_https' => 'local-ca', 'lan_address' => $address, 'edge_subnet' => $edge, ...EdgeBinding::decide($address, $facts)->settingsFor($state)];
     }
 
     /** @param  array<string, mixed>  $preflight  the doctor phase's data */
