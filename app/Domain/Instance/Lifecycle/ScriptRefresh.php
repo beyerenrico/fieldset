@@ -6,10 +6,9 @@ namespace App\Domain\Instance\Lifecycle;
 
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Operations\BestEffortLock;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
-use App\Domain\Instance\Operations\LockHandle;
-use App\Domain\Instance\Operations\LockHeld;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\SafeFiles;
@@ -56,25 +55,13 @@ final readonly class ScriptRefresh
     /** Replaces an older script with the image's (true) or leaves it, after warning when that failed (false). */
     public function afterCommand(HostFacts $facts, ProgressReporter $progress): bool
     {
-        try {
-            $bundled = $this->wanted($facts);
-            if (! $bundled instanceof LauncherScript) {
-                return false;
-            }
-            $handle = $this->lock->acquire($this->identity->holder('fieldset', $facts->callerUid()), self::OPERATION, mayTakeOver: false);
-        } catch (LockHeld) {
-            return false;
-        } catch (Throwable $e) {
-            return $this->warn($progress, $e);
-        }
-
-        try {
-            $replaced = $this->replace($bundled);
-        } catch (Throwable $e) {
-            return $this->warn($progress, $e);
-        } finally {
-            $this->release($handle);
-        }
+        $replaced = new BestEffortLock($this->lock, $this->identity)->attempt(
+            $facts->callerUid(),
+            self::OPERATION,
+            fn (): ?LauncherScript => $this->wanted($facts),
+            fn (LauncherScript $bundled): bool => $this->replace($bundled),
+            fn (Throwable $e): bool => $this->warn($progress, $e),
+        );
         if ($replaced) {
             $progress->phase(self::PHASE, "Updated {$this->path()} to the fieldset script of this release; the next command uses it.");
         }
@@ -124,15 +111,6 @@ final readonly class ScriptRefresh
         $progress->warn(self::PHASE, "Kept the old fieldset script, as it could not be updated to the one of this release: {$e->getMessage()} A later command tries again.");
 
         return false;
-    }
-
-    private function release(LockHandle $handle): void
-    {
-        try {
-            $this->lock->release($handle);
-        } catch (Throwable) {
-            // left to the next state-changing command, which takes over the lock of this exited container (InstanceLock)
-        }
     }
 
     private function path(): string

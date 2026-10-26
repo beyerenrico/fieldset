@@ -10,7 +10,7 @@
 # shellcheck disable=SC2016 # PowerShell commands are single-quoted on purpose: $_ and $env: belong to PowerShell
 set -u
 
-image=${FIELDSET_FACTS_IMAGE:-ghcr.io/beyerenrico/fieldset:2.1.0}
+image=${FIELDSET_FACTS_IMAGE:-ghcr.io/beyerenrico/fieldset:latest}
 probe_port=${FIELDSET_FACTS_PORT:-18443}
 
 section() { printf '\n== %s\n' "$1"; }
@@ -102,17 +102,17 @@ section 'Windows side'
 powershell=$(windows_exe powershell.exe || true)
 show 'powershell.exe' "${powershell:-not reachable}"
 ps_run 'LAN IPv4 (connected, with gateway)' "Get-NetIPConfiguration | Where-Object { \$_.IPv4DefaultGateway } | ForEach-Object { \$_.InterfaceAlias + ' ' + \$_.IPv4Address.IPAddress }"
+lan_out=''
+[ -z "$powershell" ] || lan_out=$facts_out
 ps_run 'network profile' 'Get-NetConnectionProfile | ForEach-Object { $_.InterfaceAlias + " " + $_.NetworkCategory }'
 ps_run 'WSL networking mode and idle timeout (.wslconfig)' 'if (Test-Path "$env:USERPROFILE\.wslconfig") { Get-Content "$env:USERPROFILE\.wslconfig" | Select-String -Pattern "networkingMode|instanceIdleTimeout|vmIdleTimeout|firewall" } else { "no .wslconfig" }'
 ps_run 'portproxy entries' 'netsh interface portproxy show v4tov4'
 ps_run 'Docker Desktop port binding setting' 'Get-ChildItem "$env:APPDATA\Docker\settings*.json" -ErrorAction SilentlyContinue | Select-String -Pattern "portBinding" | ForEach-Object { $_.Line.Trim() }'
 
 section 'Publishing on a Windows LAN address'
-lan_ip=''
-if [ -n "$powershell" ]; then
-	lan_ip=$("$powershell" -NoProfile -NonInteractive -Command 'Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway } | Select-Object -First 1 | ForEach-Object { $_.IPv4Address.IPAddress }' 2>/dev/null | tr -d '\r' | head -n 1)
-fi
-if printf '%s\n' "$lan_ip" | grep -Eqx '([0-9]{1,3}\.){3}[0-9]{1,3}'; then
+# The first address of the first adapter the LAN query above listed ("<alias> <address> [<address>...]" per adapter).
+lan_ip=$(printf '%s\n' "$lan_out" | tr ' ' '\n' | grep -Ex '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n 1)
+if [ -n "$lan_ip" ]; then
 	run "bind $lan_ip:$probe_port" docker run --rm -p "$lan_ip:$probe_port:$probe_port" --entrypoint true "$image"
 	run "bind 0.0.0.0:$probe_port" docker run --rm -p "0.0.0.0:$probe_port:$probe_port" --entrypoint true "$image"
 else

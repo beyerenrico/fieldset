@@ -48,6 +48,16 @@ final readonly class OwnershipRepair
 
     public const int WAIT_SECONDS = 120;
 
+    /** `backup_service` in the result: recreated for the new owner, or left as it was. */
+    public const string BACKUP_RECREATED = 'recreated';
+
+    public const string BACKUP_UNCHANGED = 'unchanged';
+
+    /** Progress phases: giving the files, recreating the backup service. */
+    public const string PHASE_FILES = 'files';
+
+    public const string PHASE_BACKUP = 'backup';
+
     public function __construct(
         private InstanceDirectory $directory,
         private InstanceLock $lock,
@@ -88,7 +98,7 @@ final readonly class OwnershipRepair
 
     private function apply(InstanceState $state, OwnerChange $change, ProgressReporter $progress): CommandResult
     {
-        $progress->phase('files', "Giving the instance files from UID {$change->from} to UID {$change->to} (as containers see them)");
+        $progress->phase(self::PHASE_FILES, "Giving the instance files from UID {$change->from} to UID {$change->to} (as containers see them)");
         $given = $this->files->give($state, $this->directory->root, $change);
         OwnerFiles::assertSecretsPrivate($this->directory);
         $repaired = $change->applyTo($state, CarbonImmutable::now('UTC'));
@@ -96,7 +106,7 @@ final readonly class OwnershipRepair
         $this->directory->saveState($repaired);
 
         return CommandResult::ok(self::OPERATION, [
-            ...$change->toArray(), 'files_changed' => $given, 'backup_service' => 'recreated',
+            ...$change->toArray(), 'files_changed' => $given, 'backup_service' => self::BACKUP_RECREATED,
             'message' => "The instance files belong to UID {$change->to} inside containers now, and the instance saved it as its owner.",
         ], changed: true);
     }
@@ -107,7 +117,7 @@ final readonly class OwnershipRepair
         $secrets = InstanceSecrets::fromEnvFiles(new EnvFiles($this->directory))
             ?? throw new InvalidState('The app env file lacks APP_KEY or the database password; they are never generated again silently.');
         $this->renderer->write($this->directory, $state, $secrets, ComposeFile::emulated($this->directory, $this->renderer, $state, $secrets));
-        $progress->phase('backup', "Recreating the backup service for UID {$state->containerUid()}");
+        $progress->phase(self::PHASE_BACKUP, "Recreating the backup service for UID {$state->containerUid()}");
 
         try {
             $this->docker->composeUp(ComposeProject::forInstance($state, $this->directory), [BackupService::NAME], self::WAIT_SECONDS);
@@ -127,7 +137,7 @@ final readonly class OwnershipRepair
     private function unchanged(OwnerChange $change): CommandResult
     {
         return CommandResult::ok(self::OPERATION, [
-            ...$change->toArray(), 'files_changed' => 0, 'backup_service' => 'unchanged',
+            ...$change->toArray(), 'files_changed' => 0, 'backup_service' => self::BACKUP_UNCHANGED,
             'message' => "The instance files already belong to UID {$change->to} inside containers, as measured just now: nothing to repair.",
         ]);
     }

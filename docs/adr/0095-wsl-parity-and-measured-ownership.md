@@ -109,8 +109,9 @@ SHA-256 of `distribution/shim.sh` per version, and RELEASING's pre-tag list says
 **Interop scope and the Windows browser (U5, U6, KTD8).** The ops container cannot reach Windows, so the shim asks.
 `powershell.exe` is used only while interop's binfmt entry is enabled, found on PATH or at
 `/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe` (PATH may lack the Windows directories). One call per
-command, bounded to 60 s where `timeout(1)` exists: full facts for `install`, `doctor`, `uninstall` and `config set
-phone-https|lan-address`; only the LAN addresses for other commands while phone HTTPS uses the local CA; none otherwise.
+command, bounded to 60 s where `timeout(1)` exists: full facts for `install` and `config set phone-https|lan-address`,
+and for `doctor` and `uninstall` while phone HTTPS uses the local CA (otherwise the LAN addresses and `.wslconfig`,
+scope `light`); only the LAN addresses for other commands while phone HTTPS uses the local CA; none otherwise.
 Its output loses control characters and a byte order mark, and only `key=value` lines (at most 400) pass as
 `FIELDSET_WINDOWS_FACTS`; `WindowsFactsParser` validates every fact against a strict type, and anything missing or
 malformed becomes unknown (R30). The Windows LAN addresses replace the distro's own (`FIELDSET_WSL_ADDRESSES` keeps

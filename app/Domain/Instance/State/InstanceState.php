@@ -163,25 +163,25 @@ final readonly class InstanceState
     /** The runtime the saved owner was measured under (schema 1.1), or null when the owner was never measured. */
     public function measuredRuntime(): ?DockerRuntime
     {
-        $owner = $this->document['owner'];
+        $runtime = $this->ownerField('runtime');
 
-        return is_array($owner) && is_string($owner['runtime'] ?? null) ? DockerRuntime::tryFrom($owner['runtime']) : null;
+        return is_string($runtime) ? DockerRuntime::tryFrom($runtime) : null;
     }
 
     /** The Docker socket's group inside containers, saved with a measured owner that needs it (schema 1.1). */
     public function socketGroup(): ?int
     {
-        $owner = $this->document['owner'];
+        $group = $this->ownerField('socket_group');
 
-        return is_array($owner) && is_int($owner['socket_group'] ?? null) ? $owner['socket_group'] : null;
+        return is_int($group) ? $group : null;
     }
 
     /** When the saved owner was measured (UTC, ISO 8601), or null. */
     public function ownerMeasuredAt(): ?string
     {
-        $owner = $this->document['owner'];
+        $measuredAt = $this->ownerField('measured_at');
 
-        return is_array($owner) && is_string($owner['measured_at'] ?? null) ? $owner['measured_at'] : null;
+        return is_string($measuredAt) ? $measuredAt : null;
     }
 
     /** @return array<string, string> image role => `repository@sha256:…` */
@@ -330,8 +330,16 @@ final readonly class InstanceState
 
     private function owner(string $key): int
     {
+        $value = $this->ownerField($key);
+
+        return is_int($value) ? $value : 0;
+    }
+
+    /** A field of the `owner` object, or null when it or the object is missing. */
+    private function ownerField(string $key): mixed
+    {
         $owner = $this->document['owner'];
 
-        return is_array($owner) && is_int($owner[$key] ?? null) ? $owner[$key] : 0;
+        return is_array($owner) ? $owner[$key] ?? null : null;
     }
 }

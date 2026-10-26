@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Windows;
 
+use App\Domain\Instance\LocalCa\LanAddress;
+
 /**
  * Reads FIELDSET_WINDOWS_FACTS, the document the shim builds from one powershell.exe call (2.1.1 U6, KTD8, KTD9), into
  * WindowsFacts. One `key=value` per line; CR line ends and a UTF-8 byte order mark are tolerated, lines of other shapes
  * (PowerShell's error text) and unknown keys are ignored:
  *
- * - `scope=full|addresses|unavailable` (written by the shim) and `end=1` (the script's last line): without both, or
- *   with `unavailable`, every fact is unknown
+ * - `scope=full|light|addresses|unavailable` (written by the shim) and `end=1` (the script's last line): without both,
+ *   or with `unavailable`, every fact is unknown; `addresses` keeps only the addresses, `light` also `.wslconfig`'s facts
  * - `ipv4=<address> <network profile> <adapter alias / description>`, then `checked=addresses`
  * - `networking=nat|mirrored`, `binding=<Docker Desktop port binding>`, `hyperv_enabled=True|False|NotConfigured`,
  *   `hyperv_inbound=Allow|Block|NotConfigured`: once each, else unknown
@@ -30,13 +32,19 @@ final class WindowsFactsParser
     /** Adapters that are no LAN, matched on "alias / description": Hyper-V and WSL switches, VPNs, tunnels, other VMs. */
     public const string VIRTUAL_ADAPTER = '/vEthernet|Hyper-V|\bWSL\b|\bVPN\b|\bTAP\b|WireGuard|Wintun|Tailscale|ZeroTier|AnyConnect|OpenVPN|VirtualBox|VMware|Loopback|Docker/i';
 
-    /** A dotted-quad IPv4 address, octets 0–255 without leading zeros. */
-    public const string IPV4 = '/^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/D';
-
     /** Larger documents are not what the shim's script prints: unavailable. */
     private const int MAX_BYTES = 65536;
 
     private const string HOST_NAME = '/^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,252})$/D';
+
+    /**
+     * A dotted-quad IPv4 address and nothing else: octets 0–255 without leading zeros, no whitespace or line end around
+     * it. WindowsCommands relies on it for every address it prints into an administrator's command.
+     */
+    public static function isIpv4(string $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
+    }
 
     public static function parse(?string $document): WindowsFacts
     {
@@ -45,18 +53,22 @@ final class WindowsFactsParser
         }
         $lines = self::lines($document);
         $scope = FactsScope::tryFrom(self::single($lines, 'scope') ?? '');
-        if (strlen($document) > self::MAX_BYTES || ! in_array($scope, [FactsScope::Addresses, FactsScope::Full], true) || self::single($lines, 'end') !== '1') {
+        if (strlen($document) > self::MAX_BYTES || ! in_array($scope, [FactsScope::Addresses, FactsScope::Light, FactsScope::Full], true) || self::single($lines, 'end') !== '1') {
             return WindowsFacts::unavailable();
         }
         $addresses = self::section($lines, 'addresses', 'ipv4', self::address(...));
         if ($scope === FactsScope::Addresses) {
             return new WindowsFacts($scope, self::candidates($addresses));
         }
+        $networking = WslNetworking::tryFrom(self::single($lines, 'networking') ?? '') ?? WslNetworking::Unknown;
+        if ($scope === FactsScope::Light) {
+            return new WindowsFacts($scope, self::candidates($addresses), $networking, idleTimeouts: self::idleTimeouts($lines));
+        }
 
         return new WindowsFacts(
             scope: $scope,
             addresses: self::candidates($addresses),
-            networking: WslNetworking::tryFrom(self::single($lines, 'networking') ?? '') ?? WslNetworking::Unknown,
+            networking: $networking,
             portBinding: PortBinding::tryFrom(self::single($lines, 'binding') ?? '') ?? PortBinding::Unknown,
             hostRules: self::section($lines, 'rules', 'rule', self::rule(...)),
             hyperVFirewall: HyperVFirewall::tryFrom(self::single($lines, 'hyperv_enabled') ?? '') ?? HyperVFirewall::Unknown,
@@ -144,7 +156,7 @@ final class WindowsFactsParser
         }
         $candidates = [];
         foreach ($addresses as [$address, $adapter]) {
-            if (self::isPrivate($address->address) && preg_match(self::VIRTUAL_ADAPTER, $adapter) !== 1) {
+            if (LanAddress::isPrivate($address->address) && preg_match(self::VIRTUAL_ADAPTER, $adapter) !== 1) {
                 $candidates[$address->address] ??= $address;
             }
         }
@@ -156,7 +168,7 @@ final class WindowsFactsParser
     private static function address(string $value): ?array
     {
         [$address, $profile, $adapter] = array_pad(explode(' ', $value, 3), 3, '');
-        if (preg_match(self::IPV4, $address) !== 1) {
+        if (! self::isIpv4($address)) {
             return null;
         }
 
@@ -184,13 +196,13 @@ final class WindowsFactsParser
             return null;
         }
         [, $listen, $listenPort, $connect, $connectPort] = $match;
-        $listenOk = $listen === '*' || preg_match(self::IPV4, $listen) === 1;
-        $connectOk = preg_match(self::IPV4, $connect) === 1 || preg_match(self::HOST_NAME, $connect) === 1;
-        if (! $listenOk || ! $connectOk || self::port($listenPort) === null || self::port($connectPort) === null) {
+        $listenOk = $listen === '*' || self::isIpv4($listen);
+        $connectIp = self::isIpv4($connect);
+        if (! $listenOk || (! $connectIp && preg_match(self::HOST_NAME, $connect) !== 1) || self::port($listenPort) === null || self::port($connectPort) === null) {
             return null;
         }
 
-        return new PortProxyEntry($listen === '*' ? null : $listen, (int) $listenPort, preg_match(self::IPV4, $connect) === 1 ? $connect : null, (int) $connectPort);
+        return new PortProxyEntry($listen === '*' ? null : $listen, (int) $listenPort, $connectIp ? $connect : null, (int) $connectPort);
     }
 
     private static function listener(string $value): ?WindowsListener
@@ -204,12 +216,5 @@ final class WindowsFactsParser
         }
 
         return new WindowsListener($port, $match[2], (int) $match[3], ListenerOwner::fromProcess((int) $match[3], $match[4] ?? ''));
-    }
-
-    private static function isPrivate(string $address): bool
-    {
-        [$a, $b] = array_map(intval(...), explode('.', $address));
-
-        return $a === 10 || ($a === 172 && $b >= 16 && $b <= 31) || ($a === 192 && $b === 168);
     }
 }

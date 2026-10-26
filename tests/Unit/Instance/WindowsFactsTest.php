@@ -13,6 +13,7 @@ use App\Domain\Instance\Windows\Presence;
 use App\Domain\Instance\Windows\WindowsFacts;
 use App\Domain\Instance\Windows\WindowsFactsParser;
 use App\Domain\Instance\Windows\WindowsListener;
+use App\Domain\Instance\Windows\WslIdleTimeouts;
 use App\Domain\Instance\Windows\WslNetworking;
 
 /*
@@ -193,6 +194,22 @@ it('knows only the addresses after the cheap address query', function (): void {
         ->and($facts->networking)->toBe(WslNetworking::Unknown)
         ->and($facts->portBinding)->toBe(PortBinding::Unknown)
         ->and($facts->hostRule(443))->toBe(Presence::Unknown)
+        ->and($facts->hyperVRule(443))->toBe(Presence::Unknown)
+        ->and($facts->portProxies)->toBeNull()
+        ->and($facts->listeners)->toBeNull();
+});
+
+it('knows only the addresses and .wslconfig after the light query of doctor and uninstall', function (): void {
+    $facts = WindowsFactsParser::parse(windowsDocument(['instanceidletimeout' => ['-1'], 'checked' => ['addresses', 'wslconfig', 'rules', 'hyperv_rules', 'portproxy', 'listen']], scope: 'light'));
+
+    expect($facts->scope)->toBe(FactsScope::Light)
+        ->and($facts->lanAddresses())->toBe(['192.168.1.20'])
+        ->and($facts->networking)->toBe(WslNetworking::Nat)
+        ->and($facts->idleTimeouts)->toEqual(new WslIdleTimeouts(-1, null))
+        ->and($facts->portBinding)->toBe(PortBinding::Unknown)
+        ->and($facts->hostRule(443))->toBe(Presence::Unknown)
+        ->and($facts->hyperVFirewall)->toBe(HyperVFirewall::Unknown)
+        ->and($facts->hyperVInbound)->toBe(InboundAction::Unknown)
         ->and($facts->hyperVRule(443))->toBe(Presence::Unknown)
         ->and($facts->portProxies)->toBeNull()
         ->and($facts->listeners)->toBeNull();

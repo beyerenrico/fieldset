@@ -10,6 +10,7 @@ use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\State\MeasuredOwner;
 use Carbon\CarbonImmutable;
 
 /**
@@ -31,15 +32,15 @@ final readonly class OwnerChange
     /** @throws InstanceException exit 3 `owner_not_measured` when the launcher did not measure the owner in this run */
     public static function plan(InstanceState $state, HostFacts $facts): self
     {
-        if ($facts->ownerSource !== OwnerSource::Measured || $facts->containerUid === null || ! $facts->runtime instanceof DockerRuntime) {
+        $to = $facts->measuredOwnerUid();
+        if ($to === null || ! $facts->runtime instanceof DockerRuntime) {
             throw new InstanceException(
                 'fieldset did not measure who owns the instance files inside containers in this run, so it cannot repair them.',
                 ExitCode::PreflightFailed,
-                'owner_not_measured',
+                MeasuredOwner::NOT_MEASURED,
                 'Run the instance\'s own script once Docker can start containers (`<dir>/fieldset repair-ownership`): it measures the owner first.',
             );
         }
-        $to = $facts->containerUid;
 
         return new self($state->containerUid(), $to, $to === 0 ? 0 : $state->hostGid(), $facts->runtime, $facts->socketGroup);
     }

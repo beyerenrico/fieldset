@@ -6,7 +6,6 @@ namespace App\Domain\Instance\Doctor;
 
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerInfo;
-use App\Domain\Instance\Docker\OwnerSource;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\LocalCa\EdgeBinding;
@@ -83,7 +82,7 @@ final class DoctorContext
     /** The owner the launcher measured in a container during this run (install, doctor and repair always do), or null. */
     public function measuredOwnerUid(): ?int
     {
-        return $this->facts->ownerSource === OwnerSource::Measured ? $this->facts->containerUid : null;
+        return $this->facts->measuredOwnerUid();
     }
 
     /** Whether the measured owner differs from the saved one: `fieldset repair-ownership` fixes it (2.1.1 U4). */

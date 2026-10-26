@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Ownership;
 
-use App\Domain\Instance\Docker\DockerRuntime;
-use App\Domain\Instance\Docker\OwnerSource;
 use App\Domain\Instance\HostFacts;
+use App\Domain\Instance\Operations\BestEffortLock;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\JournalRecord;
-use App\Domain\Instance\Operations\LockHandle;
-use App\Domain\Instance\Operations\LockHeld;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\State\InstanceDirectory;
@@ -48,28 +45,27 @@ final readonly class FirstUseRecording
     /** Saves the measured owner (true) or leaves state.json as it is (false). */
     public function afterCommand(HostFacts $facts, ProgressReporter $progress): bool
     {
-        try {
-            if (! $this->due($facts)) {
-                return false;
-            }
-            $handle = $this->lock->acquire($this->identity->holder('fieldset', $facts->callerUid()), self::OPERATION, mayTakeOver: false);
-        } catch (LockHeld) {
-            return false;
-        } catch (Throwable $e) {
-            return $this->warn($progress, $e);
+        $saved = new BestEffortLock($this->lock, $this->identity)->attempt(
+            $facts->callerUid(),
+            self::OPERATION,
+            fn (): ?true => $this->due($facts) ? true : null,
+            fn (): bool => $this->save($facts),
+            fn (Throwable $e): bool => $this->warn($progress, $e),
+        );
+        if ($saved) {
+            $progress->phase(self::PHASE, "Saved who owns the instance files inside containers (UID {$facts->containerUid}, measured just now) with the instance.");
         }
 
-        try {
-            if ($this->journal->current() instanceof JournalRecord || ! $this->due($facts)) {
-                return false;
-            }
-            $this->directory->saveState(MeasuredOwner::record($this->directory->state(), $facts));
-        } catch (Throwable $e) {
-            return $this->warn($progress, $e);
-        } finally {
-            $this->release($handle);
+        return $saved;
+    }
+
+    /** Under the lock: saves the measurement unless an operation is unfinished or it is no longer due. */
+    private function save(HostFacts $facts): bool
+    {
+        if ($this->journal->current() instanceof JournalRecord || ! $this->due($facts)) {
+            return false;
         }
-        $progress->phase(self::PHASE, "Saved who owns the instance files inside containers (UID {$facts->containerUid}, measured just now) with the instance.");
+        $this->directory->saveState(MeasuredOwner::record($this->directory->state(), $facts));
 
         return true;
     }
@@ -82,12 +78,12 @@ final readonly class FirstUseRecording
      */
     private function due(HostFacts $facts): bool
     {
-        if ($facts->ownerSource !== OwnerSource::Measured || ! $facts->runtime instanceof DockerRuntime || ! $this->directory->hasState()) {
+        if (! MeasuredOwner::inThisRun($facts) || ! $this->directory->hasState()) {
             return false;
         }
         $state = $this->directory->state();
 
-        return $facts->containerUid === $state->containerUid()
+        return MeasuredOwner::applies($state, $facts)
             && ($state->measuredRuntime() !== $facts->runtime || $state->socketGroup() !== $facts->socketGroup);
     }
 
@@ -96,14 +92,5 @@ final readonly class FirstUseRecording
         $progress->warn(self::PHASE, "Could not save who owns the instance files inside containers: {$e->getMessage()} A later command tries again.");
 
         return false;
-    }
-
-    private function release(LockHandle $handle): void
-    {
-        try {
-            $this->lock->release($handle);
-        } catch (Throwable) {
-            // left to the next state-changing command, which takes over the lock of this exited container (InstanceLock)
-        }
     }
 }

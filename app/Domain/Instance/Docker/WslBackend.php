@@ -17,6 +17,7 @@ enum WslBackend: string
     case DockerDesktop = 'desktop';
     case Engine = 'engine';
 
+    /** WslScriptsTest pins this against the shim's `case` on OperatingSystem, so both read a backend the same way. */
     public static function fromOperatingSystem(string $operatingSystem): self
     {
         return str_starts_with($operatingSystem, 'Docker Desktop') ? self::DockerDesktop : self::Engine;

@@ -10,6 +10,8 @@ use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\Release\ImagePin;
 use App\Domain\Instance\Windows\WindowsFacts;
 use App\Domain\Instance\Windows\WindowsFactsParser;
+use App\Domain\Instance\Windows\WslNetworking;
+use App\Domain\Instance\Windows\WslSetup;
 
 /**
  * Facts about the host that the ops container cannot observe itself, and how it was launched. The shim and
@@ -166,6 +168,30 @@ final readonly class HostFacts
     public function ownerUidInContainers(): int
     {
         return $this->containerUid ?? $this->runtime?->containerOwnerUid($this->callerUid()) ?? $this->callerUid();
+    }
+
+    /** The in-container owner the launcher measured in this run (FIELDSET_OWNER_SOURCE=measured), or null. */
+    public function measuredOwnerUid(): ?int
+    {
+        return $this->ownerSource === OwnerSource::Measured ? $this->containerUid : null;
+    }
+
+    /** Whether the launcher runs in a WSL 2 distro (FIELDSET_WSL=2). */
+    public function onWsl2(): bool
+    {
+        return $this->wslVersion === 2;
+    }
+
+    /** WSL's networking mode as Windows reported it (`.wslconfig`); Unknown when the launcher did not ask or could not. */
+    public function wslNetworking(): WslNetworking
+    {
+        return $this->windows->networking ?? WslNetworking::Unknown;
+    }
+
+    /** How phones reach a WSL 2 instance's edge: from the engine in the distro and WSL's networking mode. */
+    public function wslSetup(): WslSetup
+    {
+        return WslSetup::of($this->wslBackend, $this->wslNetworking());
     }
 
     /** The `linux/<arch>` DOCKER_DEFAULT_PLATFORM selects (without its variant), or null for the engine's own. */

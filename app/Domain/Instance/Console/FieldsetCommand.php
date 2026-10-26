@@ -115,8 +115,9 @@ abstract class FieldsetCommand extends Command
         } catch (Throwable $e) {
             $exitCode = $this->renderFallback($result, $e, $json);
         }
-        $this->recordOwner($context, $result);
-        $this->refreshLauncher($context);
+        // the first state-changing command or doctor records the measured owner (KTD6); an older shim gets this image's script (KTD7)
+        $this->afterCommand($context, FirstUseRecording::class, $this->recordsOwner() && ! in_array($result->exitCode, self::NOT_STARTED, true));
+        $this->afterCommand($context, ScriptRefresh::class, $this->refreshesLauncher());
 
         return $exitCode;
     }
@@ -203,31 +204,22 @@ abstract class FieldsetCommand extends Command
         return new FieldsetContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory, $this->opensBrowser());
     }
 
-    /** The first state-changing command or doctor records the measured owner (KTD6); this never changes the command's result. */
-    private function recordOwner(?FieldsetContext $context, CommandResult $result): void
+    /**
+     * Work once the command is done, in an instance directory, when the command wants it; it never changes the command's
+     * result.
+     *
+     * @param  class-string<FirstUseRecording|ScriptRefresh>  $hook
+     */
+    private function afterCommand(?FieldsetContext $context, string $hook, bool $wanted): void
     {
-        if (! $context instanceof FieldsetContext || ! $context->hasDirectory() || ! $this->recordsOwner() || in_array($result->exitCode, self::NOT_STARTED, true)) {
+        if (! $context instanceof FieldsetContext || ! $context->hasDirectory() || ! $wanted) {
             return;
         }
 
         try {
-            $this->laravel->make(FirstUseRecording::class)->afterCommand($context->facts, $context->progress);
+            $this->laravel->make($hook)->afterCommand($context->facts, $context->progress);
         } catch (Throwable) {
-            // FirstUseRecording reports its own failures; only resolving it can throw here, and a later command records then
-        }
-    }
-
-    /** An older shim gets this image's script once the command is done (KTD7); this never changes the command's result. */
-    private function refreshLauncher(?FieldsetContext $context): void
-    {
-        if (! $context instanceof FieldsetContext || ! $context->hasDirectory() || ! $this->refreshesLauncher()) {
-            return;
-        }
-
-        try {
-            $this->laravel->make(ScriptRefresh::class)->afterCommand($context->facts, $context->progress);
-        } catch (Throwable) {
-            // ScriptRefresh reports its own failures; only resolving it can throw here, and the script then stays as it is
+            // the hook reports its own failures; only resolving it can throw here, and a later command tries again
         }
     }
 

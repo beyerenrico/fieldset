@@ -33,7 +33,7 @@ final class LanAddress
     public static function best(HostFacts $facts): ?string
     {
         $usable = array_values(array_filter($facts->lanAddresses, self::usable(...)));
-        $private = array_values(array_filter($usable, static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false));
+        $private = array_values(array_filter($usable, self::isPrivate(...)));
 
         return $private[0] ?? $usable[0] ?? null;
     }
@@ -45,6 +45,13 @@ final class LanAddress
     public static function isCurrent(string $address, HostFacts $facts): ?bool
     {
         return $facts->lanAddresses === [] ? null : in_array($address, $facts->lanAddresses, true);
+    }
+
+    /** A private IPv4 address: 10/8, 172.16/12 or 192.168/16. */
+    public static function isPrivate(string $ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false
+            && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false;
     }
 
     /** An IPv4 unicast address that is neither loopback, "this network", link-local nor multicast/reserved. */

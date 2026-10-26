@@ -35,7 +35,7 @@ final readonly class LanAddressCheck implements DoctorCheck
         if ($address === null) {
             return CheckResult::skipped($this->key(), 'Phone HTTPS with the local CA is off.');
         }
-        if ($context->facts->wslVersion === 2) {
+        if ($context->facts->onWsl2()) {
             return CheckResult::skipped($this->key(), 'On WSL 2 the windows_network check compares the address with Windows\' LAN addresses.', ['address' => $address]);
         }
         $current = LanAddress::isCurrent($address, $context->facts);

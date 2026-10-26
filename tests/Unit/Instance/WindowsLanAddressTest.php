@@ -86,3 +86,23 @@ it('lets --lan-address win over the Windows address, and refuses local CA withou
         ->and($localCa(['lan-address' => '192.168.1.30'], $offline)['lan_address'] ?? null)->toBe('192.168.1.30')
         ->and(fn () => $localCa([], $offline))->toThrow(InvalidInput::class, 'No LAN address of this host is known for the local CA.');
 });
+
+it('counts only 10/8, 172.16/12 and 192.168/16 as private IPv4 addresses', function (string $address, bool $private): void {
+    expect(LanAddress::isPrivate($address))->toBe($private);
+})->with([
+    '10/8 lowest' => ['10.0.0.0', true],
+    '10/8 highest' => ['10.255.255.255', true],
+    'below 172.16/12' => ['172.15.255.255', false],
+    '172.16/12 lowest' => ['172.16.0.0', true],
+    '172.16/12 highest' => ['172.31.255.255', true],
+    'above 172.16/12' => ['172.32.0.0', false],
+    '192.168/16' => ['192.168.1.20', true],
+    'beside 192.168/16' => ['192.169.0.1', false],
+    'carrier-grade NAT' => ['100.64.0.1', false],
+    'link-local' => ['169.254.1.1', false],
+    'loopback' => ['127.0.0.1', false],
+    'public' => ['8.8.8.8', false],
+    'leading zero' => ['010.0.0.1', false],
+    'IPv6 unique local' => ['fd00::1', false],
+    'not an address' => ['', false],
+]);

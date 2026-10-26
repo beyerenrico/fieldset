@@ -17,12 +17,35 @@ use Carbon\CarbonImmutable;
  */
 final class MeasuredOwner
 {
+    /** The code of an owner the launcher could not measure: the doctor's warning and repair-ownership's error. */
+    public const string NOT_MEASURED = 'owner_not_measured';
+
     public static function record(InstanceState $state, HostFacts $facts): InstanceState
     {
-        if ($facts->ownerSource !== OwnerSource::Measured || ! $facts->runtime instanceof DockerRuntime || $facts->containerUid !== $state->containerUid()) {
+        if (! self::applies($state, $facts)) {
             return $state;
         }
 
         return $state->withOwnerMeasurement($facts->runtime, $facts->socketGroup, CarbonImmutable::now('UTC'));
+    }
+
+    /**
+     * The launcher measured the owner in this run (FIELDSET_OWNER_SOURCE=measured) under a known runtime.
+     *
+     * @phpstan-assert-if-true DockerRuntime $facts->runtime
+     */
+    public static function inThisRun(HostFacts $facts): bool
+    {
+        return $facts->ownerSource === OwnerSource::Measured && $facts->runtime instanceof DockerRuntime;
+    }
+
+    /**
+     * A measurement of this run under a known runtime, of the owner the state already has: the one that may be saved.
+     *
+     * @phpstan-assert-if-true DockerRuntime $facts->runtime
+     */
+    public static function applies(InstanceState $state, HostFacts $facts): bool
+    {
+        return self::inThisRun($facts) && $facts->measuredOwnerUid() === $state->containerUid();
     }
 }

@@ -36,8 +36,7 @@ final readonly class EdgeBinding
     /** What this host's setup calls for (KTD13). */
     public static function decide(string $advertised, HostFacts $facts): self
     {
-        $engineBehindNat = $facts->wslVersion === 2 && $facts->wslBackend === WslBackend::Engine
-            && ($facts->windows->networking ?? WslNetworking::Unknown) !== WslNetworking::Mirrored;
+        $engineBehindNat = $facts->onWsl2() && $facts->wslBackend === WslBackend::Engine && $facts->wslNetworking() !== WslNetworking::Mirrored;
 
         return new self($advertised, $engineBehindNat ? null : $advertised);
     }

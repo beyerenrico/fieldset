@@ -16,7 +16,6 @@ use App\Domain\Instance\Windows\PhoneAccessRows;
 use App\Domain\Instance\Windows\PortProxyEntry;
 use App\Domain\Instance\Windows\WindowsFacts;
 use App\Domain\Instance\Windows\WindowsListener;
-use App\Domain\Instance\Windows\WslSetup;
 
 /**
  * Phone access with the local CA on WSL 2 (2.1.1 U14, R12, R30, KTD9, KTD10): whether Windows lets phones reach the edge,
@@ -46,7 +45,7 @@ final readonly class WindowsNetworkCheck implements DoctorCheck
 
     public function run(DoctorContext $context): CheckResult
     {
-        if ($context->facts->wslVersion !== 2) {
+        if (! $context->facts->onWsl2()) {
             return CheckResult::skipped($this->key(), 'Not a WSL 2 host: no Windows firewall between phones and the edge.');
         }
         $binding = $context->lanBinding();
@@ -55,7 +54,7 @@ final readonly class WindowsNetworkCheck implements DoctorCheck
         }
         $facts = $context->facts->windows ?? WindowsFacts::skipped();
         $address = $binding->advertised;
-        $setup = WslSetup::of($context->facts->wslBackend, $facts->networking);
+        $setup = $context->facts->wslSetup();
         $details = ['address' => $address, 'setup' => $setup->value, 'facts' => $facts->scope->value, 'row' => null, 'commands' => [], 'unknown' => []];
         $foreign = $this->foreignListeners($facts, $address);
         if ($foreign !== []) {

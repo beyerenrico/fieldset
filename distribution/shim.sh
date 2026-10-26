@@ -122,10 +122,11 @@ fieldset_lan_addresses() { # candidate LAN addresses, without loopback and conta
 	fi
 }
 
-fieldset_windows_scope() { # <fieldset args>: sets fieldset_scope to the Windows facts the command needs (KTD8): full for install,
-	# doctor, uninstall and `config set phone-https|lan-address`, else none (fieldset_windows_facts adds the addresses for phones)
+fieldset_windows_scope() { # <fieldset args>: sets fieldset_scope to the Windows facts the command needs (KTD8): full for install
+	# and `config set phone-https|lan-address`, light (addresses and .wslconfig) for doctor and uninstall, else none
+	# (fieldset_windows_facts asks for what phones need on top)
 	fieldset_scope=none fieldset_words=0 fieldset_skip=0
-	case $fieldset_command in install | doctor | uninstall) fieldset_scope=full && return 0 ;; config) ;; *) return 0 ;; esac
+	case $fieldset_command in install) fieldset_scope=full && return 0 ;; doctor | uninstall) fieldset_scope=light && return 0 ;; config) ;; *) return 0 ;; esac
 	for fieldset_arg in "$@"; do
 		if [ "$fieldset_skip" = 1 ]; then fieldset_skip=0 && continue; fi
 		case $fieldset_arg in
@@ -150,32 +151,35 @@ fieldset_bounded() { # <seconds> <command> [args...]: runs it, ended after <seco
 
 fieldset_windows_script() { # the PowerShell of fieldset_windows_facts, one statement per line, joined into one argument
 	# without double quotes (KTD8, KTD9). It prints key=value lines and a `checked=` line after each list; adapter and process
-	# names go out as printable ASCII only, for WindowsFactsParser to match and drop. $f=1 asks for every fact.
+	# names go out as printable ASCII only, for WindowsFactsParser to match and drop. $f=1 asks for every fact, $f=2 for the
+	# addresses and .wslconfig, $f=0 for the addresses. $vm is WSL's VM creator ID (WindowsCommands::WSL_VM_CREATOR).
 	tr '\n' ' ' <<'EOF'
-$ErrorActionPreference='Stop';
+$ErrorActionPreference='Stop'; $vm='{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}';
 try { Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | ForEach-Object { $c=$_; $p=[string]$c.NetProfile.NetworkCategory; if(!$p){ $p='none' }; foreach($a in $c.IPv4Address){ 'ipv4=' + $a.IPAddress + ' ' + $p + ' ' + (($c.InterfaceAlias + ' / ' + $c.InterfaceDescription) -replace '[^ -~]','?') } }; 'checked=addresses' } catch {};
 if($f){ try { $m='nat'; $w=Join-Path $env:USERPROFILE '.wslconfig'; if(Test-Path $w){ $x=Select-String -Path $w -Pattern '^\s*networkingMode\s*=\s*([A-Za-z]+)' | Select-Object -Last 1; if($x){ $m=$x.Matches[0].Groups[1].Value.ToLower() }; foreach($k in 'instanceIdleTimeout','vmIdleTimeout'){ $x=Select-String -Path $w -Pattern ('^\s*' + $k + '\s*=\s*(-?\d+)\s*$') | Select-Object -Last 1; if($x){ $k.ToLower() + '=' + $x.Matches[0].Groups[1].Value } } }; 'networking=' + $m; 'checked=wslconfig' } catch {} };
-if($f){ try { foreach($n in 'settings-store.json','settings.json'){ $j=Join-Path (Join-Path $env:APPDATA 'Docker') $n; if(Test-Path $j){ $b=(Get-Content -Raw $j | ConvertFrom-Json).PortBindingBehavior; if($b){ 'binding=' + $b }; break } } } catch {} };
-if($f){ try { Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq 'TCP' -and ($_.LocalPort -contains '80' -or $_.LocalPort -contains '443') } | ForEach-Object { $l=$_.LocalPort; $r=$_ | Get-NetFirewallRule; if($r.Enabled -eq 'True' -and $r.Direction -eq 'Inbound' -and $r.Action -eq 'Allow'){ foreach($p in $l){ if($p -eq '80' -or $p -eq '443'){ 'rule=' + $p + ' ' + [int]$r.Profile } } } }; 'checked=rules' } catch {} };
-if($f){ try { $h=Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'; 'hyperv_enabled=' + $h.Enabled; 'hyperv_inbound=' + $h.DefaultInboundAction } catch {} };
-if($f){ try { Get-NetFirewallHyperVRule | Where-Object { $_.VMCreatorId -eq '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -and $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' } | ForEach-Object { foreach($p in $_.LocalPorts){ if($p -eq '80' -or $p -eq '443'){ 'hyperv_rule=' + $p } } }; 'checked=hyperv_rules' } catch {} };
-if($f){ try { $o=netsh interface portproxy show v4tov4; if($LASTEXITCODE -eq 0){ $o | ForEach-Object { if($_ -match '^\s*(\S+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$'){ 'portproxy=' + $Matches[1] + ' ' + $Matches[2] + ' ' + $Matches[3] + ' ' + $Matches[4] } }; 'checked=portproxy' } } catch {} };
-if($f){ try { Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 80 -or $_.LocalPort -eq 443 } | ForEach-Object { $q=(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName; 'listen=' + $_.LocalPort + ' ' + $_.LocalAddress + ' ' + $_.OwningProcess + ' ' + ($q -replace '[^ -~]','?') }; 'checked=listen' } catch {} };
+if($f -eq 1){ try { foreach($n in 'settings-store.json','settings.json'){ $j=Join-Path (Join-Path $env:APPDATA 'Docker') $n; if(Test-Path $j){ $b=(Get-Content -Raw $j | ConvertFrom-Json).PortBindingBehavior; if($b){ 'binding=' + $b }; break } } } catch {} };
+if($f -eq 1){ try { Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq 'TCP' -and ($_.LocalPort -contains '80' -or $_.LocalPort -contains '443') } | ForEach-Object { $l=$_.LocalPort; $r=$_ | Get-NetFirewallRule; if($r.Enabled -eq 'True' -and $r.Direction -eq 'Inbound' -and $r.Action -eq 'Allow'){ foreach($p in $l){ if($p -eq '80' -or $p -eq '443'){ 'rule=' + $p + ' ' + [int]$r.Profile } } } }; 'checked=rules' } catch {} };
+if($f -eq 1){ try { $h=Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore -Name $vm; 'hyperv_enabled=' + $h.Enabled; 'hyperv_inbound=' + $h.DefaultInboundAction } catch {} };
+if($f -eq 1){ try { Get-NetFirewallHyperVRule | Where-Object { $_.VMCreatorId -eq $vm -and $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' } | ForEach-Object { foreach($p in $_.LocalPorts){ if($p -eq '80' -or $p -eq '443'){ 'hyperv_rule=' + $p } } }; 'checked=hyperv_rules' } catch {} };
+if($f -eq 1){ try { $o=netsh interface portproxy show v4tov4; if($LASTEXITCODE -eq 0){ $o | ForEach-Object { if($_ -match '^\s*(\S+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$'){ 'portproxy=' + $Matches[1] + ' ' + $Matches[2] + ' ' + $Matches[3] + ' ' + $Matches[4] } }; 'checked=portproxy' } } catch {} };
+if($f -eq 1){ try { Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 80 -or $_.LocalPort -eq 443 } | ForEach-Object { $q=(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName; 'listen=' + $_.LocalPort + ' ' + $_.LocalAddress + ' ' + $_.OwningProcess + ' ' + ($q -replace '[^ -~]','?') }; 'checked=listen' } catch {} };
 'end=1'
 EOF
 }
 
 fieldset_windows_facts() { # on WSL 2: sets FIELDSET_WINDOWS_FACTS from at most one powershell.exe call (KTD8, after fieldset_windows_scope)
-	# Other commands ask only for the addresses, and only while phones use the local CA. The document starts with the scope
-	# asked for (`unavailable` without interop); control characters and a byte order mark go, and only key=value lines stay.
+	# While phones use the local CA, doctor and uninstall ask for every fact and other commands for the addresses. The document
+	# starts with the scope asked for (`unavailable` without interop); control characters and a byte order mark go, and only
+	# key=value lines stay.
 	FIELDSET_WINDOWS_FACTS='' fieldset_scope=${fieldset_scope:-none}
-	[ "$fieldset_scope" = full ] || ! fieldset_phone_on "$fieldset_dir/state.json" || fieldset_scope=addresses
+	if [ "$fieldset_scope" != full ] && fieldset_phone_on "$fieldset_dir/state.json"; then
+		case $fieldset_scope in light) fieldset_scope=full ;; *) fieldset_scope=addresses ;; esac
+	fi
 	[ "$fieldset_scope" != none ] || return 0
 	fieldset_powershell
 	[ -n "$fieldset_powershell" ] || { FIELDSET_WINDOWS_FACTS=scope=unavailable && return 0; }
-	fieldset_full=0
-	[ "$fieldset_scope" != full ] || fieldset_full=1
-	FIELDSET_WINDOWS_FACTS="scope=$fieldset_scope$fieldset_nl$(fieldset_bounded 60 "$fieldset_powershell" -NoProfile -NonInteractive -Command "\$f=$fieldset_full; $(fieldset_windows_script)" </dev/null 2>/dev/null |
+	case $fieldset_scope in full) fieldset_level=1 ;; light) fieldset_level=2 ;; *) fieldset_level=0 ;; esac
+	FIELDSET_WINDOWS_FACTS="scope=$fieldset_scope$fieldset_nl$(fieldset_bounded 60 "$fieldset_powershell" -NoProfile -NonInteractive -Command "\$f=$fieldset_level; $(fieldset_windows_script)" </dev/null 2>/dev/null |
 		LC_ALL=C tr -d '\000-\010\013-\037\177' | LC_ALL=C awk -v bom="$(printf '\357\273\277')" 'NR == 1 { sub("^" bom, "") } /^[a-z][a-z0-9_]*=/ && NR <= 400')"
 }
 

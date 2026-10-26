@@ -94,7 +94,7 @@ final class PhoneAccessRows
 
     private static function desktop(WindowsFacts $facts, string $address, string $uuid): PhoneAccessHint
     {
-        $missing = self::missingHostRules($facts);
+        $missing = self::missingPorts($facts->hostRule(...));
         if ($missing !== []) {
             return new PhoneAccessHint(PhoneAccessRow::HostRule, ucfirst(self::noHostRule($missing)).", so it blocks phones that open https://{$address}.", [WindowsCommands::hostRule($uuid)]);
         }
@@ -107,18 +107,12 @@ final class PhoneAccessRows
     {
         $deletes = $adds = $problems = [];
         foreach (EdgePorts::PORTS as $port) {
-            $entries = array_values(array_filter($facts->portProxies ?? [], static fn (PortProxyEntry $e): bool => $e->listenPort === $port && in_array($e->listenAddress, [null, $address], true)));
-            $current = array_any($entries, static fn (PortProxyEntry $e): bool => in_array($e->connectAddress, $wslAddresses, true) && $e->connectPort === $port);
-            foreach (array_filter($entries, static fn (PortProxyEntry $e): bool => ! in_array($e->connectAddress, $wslAddresses, true) || $e->connectPort !== $port) as $stale) {
-                $deletes[] = WindowsCommands::portProxyDelete($stale->listenAddress, $port);
-                $problems[] = "the portproxy for port {$port} points at ".($stale->connectAddress ?? 'a host name').":{$stale->connectPort}, not at WSL's {$target}:{$port}";
-            }
-            $adds = $current ? $adds : [...$adds, ...self::adds($address, $target, [$port])];
-            if ($entries === []) {
-                $problems[] = "no portproxy forwards port {$port} from {$address} to WSL";
-            }
+            $forPort = self::natPort($facts->portProxies ?? [], $port, $address, $wslAddresses, $target);
+            $deletes = [...$deletes, ...$forPort['deletes']];
+            $adds = [...$adds, ...$forPort['adds']];
+            $problems = [...$problems, ...$forPort['problems']];
         }
-        $missing = self::missingHostRules($facts);
+        $missing = self::missingPorts($facts->hostRule(...));
         if ($missing !== []) {
             $problems[] = self::noHostRule($missing);
         }
@@ -130,9 +124,31 @@ final class PhoneAccessRows
         return new PhoneAccessHint(PhoneAccessRow::PortProxy, 'Phones cannot reach the edge behind WSL\'s NAT: '.implode('; ', $problems).'.', [...array_values(array_unique($deletes)), ...$adds, ...$rule]);
     }
 
+    /**
+     * One edge port behind WSL's NAT: the portproxy entries that listen on it where phones connect, the stale ones (not at
+     * WSL's current address and the same port) deleted, and an entry added unless one is current.
+     *
+     * @param  list<PortProxyEntry>  $proxies
+     * @param  list<string>  $wslAddresses
+     * @return array{deletes: list<string>, adds: list<string>, problems: list<string>}
+     */
+    private static function natPort(array $proxies, int $port, string $address, array $wslAddresses, string $target): array
+    {
+        $entries = array_values(array_filter($proxies, static fn (PortProxyEntry $e): bool => $e->listenPort === $port && in_array($e->listenAddress, [null, $address], true)));
+        $current = static fn (PortProxyEntry $e): bool => in_array($e->connectAddress, $wslAddresses, true) && $e->connectPort === $port;
+        $stale = array_values(array_filter($entries, static fn (PortProxyEntry $e): bool => ! $current($e)));
+        $problems = array_map(static fn (PortProxyEntry $e): string => "the portproxy for port {$port} points at ".($e->connectAddress ?? 'a host name').":{$e->connectPort}, not at WSL's {$target}:{$port}", $stale);
+
+        return [
+            'deletes' => array_map(static fn (PortProxyEntry $e): string => WindowsCommands::portProxyDelete($e->listenAddress, $port), $stale),
+            'adds' => array_any($entries, $current) ? [] : self::adds($address, $target, [$port]),
+            'problems' => $entries === [] ? ["no portproxy forwards port {$port} from {$address} to WSL"] : $problems,
+        ];
+    }
+
     private static function mirrored(WindowsFacts $facts, string $address, string $uuid): PhoneAccessHint
     {
-        $missing = array_values(array_filter(EdgePorts::PORTS, static fn (int $port): bool => $facts->hyperVRule($port) === Presence::Missing));
+        $missing = self::missingPorts($facts->hyperVRule(...));
         $open = $facts->hyperVFirewall === HyperVFirewall::Disabled || $facts->hyperVInbound === InboundAction::Allow;
         if ($missing === [] || $open) {
             return new PhoneAccessHint(null, "Windows lets phones reach {$address}: ".($missing === [] ? 'a Hyper-V firewall rule allows inbound TCP 80 and 443 to WSL.' : 'the Hyper-V firewall lets inbound traffic reach WSL.'));
@@ -142,10 +158,13 @@ final class PhoneAccessRows
         return new PhoneAccessHint(PhoneAccessRow::HyperVRule, "The Hyper-V firewall has no inbound rule for TCP {$ports} to WSL (mirrored networking), so it blocks phones that open https://{$address}.", [WindowsCommands::hyperVRule($uuid)]);
     }
 
-    /** @return list<int> edge ports without an inbound allow rule that covers the Private profile */
-    private static function missingHostRules(WindowsFacts $facts): array
+    /**
+     * @param  callable(int): Presence  $rule  WindowsFacts::hostRule (an inbound allow rule that covers the Private profile) or hyperVRule
+     * @return list<int> the edge ports Windows reports without that rule
+     */
+    private static function missingPorts(callable $rule): array
     {
-        return array_values(array_filter(EdgePorts::PORTS, static fn (int $port): bool => $facts->hostRule($port) === Presence::Missing));
+        return array_values(array_filter(EdgePorts::PORTS, static fn (int $port): bool => $rule($port) === Presence::Missing));
     }
 
     /** @param  list<int>  $ports */
@@ -166,6 +185,6 @@ final class PhoneAccessRows
     /** @param  list<string>  $wslAddresses */
     private static function target(array $wslAddresses): ?string
     {
-        return array_values(array_filter($wslAddresses, static fn (string $ip): bool => LanAddress::usable($ip) && preg_match(WindowsFactsParser::IPV4, $ip) === 1))[0] ?? null;
+        return array_values(array_filter($wslAddresses, LanAddress::usable(...)))[0] ?? null;
     }
 }

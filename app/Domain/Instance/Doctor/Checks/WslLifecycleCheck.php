@@ -44,7 +44,7 @@ final readonly class WslLifecycleCheck implements DoctorCheck
     public function run(DoctorContext $context): CheckResult
     {
         $facts = $context->facts;
-        if ($facts->wslVersion !== 2) {
+        if (! $facts->onWsl2()) {
             return CheckResult::skipped($this->key(), 'Not a WSL 2 host.');
         }
         $idle = $facts->windows?->idleTimeouts;
@@ -62,15 +62,14 @@ final readonly class WslLifecycleCheck implements DoctorCheck
     private function engine(?WslIdleTimeouts $idle, ?bool $systemd, array $details): CheckResult
     {
         $stops = $idle instanceof WslIdleTimeouts && ! $idle->keepsDistro();
-        $problems = array_filter([
-            $stops ? 'The distro stops when its last terminal closes, Docker Engine and the instance with it (WSL\'s instanceIdleTimeout is '.($idle->instance ?? 'not set').')' : null,
-            $systemd === false ? 'Docker Engine does not start with the distro (systemd is not PID 1)' : null,
+        $found = array_filter([ // [problem, fix]
+            $stops ? ['The distro stops when its last terminal closes, Docker Engine and the instance with it (WSL\'s instanceIdleTimeout is '.($idle->instance ?? 'not set').')', self::IDLE] : null,
+            $systemd === false ? ['Docker Engine does not start with the distro (systemd is not PID 1)', self::SYSTEMD] : null,
         ]);
-        $fixes = array_values(array_filter([$stops ? self::IDLE : null, $systemd === false ? self::SYSTEMD : null]));
-        if ($problems !== []) {
+        if ($found !== []) {
             $unread = $idle instanceof WslIdleTimeouts ? '' : ' WSL\'s idle timeout could not be read from .wslconfig.';
 
-            return CheckResult::warn($this->key(), implode('; ', $problems).'.'.$unread, $this->hint($fixes), $details);
+            return CheckResult::warn($this->key(), implode('; ', array_column($found, 0)).'.'.$unread, $this->hint(array_column($found, 1)), $details);
         }
         if (! $idle instanceof WslIdleTimeouts || $systemd === null) {
             $what = $idle instanceof WslIdleTimeouts ? 'whether systemd runs as PID 1 was not reported' : 'WSL\'s idle timeout could not be read from .wslconfig (interop off)';

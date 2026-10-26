@@ -36,7 +36,10 @@ final readonly class DockerInfo
         );
     }
 
-    /** On a WSL 2 host: Docker Desktop or Docker Engine in the distro, by the prefix of OperatingSystem (as the shim reads it). */
+    /**
+     * On a WSL 2 host: Docker Desktop or Docker Engine in the distro, by the prefix of OperatingSystem (as the shim reads it).
+     * WslScriptsTest pins it against the shim's `case` statement.
+     */
     public function wslBackend(): WslBackend
     {
         return WslBackend::fromOperatingSystem($this->operatingSystem);

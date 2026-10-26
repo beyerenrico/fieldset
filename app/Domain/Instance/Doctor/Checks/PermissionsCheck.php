@@ -9,6 +9,7 @@ use App\Domain\Instance\Doctor\CheckResult;
 use App\Domain\Instance\Doctor\DoctorCheck;
 use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\MeasuredOwner;
 
 /**
  * Who can change what the socket holder trusts (KTD2, ADR 0070): the instance directory, the state, the compose
@@ -24,7 +25,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 final readonly class PermissionsCheck implements DoctorCheck
 {
     /** The warning code of an owner that could not be measured. */
-    public const string UNMEASURED = 'owner_not_measured';
+    public const string UNMEASURED = MeasuredOwner::NOT_MEASURED;
 
     private const array FILES = [
         '' => 'the instance directory',

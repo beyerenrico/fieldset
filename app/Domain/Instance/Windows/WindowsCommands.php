@@ -18,7 +18,7 @@ final class WindowsCommands
 {
     public const string HEADER = 'Run in PowerShell as administrator:';
 
-    /** WSL's VM creator ID for the Hyper-V firewall (as the shim's fact-finding script reads it). */
+    /** WSL's VM creator ID for the Hyper-V firewall; distribution/shim.sh's fact-finding script has the same ID as `$vm`. */
     public const string WSL_VM_CREATOR = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}';
 
     /** The Windows firewall rule for the edge ports: inbound TCP 80 and 443, Private profile, local subnet only. */
@@ -113,7 +113,7 @@ final class WindowsCommands
 
     private static function ipv4(string $address): string
     {
-        if (preg_match(WindowsFactsParser::IPV4, $address) !== 1) {
+        if (! WindowsFactsParser::isIpv4($address)) {
             throw new InvalidArgumentException('Only an IPv4 address goes into a Windows command.');
         }
 

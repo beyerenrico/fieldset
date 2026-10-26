@@ -27,8 +27,6 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\Windows\WindowsCommands;
-use App\Domain\Instance\Windows\WslNetworking;
-use App\Domain\Instance\Windows\WslSetup;
 use Throwable;
 
 /**
@@ -108,12 +106,15 @@ final readonly class Uninstaller
      */
     private function windowsCleanup(CommandResult $result, ?InstanceState $state, HostFacts $facts): CommandResult
     {
-        $settings = $state instanceof InstanceState && $facts->wslVersion === 2 ? InstanceSettings::of($state) : null;
-        $address = $settings?->localCa() === true ? $settings->lanAddress() : null;
-        if (! $state instanceof InstanceState || $address === null) {
+        if (! $state instanceof InstanceState || ! $facts->onWsl2()) {
             return $result;
         }
-        $commands = WindowsCommands::removal($state->uuid(), WslSetup::of($facts->wslBackend, $facts->windows->networking ?? WslNetworking::Unknown), $address);
+        $settings = InstanceSettings::of($state);
+        $address = $settings->localCa() ? $settings->lanAddress() : null;
+        if ($address === null) {
+            return $result;
+        }
+        $commands = WindowsCommands::removal($state->uuid(), $facts->wslSetup(), $address);
 
         return $result->withData(['windows_cleanup' => $commands])
             ->withWarning('windows_rules', 'Windows rules you added for phones (as `fieldset doctor` suggested) stay on Windows until you remove them.', WindowsCommands::hint($commands, 'A rule or portproxy you never added is reported as not found; nothing else changes.'));

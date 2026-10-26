@@ -10,6 +10,7 @@ use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\Windows\WindowsCommands;
+use App\Domain\Instance\Windows\WindowsFactsParser;
 use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
@@ -262,3 +263,28 @@ it('builds Windows commands only from validated values', function (): void {
         ->and(fn () => WindowsCommands::hostRule('x; calc'))->toThrow(InvalidArgumentException::class)
         ->and(WindowsCommands::ruleName(strtoupper(NET_UUID)))->toBe('fieldset-3f1c2b9e-https');
 });
+
+it('lets only a strict dotted-quad IPv4 address into a Windows command', function (string $value, bool $valid): void {
+    expect(WindowsFactsParser::isIpv4($value))->toBe($valid);
+    $valid ? expect(WindowsCommands::privateProfile($value))->toContain("-IPAddress {$value})")
+        : expect(fn () => WindowsCommands::privateProfile($value))->toThrow(InvalidArgumentException::class);
+})->with([
+    'private address' => [NET_WIFI, true],
+    'lowest' => ['0.0.0.0', true],
+    'highest' => ['255.255.255.255', true],
+    'leading zero in the first octet' => ['010.0.0.1', false],
+    'leading zero in an inner octet' => ['192.168.01.2', false],
+    'leading zero in the last octet' => ['192.168.1.02', false],
+    'empty' => ['', false],
+    'leading space' => [' 192.168.1.2', false],
+    'trailing space' => ['192.168.1.2 ', false],
+    'trailing newline' => ["192.168.1.2\n", false],
+    'NUL byte' => ["192.168.1.2\0", false],
+    'octet above 255' => ['192.168.1.256', false],
+    'first octet above 255' => ['256.1.1.1', false],
+    'three octets' => ['192.168.1', false],
+    'five octets' => ['192.168.1.2.3', false],
+    'hexadecimal' => ['0xC0.168.1.2', false],
+    'IPv6' => ['::1', false],
+    'IPv4-mapped IPv6' => ['::ffff:192.168.1.2', false],
+]);
