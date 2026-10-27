@@ -3,7 +3,8 @@
   private HOME, reserved paths, command position, terminal and `--json` rules, launcher error codes, `--yes`,
   link fallback, the image's `fsa` wrapper, the `DOCKER_DEFAULT_PLATFORM` pass-through); amended 2026-10-18 at the
   M10 gate by ADR 0079 (a value flag before the command keeps its value); amended 2026-10-18 by ADR 0080, ADR 0081
-  and ADR 0082 (command and value-flag lists, `FSA_TEST_TUNNEL`)
+  and ADR 0082 (command and value-flag lists, `FSA_TEST_TUNNEL`); amended 2026-10-26 by ADR 0095 (owner by measurement,
+  socket group read in a container, WSL host facts, the WSL browser opener and the SSH rule, script refresh)
 - Date: 2026-10-18
 
 ## Context
@@ -44,6 +45,11 @@ U5 (`fsa install`, doctor, status …) and U18 (`fsa upgrade`) build on the cont
   `<dir>/fsa`, mode 0700, so it needs no checksum tooling on the host.
   (Amended 2026-10-18: a reserved instance directory (see the ops container's file-path flags) is exit 2
   `path_reserved`, checked on the normalized path.)
+  (Amended 2026-10-26 by ADR 0095: on WSL, install.sh refuses WSL 1 before any download (exit 3 `wsl1_unsupported`) and
+  an instance directory whose physical path lies on a Windows drive (exit 2 `path_on_windows_drive`, a check separate
+  from the reserved list); the shim checks both again. A directory that already holds the marker but no state (an
+  install that did not finish) sets `fieldset_leftover=1` for the shim, which gives root-owned leftovers back to the
+  measured owner before `install` runs.)
 - `--link` (or "y" at the prompt, only with a terminal) links `~/.local/bin/fsa` (`/usr/local/bin` for root) to
   the shim, never over an existing file (ADR 0049).
   (Amended 2026-10-18: the prompt appears only with a terminal (`FSA_TTY`), without `--json` and without `--yes`;
@@ -130,6 +136,16 @@ its E16 limit (48 MiB, ADR 0062) OOM-killed it. Uses: amd64 images on Apple Sili
 (BUILD_PROMPT_V2 §15.6): the harness sets it when a release has one platform that is not the engine's. It is not
 stored in the state, so every later `fsa` call needs it in the environment again, as Docker itself does; a
 detached supervisor (upgrade, restore) must pass it on in its container env.)
+(Amended 2026-10-26 by ADR 0095: `FIELDSET_CONTAINER_UID` is no longer derived from the runtime. A measuring container
+(container root of the verified image, instance directory and socket mounted read-only) reads the owner of the nonce
+file: 0 runs the ops container as `0:0`, the host UID as the host user, anything else is exit 3 `owner_mapping_unknown`;
+the saved owner (state schema 1.1) serves commands that do not measure, and the product-name rules remain only as the
+fallback. New facts: `FIELDSET_OWNER_SOURCE` (`measured`, `saved`, `rules`), `FIELDSET_SOCKET_GROUP` (the socket's group
+inside containers, WSL 2 only), `FIELDSET_LAUNCHER_VERSION` (the shim's `fieldset_shim_version`), `FIELDSET_WSL` (`2` or
+`0`), `FIELDSET_WSL_BACKEND` (`desktop` or `engine`), `FIELDSET_WSL_ADDRESSES` (the distro's own addresses),
+`FIELDSET_WINDOWS_FACTS` (one `powershell.exe` call's validated `key=value` lines) and `FIELDSET_WSL_SYSTEMD`. On WSL 2,
+`FIELDSET_LAN_ADDRESSES` carries Windows' LAN addresses, never the distro's. The `FSA_DESKTOP` row: `1` also on WSL 2 with
+interop (the Windows browser opener below), and never over SSH on any platform (`SSH_CONNECTION` or `SSH_TTY`).)
 
 **Ops container** (`fsa_run` in the shim, used by both launchers): `docker run --rm --init --label
 app.form-schema.role=ops --user <user> [--group-add <socket gid>] -e HOME=/tmp -e DOCKER_CONFIG=/tmp/.docker
@@ -147,6 +163,12 @@ positionals.)
   desktop → `0:0`. Socket: rootless → `DOCKER_HOST` (unix) or `$XDG_RUNTIME_DIR/docker.sock`; rootful →
   `DOCKER_HOST` (unix) or `/var/run/docker.sock`; desktop → `/var/run/docker.sock` (the VM side). A non-unix
   `DOCKER_HOST` exits 10.
+  (Amended 2026-10-26 by ADR 0095: the user follows the measured or saved owner, not the runtime: `0:0` where container
+  root is the host user, `<host uid>:<host gid>` where IDs pass through. On WSL 2 the added group is the socket's group
+  as the measuring container read it, since it can differ from the distro's (unverified under Docker Desktop: U1); a
+  socket that grants neither its group nor others write access is exit 3 `socket_no_group_access`. The socket path
+  still follows the runtime detected per run. The socket stays a root-equivalent trust boundary: running as the host
+  UID adds no isolation.)
 - Terminal: `-it` with stdin from `/dev/tty` only when `/dev/tty` opens, stdout is a terminal and `--json` is
   absent (`-t` merges stderr into stdout). Otherwise the shim passes stdin with `-i` (for `--…-stdin` flags) and
   install.sh passes none. A `docker run` failure (125–127) exits 10.
@@ -187,6 +209,11 @@ image from `state.json` `digests.app` (InstanceState's 4-space pretty print; val
 usable state it exits 3 and points at install.sh. install.sh sources the shim from the verified image with
 `FSA_SHIM_LIBRARY=1` and calls `fsa_run <dir> <image> install …`; this function and its exit-code behaviour are
 the stable install.sh–shim contract.
+(Amended 2026-10-26 by ADR 0095: install.sh is no longer the only writer of `<dir>/fieldset`. The shim declares
+`fieldset_shim_version` and passes it as `FIELDSET_LAUNCHER_VERSION`; after a command it started, an image whose
+`distribution/shim.sh` declares a higher version (none before 2.1.1 counts as 0) replaces the script under the instance
+lock, as a 0700 temporary file with the old owner renamed over it, and says that the next command uses it. A failure
+keeps the old script. Each release that changes the shim raises the version; a test pins its SHA-256 per version.)
 (Amended 2026-10-18: the image's `fsa` wrapper (`docker/app/fsa`) finds the command the same way: the first
 argument that is no flag (or the value of a value-taking fsa option: `value_flags`, kept in step by
 ImageContractTest; amended by ADR 0079) is the command, and leading flags move after it, so `fsa --json status` runs
@@ -212,6 +239,11 @@ only with `--open`, or for a person at a desktop terminal (TTY, desktop session,
 (Amended 2026-10-18, shim side: the opener runs first. If it fails, the link goes to `/dev/tty` when a terminal
 opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning names it with the hint
 `fsa login-link <email> --secrets-file <file>`. The file is deleted only after the link was opened or shown.)
+(Amended 2026-10-26 by ADR 0095: on WSL 2 with interop the opener is `powershell.exe -NoProfile -NonInteractive -Command
+"Start-Process '<url>'"` (found on PATH or under `/mnt/c/Windows`), also when WSLg sets `DISPLAY`; the URL grammar admits
+no quote, so it cannot leave the single-quoted string. Its exit code says nothing, so the link is also shown on the
+terminal, or kept in the 0600 file without one. WSL without interop gets no opener. No opener runs while
+`SSH_CONNECTION` or `SSH_TTY` is set, on every platform (before: macOS and `SSH_CONNECTION` only).)
 
 ## Alternatives considered
 - **Bind-mounting install.sh's temporary directory into cosign:** silently empty on Colima and unshared paths.
@@ -232,7 +264,8 @@ opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning n
   owner link, and treat stale `.fsa-nonce-*` / `.fsa-open-url-*` files (interrupted runs) in doctor. J1 replaces
   the journey's probe with the real command and asserts exit 2 (`input_required`) for a missing required flag
   without a TTY. (Amended 2026-10-18: was exit 6, which stays reserved for confirmations, see ADR 0072.)
-- U18 swaps `<dir>/fsa` from the new image only after commit; the shim keeps reading the state.
+- U18 swaps `<dir>/fsa` from the new image only after commit; the shim keeps reading the state. (Amended 2026-10-26 by
+  ADR 0095: no upgrade swapped it; from 2.1.1 the script refresh above does, after any command of the newer image.)
 - The bootstrap journey (`tests/Install/Journeys/BootstrapJourneyTest.php`) needs the harness build (minutes on
   the first run) and runs the ops container through a probe until U5's commands exist.
 

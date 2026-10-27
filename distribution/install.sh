@@ -17,6 +17,7 @@
 # --json, stdout carries only the JSON result and stderr only NDJSON events. FIELDSET_RELEASE_URL and
 # FIELDSET_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
 # of the images install.sh and fieldset pull and run (cosign excepted), e.g. amd64 under emulation on Apple Silicon.
+# On Windows it runs in a WSL 2 distro: it refuses WSL 1 and an instance directory on a Windows drive (/mnt/c …).
 # Everything is in functions and runs from the last line, so a truncated download executes nothing.
 
 fieldset_install_trust() {
@@ -78,6 +79,49 @@ fieldset_install_reserved() { # <normalized path>: the same rule and list as the
 		case $root/ in "$1"/*) return 0 ;; esac
 	done
 	return 1
+}
+
+fieldset_install_wsl() { # sets wsl (2, 1 or 0) and distro: the same rule as the shim's fieldset_wsl_detect (WslScriptsTest)
+	wsl=0 distro=''
+	case ${WSL_DISTRO_NAME:-} in '' | *[!A-Za-z0-9._-]*) ;; *) distro=$WSL_DISTRO_NAME ;; esac
+	proc=${FIELDSET_TEST_PROC:-/proc} # the tests' /proc
+	[ -e "$proc/sys/fs/binfmt_misc/WSLInterop" ] || [ -e "$proc/sys/fs/binfmt_misc/WSLInterop-late" ] || [ -n "${WSL_DISTRO_NAME:-}" ] || return 0
+	kernel=$(cat "$proc/sys/kernel/osrelease" 2>/dev/null) || kernel=''
+	case $kernel in *WSL2*) wsl=2 ;; *Microsoft*) wsl=1 ;; *microsoft*) wsl=2 ;; esac
+}
+
+fieldset_install_check_host() { # WSL 1 cannot run fieldset: exit 3 before any download or Docker call (R25)
+	fieldset_install_wsl
+	[ "$wsl" != 1 ] || fieldset_install_fail 3 wsl1_unsupported 'fieldset needs WSL 2, and this distro runs on WSL 1.' \
+		"Convert it in PowerShell on Windows: wsl --set-version ${distro:-<distro>} 2 (wsl -l -v lists the distros), then run install.sh again."
+}
+
+fieldset_install_windows_drive() { # <normalized path>: the shim's fieldset_windows_drive (KTD11), also for a path not created yet
+	case $1 in /*) ;; *) return 1 ;; esac
+	drive_base=$1 drive_rest=''
+	while [ ! -d "$drive_base" ]; do
+		drive_rest=/${drive_base##*/}$drive_rest
+		drive_base=${drive_base%/*}
+		[ -n "$drive_base" ] || drive_base=/
+	done
+	drive_real=$(cd -P "$drive_base" 2>/dev/null && pwd -P) || drive_real=$drive_base
+	drive_real=${drive_real%/}$drive_rest
+	awk -v path="${drive_real:-/}" -v wsl="${wsl:-0}" '{ mp = $2; gsub(/\\040/, " ", mp); gsub(/\\011/, "\t", mp)
+		if ((mp == "/" || path == mp || index(path, mp "/") == 1) && length(mp) >= best) { best = length(mp); type = $3; opts = $4 } }
+		END { exit !(type == "drvfs" || (type == "9p" && (wsl == 2 || opts ~ /drvfs/))) }' "${FIELDSET_TEST_PROC:-/proc}/mounts" 2>/dev/null
+}
+
+fieldset_install_no_docker() { # <missing|down>: exit 10; on WSL 2 with the Docker Desktop step to take, as the shim (R26)
+	if [ "${wsl:-0}" = 2 ] && { [ "$1" = missing ] || docker version 2>&1 | grep -qi 'WSL integration'; }; then
+		fieldset_install_fail 10 docker_missing 'Docker is not available in this WSL distro.' \
+			"Start Docker Desktop on Windows and turn on its WSL integration for ${distro:-this distro} (Settings > Resources > WSL integration), or install Docker Engine in this distro, then run install.sh again."
+	elif [ "${wsl:-0}" = 2 ]; then
+		fieldset_install_fail 10 docker_unavailable 'The Docker daemon is not reachable.' \
+			'Start Docker Desktop on Windows (Docker Engine in WSL: sudo service docker start), then run install.sh again.' true
+	elif [ "$1" = missing ]; then
+		fieldset_install_fail 10 docker_missing 'Docker is not installed.' 'Install Docker Engine or Docker Desktop, then run install.sh again.'
+	fi
+	fieldset_install_fail 10 docker_unavailable 'The Docker daemon is not reachable.' 'Start Docker (or check your docker group membership), then run install.sh again.' true
 }
 
 fieldset_install_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: the same rule as the shim's fieldset_platform_ok (ADR 0070)
@@ -147,6 +191,9 @@ fieldset_install_check_dir() { # --dir: absolute, normalized, mountable, not a s
 	! fieldset_install_reserved "$dir" || fieldset_install_fail 2 path_reserved \
 		"Cannot use $dir as the instance directory: fieldset mounts it into its containers, over their own files." \
 		'Pass --dir with a directory under your home directory or /opt.'
+	! fieldset_install_windows_drive "$dir" || fieldset_install_fail 2 path_on_windows_drive \
+		"Cannot use $dir as the instance directory: it is on a Windows drive, where Linux file owners and permissions do not work." \
+		'Pass --dir ~/fieldset (or leave out --dir): an instance belongs in the Linux file system of the distro, not on a Windows drive or a link to one.'
 	[ ! -L "$dir" ] || fieldset_install_fail 2 invalid_dir "$dir is a symbolic link." 'Pass the real path with --dir.'
 	if [ -e "$dir" ] && { [ ! -d "$dir" ] || fieldset_install_foreign "$dir"; }; then
 		fieldset_install_fail 2 invalid_dir "$dir exists and is not an instance directory." 'Pass --dir with an empty or new directory.'
@@ -229,6 +276,8 @@ fieldset_install_prepare_dir() { # instance directory 0700, marker, verified rel
 	if ! { mkdir -p "$dir" && chmod 0700 "$dir"; } 2>/dev/null; then
 		fieldset_install_fail 2 invalid_dir "Cannot create $dir." 'Pass --dir with a directory you can write to.'
 	fi
+	leftover=0 # an earlier install that did not finish left the marker (R24: the shim gives root-owned leftovers back)
+	[ ! -f "$dir/.fieldset-instance" ] || leftover=1
 	[ -f "$dir/.fieldset-instance" ] || printf '{"schema_version":"1.0","kind":"fieldset instance"}\n' >"$dir/.fieldset-instance"
 	releases=$dir/releases/$release
 	{ mkdir -p "$releases" && chmod 0700 "$dir/releases" "$releases"; } 2>/dev/null || fieldset_install_fail 2 invalid_dir "Cannot write to $dir."
@@ -298,10 +347,10 @@ fieldset_install_main() {
 		*) set -- "$@" "$arg" ;;
 		esac
 	done
+	fieldset_install_check_host
 	fieldset_install_check_inputs
-	command -v docker >/dev/null 2>&1 || fieldset_install_fail 10 docker_missing 'Docker is not installed.' 'Install Docker Engine or Docker Desktop, then run install.sh again.'
-	docker version --format '{{.Server.Version}}' >/dev/null 2>&1 ||
-		fieldset_install_fail 10 docker_unavailable 'The Docker daemon is not reachable.' 'Start Docker (or check your docker group membership), then run install.sh again.' true
+	command -v docker >/dev/null 2>&1 || fieldset_install_no_docker missing
+	docker version --format '{{.Server.Version}}' >/dev/null 2>&1 || fieldset_install_no_docker down
 	command -v curl >/dev/null 2>&1 || fieldset_install_fail 3 curl_missing 'curl is required.'
 
 	trap fieldset_install_cleanup EXIT
@@ -325,7 +374,7 @@ fieldset_install_main() {
 	fieldset_install_phase handover "Starting fieldset $command $release in $dir"
 	# The shim from the verified image runs the handover; FIELDSET_SHIM_LIBRARY=1 makes it define its functions only.
 	# shellcheck disable=SC2034 # read by the sourced shim
-	FIELDSET_SHIM_LIBRARY=1 FIELDSET_LAUNCHER=install.sh
+	FIELDSET_SHIM_LIBRARY=1 FIELDSET_LAUNCHER=install.sh fieldset_leftover=$leftover
 	# shellcheck source=/dev/null # distribution/shim.sh, linted on its own
 	. "$dir/fieldset"
 	FIELDSET_RELEASE_MANIFEST=$releases/release-manifest.json

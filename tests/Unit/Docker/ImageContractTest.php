@@ -287,7 +287,7 @@ describe('fieldset wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fieldset command: {$command}",
-                'hint' => 'Available commands: adopt, backup, config, demo, doctor, install, login-link, logs, reset, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fieldset without arguments to list them; put flags after the command or write them as --flag=value.',
+                'hint' => 'Available commands: adopt, backup, config, demo, doctor, install, login-link, logs, repair-ownership, reset, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fieldset without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');

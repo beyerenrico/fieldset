@@ -30,6 +30,12 @@ use Illuminate\Console\Attributes\Signature;
         {--orphans= : Remove only the leftovers of this other installation UUID, as fieldset install names them}')]
 final class UninstallCommand extends FieldsetCommand
 {
+    /** Uninstall removes the instance directory with its `fieldset` script: nothing to refresh (2.1.1 U15). */
+    protected function refreshesLauncher(): bool
+    {
+        return false;
+    }
+
     /** `data` names what goes and what stays (M12 gate O6). */
     protected function confirmationPrompt(FieldsetContext $context): Confirmation
     {

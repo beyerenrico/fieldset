@@ -26,6 +26,12 @@ use Illuminate\Console\Attributes\Signature;
         {--tunnel-admin : start: the admin panel (/admin) is reachable through the tunnel too}')]
 final class TunnelCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function perform(FieldsetContext $context): CommandResult
     {
         $action = $this->argument('action');

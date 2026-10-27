@@ -28,6 +28,12 @@ use Illuminate\Console\Attributes\Signature;
         {--passphrase-stdin : Read the identity\'s passphrase from stdin (a hidden prompt in a terminal)}')]
 final class RollbackCommand extends FieldsetCommand
 {
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function perform(FieldsetContext $context): CommandResult
     {
         $identity = $this->option('identity-file');

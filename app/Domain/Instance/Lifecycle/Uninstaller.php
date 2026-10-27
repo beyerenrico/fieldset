@@ -26,6 +26,7 @@ use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\Windows\WindowsCommands;
 use Throwable;
 
 /**
@@ -94,8 +95,29 @@ final readonly class Uninstaller
 
         $result = $this->finalWarnings($this->result($uuid, $removed, $deleted, $keepBackups, $final), $final);
         $result = $adopted === null ? $result : $this->adoptedResult($result, $adopted, $writes, $final, $legacyChanged);
+        $result = $this->windowsCleanup($result, $state, $facts);
 
         return ! $this->holdsCertificates($volumes, $state) ? $result : $result->withWarning('certificates_removed', self::certificateWarning($this->domain($state)), 'Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA\'s duplicate-certificate limit.');
+    }
+
+    /**
+     * On WSL 2 with phone HTTPS through the local CA (2.1.1 U14, R32): the lines that remove the Windows rules the doctor
+     * suggests for this instance and setup (`data.windows_cleanup`, the warning `windows_rules`). fieldset never added them.
+     */
+    private function windowsCleanup(CommandResult $result, ?InstanceState $state, HostFacts $facts): CommandResult
+    {
+        if (! $state instanceof InstanceState || ! $facts->onWsl2()) {
+            return $result;
+        }
+        $settings = InstanceSettings::of($state);
+        $address = $settings->localCa() ? $settings->lanAddress() : null;
+        if ($address === null) {
+            return $result;
+        }
+        $commands = WindowsCommands::removal($state->uuid(), $facts->wslSetup(), $address);
+
+        return $result->withData(['windows_cleanup' => $commands])
+            ->withWarning('windows_rules', 'Windows rules you added for phones (as `fieldset doctor` suggested) stay on Windows until you remove them.', WindowsCommands::hint($commands, 'A rule or portproxy you never added is reported as not found; nothing else changes.'));
     }
 
     /**

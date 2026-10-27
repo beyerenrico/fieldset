@@ -402,3 +402,37 @@ Format: question · chosen option · impact · how to reverse.
    human answer "After final, in 2.1.x (Recommended)".
    **80 resolved (2026-10-23):** CHANGELOG 2.1.0 dated 2026-10-23 with the docs site folded in; the install guide's
    requirements say when Docker needs 4 GB; tuning is the next patch.
+81. WSL parity, 2.1.1 (2026-10-26, plan `docs/plans/2026-10-26-001-feat-wsl-parity-and-query-tuning-plan.md` Phase 1,
+   ADR 0095): decisions the agent took without a human, for review. (a) KTDs as built: KTD1 the Windows facts are
+   release evidence (`scripts/wsl/facts.sh`, run by the human), not a build gate; KTD2 the owner is read by container
+   root of the app image from the nonce file (0 root-mapped, the host UID pass-through, anything else exit 3
+   `owner_mapping_unknown`); KTD3 install, doctor and `repair-ownership` always measure, other commands use the saved
+   owner while the detected runtime matches, rules (WSL 2: pass-through) when the measurement fails; KTD4 the socket
+   group is read inside the container and added on WSL 2, `socket_no_group_access` when the group cannot write; KTD5
+   state schema 1.1 (`owner.runtime`, `socket_group`, `measured_at`); KTD6 first use records a matching measurement,
+   `container_uid` changes only through `fieldset repair-ownership`; KTD7 newer images refresh an older `fieldset`
+   script; KTD8 one `powershell.exe` call, full facts only for install, doctor, uninstall and `config set
+   phone-https|lan-address`; KTD9 printed Windows commands use validated values and `fieldset-<id>-https` rule names,
+   scoped to Private and LocalSubnet, never run by fieldset; KTD10 hint precedence (Public, Desktop local-only binding,
+   unknown facts, the setup's row), after a foreign listener on 80/443 (fail) and `lan_address_changed`; KTD11 the
+   Windows-drive check is separate from the reserved-path lists; KTD12 owner changes never follow symlinks, stay on one
+   file system, skip hard-linked files and keep modes; KTD13 the advertised address is Windows', the edge binds it on
+   Docker Desktop and mirrored Engine and every distro address on Engine with NAT (`lan_bind: all`). (b) Open choices
+   the unit agents made: install's preflight reports a blocking `windows_network` row as a warning, not a failure (the
+   instance installs and its result carries the commands); `wsl_lifecycle` passes Docker Desktop as information (a
+   permanent warning would hide real ones); Engine with an unknown networking mode binds every address, as under NAT;
+   the networking mode is read from `.wslconfig` (what the next WSL start uses), not from the running WSL; WSL without
+   interop gets no opener even when WSLg could open a Linux browser; the SSH rule (`SSH_CONNECTION` or `SSH_TTY`) now
+   holds on every platform, not only macOS; the shim version is a plain integer raised per release that changes the
+   shim, with its SHA-256 pinned per version in `LauncherVersionTest` (U8). (c) Windows facts unverified until the
+   user's U1 runs (`docs/agent/milestones/evidence/R2.1.1/wsl-facts-*.txt`): whether Docker Desktop binds a specific
+   Windows LAN address (KTD13 falls back to all interfaces with the subnet-scoped rule); the socket's group and mode
+   inside containers under Docker Desktop's WSL integration; whether a running Desktop instance keeps serving after every
+   WSL terminal closed (the idle distro); the PowerShell 5.1 cmdlet properties the facts call reads
+   (`Get-NetIPConfiguration`, `Get-NetFirewallPortFilter`, `Get-NetFirewallHyperVVMSetting`, `Get-NetTCPConnection`);
+   whether `Start-Process` keeps a URL's `#fragment`; whether virtiofs-mounted Windows drives show as 9p (the
+   Windows-drive check refuses any 9p under WSL 2); listener ownership under mirrored networking; Docker Desktop's menu
+   path for its port binding setting (the guide names the setting only); the exact wording of the `desktop.exe`
+   credential helper error (troubleshooting); whether `http://localhost:<port>` reaches an Engine instance from the
+   Windows browser under NAT (the instance publishes on 127.0.0.1 in the distro) · pending human review: confirm or
+   change (a) and (b); (c) closes with the RELEASING WSL checklist on the first 2.1.1 release candidate.

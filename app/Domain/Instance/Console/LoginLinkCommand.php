@@ -49,6 +49,12 @@ final class LoginLinkCommand extends FieldsetCommand
     /** The one-off printed no result (it failed or timed out before the app answered): exit 4, retryable. */
     private const array NO_RESULT = ['one_off_failed', 'one_off_timeout'];
 
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function opensBrowser(): bool
     {
         return (bool) $this->option('open');

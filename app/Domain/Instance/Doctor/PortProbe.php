@@ -8,6 +8,7 @@ use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\Output\ExitCode;
 
 /**
@@ -53,6 +54,12 @@ final readonly class PortProbe
     public function isFreeOnAddress(string $address, int $port, string $image, ?string $uuid = null): bool
     {
         return $this->probe("{$address}:{$port}:8080", $port, $image, $uuid, true);
+    }
+
+    /** Whether a port is free where the local-CA edge publishes it (KTD13): its bind address, or every IPv4 address. */
+    public function isFreeForEdge(EdgeBinding $edge, int $port, string $image, ?string $uuid = null): bool
+    {
+        return $edge->bindAddress === null ? $this->isFreeOnHost($port, $image, $uuid) : $this->isFreeOnAddress($edge->bindAddress, $port, $image, $uuid);
     }
 
     private function probe(string $binding, int $port, string $image, ?string $uuid, bool $hostWide): bool

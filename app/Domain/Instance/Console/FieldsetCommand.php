@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Console;
 
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Lifecycle\ScriptRefresh;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationUnfinished;
@@ -17,6 +18,7 @@ use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\Output\ResultRenderer;
 use App\Domain\Instance\Output\SecretRedactor;
+use App\Domain\Instance\Ownership\FirstUseRecording;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use Closure;
@@ -44,12 +46,19 @@ use Throwable;
  * - asks for confirmation of destructive commands, or exits 6 without a TTY (or with --json) and without --yes, with the
  *   facts the question names under `data` (Confirmation, M12 gate O6);
  * - maps exceptions to exit codes and renders the envelope, with progress on stderr; if rendering itself fails,
- *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace.
+ *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace;
+ * - afterwards, when `recordsOwner()` is true and the command started its work, saves the owner the shim measured in
+ *   this run with the instance if state.json lacks it (FirstUseRecording, 2.1.1 U4, KTD6); read-only commands never do;
+ * - afterwards, success or failure, gives the instance this image's `fieldset` script when the shim that started the
+ *   command is older (ScriptRefresh, 2.1.1 U15), unless `refreshesLauncher()` is false.
  */
 abstract class FieldsetCommand extends Command
 {
     /** Container key of an output that receives progress when there is no stderr (tests). */
     public const string PROGRESS_OUTPUT = 'fieldset.progress-output';
+
+    /** Exit codes of a command that did not start its work (usage, a missing confirmation, aborted): nothing is recorded. */
+    private const array NOT_STARTED = [ExitCode::InvalidInput, ExitCode::ConfirmationRequired, ExitCode::AbortedUnchanged];
 
     public function __construct()
     {
@@ -87,6 +96,7 @@ abstract class FieldsetCommand extends Command
         $json = (bool) $this->option('json');
         $redactor = new SecretRedactor;
         $secretsFile = null;
+        $context = null;
 
         try {
             $this->checkLaunch($facts);
@@ -101,10 +111,15 @@ abstract class FieldsetCommand extends Command
         }
 
         try {
-            return new ResultRenderer($redactor)->render($result, $this->output, $json, $secretsFile);
+            $exitCode = new ResultRenderer($redactor)->render($result, $this->output, $json, $secretsFile);
         } catch (Throwable $e) {
-            return $this->renderFallback($result, $e, $json);
+            $exitCode = $this->renderFallback($result, $e, $json);
         }
+        // the first state-changing command or doctor records the measured owner (KTD6); an older shim gets this image's script (KTD7)
+        $this->afterCommand($context, FirstUseRecording::class, $this->recordsOwner() && ! in_array($result->exitCode, self::NOT_STARTED, true));
+        $this->afterCommand($context, ScriptRefresh::class, $this->refreshesLauncher());
+
+        return $exitCode;
     }
 
     abstract protected function perform(FieldsetContext $context): CommandResult;
@@ -148,6 +163,21 @@ abstract class FieldsetCommand extends Command
         return ! $context->json && ($ignoreYes || ! $context->yes) && $context->facts->hasTerminal($this->input->isInteractive());
     }
 
+    /**
+     * Whether this command saves the owner the shim measured in this run with the instance afterwards (FirstUseRecording,
+     * 2.1.1 U4, KTD6): true for the state-changing commands and `doctor`; read-only commands never write state.
+     */
+    protected function recordsOwner(): bool
+    {
+        return false;
+    }
+
+    /** Whether the instance's `fieldset` script may be refreshed after this command (ScriptRefresh); not by `uninstall`. */
+    protected function refreshesLauncher(): bool
+    {
+        return true;
+    }
+
     /** Whether the caller asked for the browser hand-over of a sign-in link (`--open` of install and login-link). */
     protected function opensBrowser(): bool
     {
@@ -172,6 +202,25 @@ abstract class FieldsetCommand extends Command
         }
 
         return new FieldsetContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory, $this->opensBrowser());
+    }
+
+    /**
+     * Work once the command is done, in an instance directory, when the command wants it; it never changes the command's
+     * result.
+     *
+     * @param  class-string<FirstUseRecording|ScriptRefresh>  $hook
+     */
+    private function afterCommand(?FieldsetContext $context, string $hook, bool $wanted): void
+    {
+        if (! $context instanceof FieldsetContext || ! $context->hasDirectory() || ! $wanted) {
+            return;
+        }
+
+        try {
+            $this->laravel->make($hook)->afterCommand($context->facts, $context->progress);
+        } catch (Throwable) {
+            // the hook reports its own failures; only resolving it can throw here, and a later command tries again
+        }
     }
 
     /** Nonce and file-path checks for a command started by the shim or install.sh (LaunchGuard, ADR 0070). */

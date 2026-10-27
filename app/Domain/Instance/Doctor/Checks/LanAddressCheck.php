@@ -16,7 +16,8 @@ use App\Domain\Instance\State\InstanceState;
  * still one of this host's addresses (FIELDSET_LAN_ADDRESSES). A laptop that moved to another network has a new address,
  * phones no longer reach the old one, and the edge may not even bind it: the warning offers to re-issue the
  * certificate for the best current candidate. Skipped outside local-CA mode, and when the launcher reported no
- * addresses at all.
+ * addresses at all. On WSL 2 the address is Windows', and `windows_network` compares it together with what Windows lets
+ * through (2.1.1 U14), so this check is skipped there and the warning comes once.
  */
 final readonly class LanAddressCheck implements DoctorCheck
 {
@@ -33,6 +34,9 @@ final readonly class LanAddressCheck implements DoctorCheck
         $address = $settings?->localCa() === true ? $settings->lanAddress() : null;
         if ($address === null) {
             return CheckResult::skipped($this->key(), 'Phone HTTPS with the local CA is off.');
+        }
+        if ($context->facts->onWsl2()) {
+            return CheckResult::skipped($this->key(), 'On WSL 2 the windows_network check compares the address with Windows\' LAN addresses.', ['address' => $address]);
         }
         $current = LanAddress::isCurrent($address, $context->facts);
         if ($current === null) {

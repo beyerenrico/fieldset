@@ -23,6 +23,7 @@ use App\Domain\Instance\State\InstanceSecrets;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\InvalidState;
+use App\Domain\Instance\State\MeasuredOwner;
 use Throwable;
 
 /**
@@ -81,6 +82,7 @@ final readonly class InstanceStack
         if ($state->uuid() !== $uuid) {
             throw new InvalidState('The instance state belongs to another installation than this install journal.');
         }
+        $state = MeasuredOwner::record($state, $facts); // the owner the shim measured for this install (2.1.1 U3, KTD5)
         /** @var array<string, string> $digests */
         $digests = $preflight['digests'];
         $state = $state->withRelease((string) $preflight['version'], $digests);

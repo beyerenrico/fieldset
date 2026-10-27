@@ -31,6 +31,12 @@ final class ResetCommand extends FieldsetCommand
     /** Whether the base asked (and got a yes, or `--yes`): the operation checks it again under the lock (review S4). */
     private bool $asked = false;
 
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function perform(FieldsetContext $context): CommandResult
     {
         if ($this->option('abandon') === true) {

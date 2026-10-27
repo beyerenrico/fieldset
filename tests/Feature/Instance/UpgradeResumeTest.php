@@ -6,6 +6,7 @@ use App\Domain\Instance\Console\FieldsetCommand;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Upgrade\DetachedSupervisor;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -151,7 +152,8 @@ it('refuses a new upgrade while an interrupted one is open, naming the resume co
 });
 
 it('starts the detached supervisor from the installed image with the socket and the instance at the same path, and renders its result', function (): void {
-    $facts = $this->upgrade->instance->facts(['releaseUrl' => UpgradeFixture::RELEASE_URL, 'socket' => '/var/run/docker.sock', 'mounts' => ['/home/ops/keys' => false]]);
+    $facts = $this->upgrade->instance->facts(['releaseUrl' => UpgradeFixture::RELEASE_URL, 'socket' => '/var/run/docker.sock', 'mounts' => ['/home/ops/keys' => false],
+        'wslVersion' => 2, 'wslBackend' => WslBackend::Engine]);
     $launched = null;
     $docker = $this->upgrade->instance->docker;
     $previous = $docker->runResponder;
@@ -181,7 +183,8 @@ it('starts the detached supervisor from the installed image with the socket and 
         ->and($launched->detach)->toBeTrue()->and($launched->remove)->toBeTrue()->and($launched->restart)->toBe('no')
         ->and($launched->name)->toBe($state->project().'-supervisor')
         ->and($launched->labels)->toMatchArray($this->upgrade->supervisorLabels())
-        ->and($launched->env)->toMatchArray(['FIELDSET_HOST_UID' => (string) $facts->uid, 'FIELDSET_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FIELDSET_INSTANCE_DIR' => $this->dir])
+        ->and($launched->env)->toMatchArray(['FIELDSET_HOST_UID' => (string) $facts->uid, 'FIELDSET_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FIELDSET_INSTANCE_DIR' => $this->dir,
+            'FIELDSET_WSL' => '2', 'FIELDSET_WSL_BACKEND' => 'engine'])
         ->and(array_keys($launched->env))->not->toContain('FIELDSET_NONCE')
         ->and(glob($this->dir.'/operations/supervisor-*.json'))->toHaveCount(1); // M12 gate O3: the result stays for `fieldset status` and `--follow`
 });

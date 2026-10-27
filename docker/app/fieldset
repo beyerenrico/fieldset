@@ -11,7 +11,7 @@
 # - Symfony's console answers a literal --version with the framework version before any command runs, so the
 #   --version flag of `fieldset install` (§7) and `fieldset adopt` is passed on as --release, up to a literal -- (ADR 0072, 0087).
 set -e
-commands='adopt backup config demo doctor install login-link logs reset restore rollback status tunnel uninstall upgrade version'
+commands='adopt backup config demo doctor install login-link logs repair-ownership reset restore rollback status tunnel uninstall upgrade version'
 roles='backup-daemon restore-prepare upgrade-child'
 value_flags='--acme-ca --acme-ca-root-file --acme-email --app-key-file --behind-proxy --dir --domain --from-address
 --from-backup --from-name --identity-file --identity-out --kind --lan-address --locale --lock-id --org --orphans

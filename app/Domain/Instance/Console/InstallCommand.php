@@ -77,6 +77,12 @@ final class InstallCommand extends FieldsetCommand
 {
     private const array PROMPTS = ['organization' => 'Organization name', 'owner_email' => 'Owner e-mail'];
 
+    /** It changes the instance, so it saves the owner the shim measured with it (2.1.1 U4, KTD6). */
+    protected function recordsOwner(): bool
+    {
+        return true;
+    }
+
     protected function opensBrowser(): bool
     {
         return (bool) $this->option('open');

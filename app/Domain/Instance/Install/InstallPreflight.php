@@ -15,6 +15,7 @@ use App\Domain\Instance\Doctor\DoctorProbes;
 use App\Domain\Instance\Doctor\DoctorReport;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\LocalCa\EdgeBinding;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
@@ -65,6 +66,7 @@ final readonly class InstallPreflight
             requestedPort: $request->port(), selectPorts: true, uuid: $uuid,
             publishesAppPort: ! in_array($request->proxy(), InstallRequest::NETWORK_PROXIES, true),
             lanAddress: $localCa['lan_address'] ?? null, catcher: $mail === null,
+            edgeBinding: $localCa === null ? null : EdgeBinding::recorded($localCa['lan_address'], $localCa[EdgeBinding::SETTING] ?? null),
         ));
         $report = $pendingCertificate ? $this->certificatePending($report) : $report;
         if (! $report->passed()) {

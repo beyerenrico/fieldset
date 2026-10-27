@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Instance;
 
 use App\Domain\Instance\Docker\DockerRuntime;
+use App\Domain\Instance\Docker\OwnerSource;
+use App\Domain\Instance\Docker\WslBackend;
 use App\Domain\Instance\Release\ImagePin;
+use App\Domain\Instance\Windows\WindowsFacts;
+use App\Domain\Instance\Windows\WindowsFactsParser;
+use App\Domain\Instance\Windows\WslNetworking;
+use App\Domain\Instance\Windows\WslSetup;
 
 /**
  * Facts about the host that the ops container cannot observe itself, and how it was launched. The shim and
@@ -13,17 +19,36 @@ use App\Domain\Instance\Release\ImagePin;
  * dropped (null or empty), never trusted:
  *
  * - FIELDSET_LAUNCHER: `install.sh` or `shim`
+ * - FIELDSET_LAUNCHER_VERSION: the version of the shim that started the command (its `fieldset_shim_version`, KTD7);
+ *   launchers before 2.1.1 do not pass it (null: older than any). After the command, a shim older than this image's own
+ *   is replaced with it (ScriptRefresh)
  * - FIELDSET_TTY: 1/0, whether the ops container got a terminal (`-it` only then; never with --json)
  * - FIELDSET_HOST_UID / FIELDSET_HOST_GID: the invoking host user (recorded in the journal and the state)
  * - FIELDSET_HOST_OS: `uname -s` in lower case, e.g. linux, darwin
  * - FIELDSET_INSTANCE_DIR: the instance directory, mounted at the same absolute path
- * - FIELDSET_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its bridge)
+ * - FIELDSET_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its
+ *   bridge); empty from a 2.1.1 launcher on WSL 2, where the distro's own addresses are none a phone can reach (KTD13)
+ * - FIELDSET_WINDOWS_FACTS: on WSL 2, what one powershell.exe call reported (WindowsFactsParser, KTD8): its LAN
+ *   addresses replace FIELDSET_LAN_ADDRESSES (none when interop was unavailable: no guess from WSL's own interface);
+ *   absent when the command needed no Windows facts, and then FIELDSET_LAN_ADDRESSES stands (the detached supervisor
+ *   forwards the Windows addresses there)
+ * - FIELDSET_WSL_ADDRESSES: on WSL 2, the distro's own candidate addresses (under NAT the portproxy target)
+ * - FIELDSET_WSL_SYSTEMD: on WSL 2, `1` when systemd runs as PID 1 in the distro, else `0` (2.1.1 U7: Docker Engine starts
+ *   with the distro only then); launchers before 2.1.1 do not pass it (null: unknown)
  * - FIELDSET_DESKTOP: 1 when a desktop session can open a browser (the shim opens what a command hands over in
  *   FIELDSET_OPEN_URL_FILE, ADR 0070)
  * - FIELDSET_TZ: the host time zone (IANA name)
  * - FIELDSET_DOCKER_RUNTIME: rootful | rootless | desktop (DockerRuntime)
- * - FIELDSET_CONTAINER_UID: the in-container owner UID (host UID on rootful, 0 otherwise)
+ * - FIELDSET_CONTAINER_UID: the in-container owner UID: 0 where container root is the host user, the host UID where IDs
+ *   pass through (2.1.1: measured, saved or by rules, see FIELDSET_OWNER_SOURCE; before: host UID on rootful, else 0)
+ * - FIELDSET_OWNER_SOURCE: measured | saved | rules (OwnerSource), where the launcher took FIELDSET_CONTAINER_UID from
+ * - FIELDSET_SOCKET_GROUP: on WSL 2 with an ops user other than root, the socket's group as containers see it (measured or
+ *   saved; Docker Desktop's socket belongs to root:root 0660 there), which the ops container got with --group-add
  * - FIELDSET_DOCKER_SOCKET: the socket path the daemon mounted into the ops container
+ * - FIELDSET_WSL: `2` when the launcher runs in a WSL 2 distro, `0` elsewhere (the launchers refuse WSL 1); launchers
+ *   before 2.1.1 do not pass it (null: unknown)
+ * - FIELDSET_WSL_BACKEND: with FIELDSET_WSL=2, `desktop` (Docker Desktop's WSL integration) or `engine` (Docker Engine in
+ *   the distro), WslBackend
  * - FIELDSET_NONCE: name of the nonce file the launcher wrote into the instance directory and every writable mount
  * - FIELDSET_MOUNTS: one `ro:<path>` or `rw:<path>` line per parent directory of a file-path flag
  * - FIELDSET_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
@@ -50,6 +75,7 @@ final readonly class HostFacts
     /**
      * @param  list<string>  $lanAddresses
      * @param  array<string, bool>  $mounts  absolute directory => writable
+     * @param  list<string>  $wslAddresses
      */
     public function __construct(
         public ?bool $tty = null,
@@ -71,6 +97,14 @@ final readonly class HostFacts
         public ?string $registry = null,
         public ?string $platform = null,
         public ?string $releaseUrl = null,
+        public ?int $wslVersion = null,
+        public ?WslBackend $wslBackend = null,
+        public ?OwnerSource $ownerSource = null,
+        public ?int $socketGroup = null,
+        public ?int $launcherVersion = null,
+        public ?WindowsFacts $windows = null,
+        public array $wslAddresses = [],
+        public ?bool $wslSystemd = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -79,6 +113,8 @@ final readonly class HostFacts
         $int = static fn (string $key): ?int => isset($env[$key]) && ctype_digit($env[$key]) ? (int) $env[$key] : null;
         $bool = static fn (string $key): ?bool => isset($env[$key]) ? filter_var($env[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
         $match = static fn (string $key, string $pattern): ?string => isset($env[$key]) && preg_match($pattern, $env[$key]) === 1 ? $env[$key] : null;
+        $wsl = $match('FIELDSET_WSL', '/^[02]$/D');
+        $windows = $wsl === '2' ? WindowsFactsParser::parse($env['FIELDSET_WINDOWS_FACTS'] ?? null) : null;
 
         return new self(
             tty: $bool('FIELDSET_TTY'),
@@ -87,7 +123,7 @@ final readonly class HostFacts
             os: $match('FIELDSET_HOST_OS', '/^[a-z0-9_-]{1,32}$/D'),
             instanceDir: self::absolutePath($env['FIELDSET_INSTANCE_DIR'] ?? null),
             launcher: $match('FIELDSET_LAUNCHER', '/^(install\.sh|shim)$/D'),
-            lanAddresses: self::addresses($env['FIELDSET_LAN_ADDRESSES'] ?? ''),
+            lanAddresses: self::lanAddresses($windows, $env['FIELDSET_LAN_ADDRESSES'] ?? ''),
             desktop: $bool('FIELDSET_DESKTOP'),
             timezone: $match('FIELDSET_TZ', self::TIMEZONE_PATTERN),
             runtime: DockerRuntime::tryFrom($env['FIELDSET_DOCKER_RUNTIME'] ?? ''),
@@ -100,6 +136,14 @@ final readonly class HostFacts
             registry: $match('FIELDSET_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
             platform: $match('DOCKER_DEFAULT_PLATFORM', self::PLATFORM_PATTERN),
             releaseUrl: $match('FIELDSET_RELEASE_URL', '#^https?://[A-Za-z0-9._~:/%-]+$#D'),
+            wslVersion: $wsl === null ? null : (int) $wsl,
+            wslBackend: $wsl === '2' ? WslBackend::tryFrom($env['FIELDSET_WSL_BACKEND'] ?? '') : null,
+            ownerSource: OwnerSource::tryFrom($env['FIELDSET_OWNER_SOURCE'] ?? ''),
+            socketGroup: $int('FIELDSET_SOCKET_GROUP'),
+            launcherVersion: $int('FIELDSET_LAUNCHER_VERSION'),
+            windows: $windows,
+            wslAddresses: $wsl === '2' ? self::addresses($env['FIELDSET_WSL_ADDRESSES'] ?? '') : [],
+            wslSystemd: $wsl === '2' && $match('FIELDSET_WSL_SYSTEMD', '/^[01]$/D') !== null ? $env['FIELDSET_WSL_SYSTEMD'] === '1' : null,
         );
     }
 
@@ -124,6 +168,30 @@ final readonly class HostFacts
     public function ownerUidInContainers(): int
     {
         return $this->containerUid ?? $this->runtime?->containerOwnerUid($this->callerUid()) ?? $this->callerUid();
+    }
+
+    /** The in-container owner the launcher measured in this run (FIELDSET_OWNER_SOURCE=measured), or null. */
+    public function measuredOwnerUid(): ?int
+    {
+        return $this->ownerSource === OwnerSource::Measured ? $this->containerUid : null;
+    }
+
+    /** Whether the launcher runs in a WSL 2 distro (FIELDSET_WSL=2). */
+    public function onWsl2(): bool
+    {
+        return $this->wslVersion === 2;
+    }
+
+    /** WSL's networking mode as Windows reported it (`.wslconfig`); Unknown when the launcher did not ask or could not. */
+    public function wslNetworking(): WslNetworking
+    {
+        return $this->windows->networking ?? WslNetworking::Unknown;
+    }
+
+    /** How phones reach a WSL 2 instance's edge: from the engine in the distro and WSL's networking mode. */
+    public function wslSetup(): WslSetup
+    {
+        return WslSetup::of($this->wslBackend, $this->wslNetworking());
     }
 
     /** The `linux/<arch>` DOCKER_DEFAULT_PLATFORM selects (without its variant), or null for the engine's own. */
@@ -151,6 +219,16 @@ final readonly class HostFacts
         }
 
         return rtrim($path, '/') === '' ? '/' : rtrim($path, '/');
+    }
+
+    /**
+     * On WSL 2 the Windows LAN addresses whenever the launcher asked Windows (none when that failed), else the list.
+     *
+     * @return list<string>
+     */
+    private static function lanAddresses(?WindowsFacts $windows, string $list): array
+    {
+        return $windows?->asked() === true ? $windows->lanAddresses() ?? [] : self::addresses($list);
     }
 
     /** @return list<string> */

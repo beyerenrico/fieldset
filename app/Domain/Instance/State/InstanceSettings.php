@@ -232,6 +232,12 @@ final readonly class InstanceSettings
         return $this->string('lan_address');
     }
 
+    /** `all` where the local-CA edge publishes on every address of the Docker host (EdgeBinding, KTD13), else null. */
+    public function lanBind(): ?string
+    {
+        return $this->string('lan_bind');
+    }
+
     /** The tunnel network's subnet: cloudflared has a fixed address in it, the only peer of tunnel requests (KTD12). */
     public function tunnelSubnet(): ?string
     {

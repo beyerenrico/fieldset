@@ -100,7 +100,7 @@ final readonly class DnsCheck implements DoctorCheck
     {
         return match ($status) {
             CheckStatus::Fail => 3,
-            CheckStatus::Warn => 2,
+            CheckStatus::Warn, CheckStatus::Unknown => 2,
             CheckStatus::Ok => 1,
             CheckStatus::Skipped => 0,
         };

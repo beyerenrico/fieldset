@@ -63,7 +63,7 @@ it('runs the ops container as DOCKER_DEFAULT_PLATFORM and passes it on, so field
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e DOCKER_DEFAULT_PLATFORM ')
         ->and($this->scripts->opsEnvironment())->toMatchArray(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64', 'FIELDSET_LAUNCHER' => 'shim'])
-        ->and($this->scripts->dockerPlatforms())->toBe([['info', 'linux/amd64'], ['run', 'linux/amd64']]);
+        ->and($this->scripts->dockerPlatforms())->toBe([['info', 'linux/amd64'], ['run', 'linux/amd64'], ['run', 'linux/amd64']]); // owner measurement (U3), ops container
 });
 
 it('refuses an invalid DOCKER_DEFAULT_PLATFORM with exit 2 before calling Docker, and passes none when unset', function (): void {
@@ -276,7 +276,10 @@ it('accepts its own directory as --dir without passing it twice', function (): v
         ->and(end($run))->toBe($this->dir);
 });
 
-it('selects the user, socket and owner UID per Docker runtime (KTD2)', function (array $env, string $runtime, bool $root, string $socket): void {
+it('selects the user, socket and owner UID per Docker runtime and reports WSL 2 with its Docker backend (KTD2)', function (array $env, string $runtime, bool $root, string $socket, string $wsl = '0', string $backend = ''): void {
+    if ($wsl === '2') {
+        $this->scripts->wsl();
+    }
     $process = $this->scripts->run($this->dir.'/fieldset', ['status'], [...$this->env, ...$env]);
     $run = $this->scripts->opsRuns()[0];
     $facts = $this->scripts->opsEnvironment();
@@ -288,7 +291,9 @@ it('selects the user, socket and owner UID per Docker runtime (KTD2)', function 
         ->and($run[array_search('--user', $run, true) + 1])->toBe($root ? '0:0' : "{$uid}:{$gid}")
         ->and($facts['FIELDSET_CONTAINER_UID'])->toBe($root ? '0' : $uid)
         ->and($facts['FIELDSET_DOCKER_SOCKET'])->toBe($socket)
-        ->and(shimVolumes($run)[0])->toBe("{$socket}:/var/run/docker.sock");
+        ->and(shimVolumes($run)[0])->toBe("{$socket}:/var/run/docker.sock")
+        ->and([$facts['FIELDSET_WSL'] ?? null, $facts['FIELDSET_WSL_BACKEND'] ?? null])->toBe([$wsl, $backend])
+        ->and(implode(' ', $run))->toContain('-e FIELDSET_WSL ', '-e FIELDSET_WSL_BACKEND ');
 })->with([
     'rootful Linux' => [[], 'rootful', false, '/var/run/docker.sock'],
     'rootful with a custom socket' => [['DOCKER_HOST' => 'unix:///srv/docker.sock'], 'rootful', false, '/srv/docker.sock'],
@@ -296,6 +301,11 @@ it('selects the user, socket and owner UID per Docker runtime (KTD2)', function 
     'Docker Desktop on Linux' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]'], 'desktop', true, '/var/run/docker.sock'],
     'Colima on Linux' => [['STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|colima|[]', 'DOCKER_HOST' => 'unix:///home/u/.colima/default/docker.sock'], 'desktop', true, '/var/run/docker.sock'],
     'macOS' => [['STUB_UNAME' => 'Darwin', 'DOCKER_HOST' => 'unix:///Users/u/.docker/run/docker.sock'], 'desktop', true, '/var/run/docker.sock'],
+    // 2.1.1: WSL facts and, for Docker Desktop, the measured owner (U3: IDs pass through; OwnerMeasurementTest has every row
+    // measured); WSL 1 is refused (WslScriptsTest).
+    'WSL 2 with Docker Desktop' => [['STUB_DOCKER_INFO' => 'Docker Desktop|docker-desktop|[]', 'STUB_MEASURE_OWNER' => (string) posix_getuid()], 'desktop', false, '/var/run/docker.sock', '2', 'desktop'],
+    'Docker Engine in WSL 2' => [['STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS (containerized)|DESKTOP-PC|[]'], 'rootful', false, '/var/run/docker.sock', '2', 'engine'],
+    'rootless Docker Engine in WSL 2' => [['STUB_DOCKER_INFO' => 'Ubuntu 22.04.5 LTS|DESKTOP-PC|["name=rootless"]', 'XDG_RUNTIME_DIR' => '/run/user/1000'], 'rootless', true, '/run/user/1000/docker.sock', '2', 'engine'],
 ]);
 
 it('refuses a non-local DOCKER_HOST and an unreachable daemon with exit 10', function (array $env, string $code, bool $retryable): void {

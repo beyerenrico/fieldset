@@ -5,6 +5,56 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
+## Unreleased
+
+2.1.1: Fieldset installs and runs on Windows through WSL 2, and the installer measures file ownership instead of
+guessing it.
+
+### Added
+- **Windows through WSL 2** — the one-liner installs, and every `fieldset` command runs, in a WSL 2 distro with Docker
+  Desktop's WSL integration or Docker Engine inside the distro. The install guide has a Windows section, the
+  troubleshooting guide a WSL section, and RELEASING a WSL checklist that every 2.1.x release candidate passes by hand
+  (ADR 0095).
+- **Measured owner** — a short-lived container of the app image reads, as container root, who owns a file you just
+  wrote; that owner decides the ops container's user and is saved with the instance (state schema 1.1). Instances from
+  2.1.0 record it on first use without any file changing owner or mode (ADR 0095).
+- **`fieldset repair-ownership`** — after Docker begins to map user IDs differently (rootful Docker became rootless, the
+  instance moved to WSL 2 or another host), gives the instance files to the measured owner, saves it and recreates the
+  backup service; owners only, modes and Docker volumes stay. It asks first (ADR 0095).
+- **Script refresh** — a newer image replaces an instance's older `fieldset` script after a command, so shim fixes reach
+  upgraded instances (ADR 0095).
+- **Windows browser** — sign-in links open in the Windows default browser from WSL; the link is printed in the terminal
+  too (ADR 0095).
+- **Phones on Windows** — phone HTTPS with the local CA uses the Windows PC's LAN address. The doctor's
+  `windows_network` check says what Windows blocks (Public network, Docker Desktop's local-only port binding, a missing
+  firewall rule, a missing or stale portproxy, a Hyper-V rule, another program on 80 or 443) and prints the PowerShell
+  commands to run as administrator; `wsl_lifecycle` warns when Docker Engine would stop with the distro or not start
+  with it; `fieldset uninstall` prints how to remove the Windows rules (ADR 0095).
+- **WSL fact-finding script** — `scripts/wsl/facts.sh` records the Windows and Docker facts the release checks rely on,
+  read-only (ADR 0095).
+
+### Changed
+- **Refusals on WSL** — WSL 1 (exit 3 `wsl1_unsupported`, with the command that converts the distro) and an instance
+  directory on a Windows drive (exit 2 `path_on_windows_drive`, naming `~/fieldset`) are refused before anything is
+  created; a missing or stopped Docker names Docker Desktop's WSL integration setting or its start (ADR 0095).
+- **Browser over SSH** — no browser opens while `SSH_CONNECTION` or `SSH_TTY` is set, on every platform; before, only
+  macOS checked (ADR 0095).
+- **Doctor** — a check that cannot find out reports the new status `unknown`, counted like a warning, instead of a pass
+  or a fail; the agent guide lists the new reason codes and check details (ADR 0095).
+
+### Fixed
+- **Install on WSL 2 with Docker Desktop** — 2.1.0 stopped with "The instance directory belongs to UID 1000, not the
+  instance owner (UID 0 inside containers)" and a chown hint that could not help. 2.1.1 measures the owner, and running
+  the one-liner again on the directory the failed install left completes the install (ADR 0095).
+- **Ownership hint** — a mismatch names both owners and `fieldset repair-ownership`, never a chown of files that already
+  belong to you (ADR 0095).
+
+### Security
+- **Livewire 4.4.8** — fixes an authorization bypass in Livewire's `#[Authorize]` with reordered parameter keys and the
+  `#[Json]` execution order (GHSA-mhf7-xp6r-6qrc; 2.1.0 shipped 4.4.7).
+- **Docs site API reference** — `@scalar/api-reference` 1.76.0 pulls a fixed undici (GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472,
+  GHSA-xjj6-f33q-929c); a docs-site dependency, not part of the app or its image (ADR 0094).
+
 ## 2.1.0 — 2026-10-23
 
 The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes
