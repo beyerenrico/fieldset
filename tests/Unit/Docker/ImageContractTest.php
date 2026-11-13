@@ -136,7 +136,7 @@ it('cross-compiles Compose and age from verified release tags with a pinned Go t
     expect($dockerfile->text)->toMatch('#^FROM --platform=\$BUILDPLATFORM golang:1\.27\.\d+-bookworm@sha256:[0-9a-f]{64} AS go-toolchain$#m')
         ->and($dockerfile->stage('go-toolchain'))->toContain('ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-trimpath')
         ->and($dockerfile->stage('compose-source'))->toContain('--branch v5.6.0 https://github.com/docker/compose.git .')
-        ->and($dockerfile->stage('compose-source'))->toContain('go get golang.org/x/net@v0.60.0')
+        ->and($dockerfile->stage('compose-source'))->toContain('go get golang.org/x/net@v0.62.0')
         ->and($dockerfile->stage('compose-source'))->toMatch('/^[0-9a-f]{64}  go\.mod$/m')
         ->and($dockerfile->stage('compose-source'))->toMatch('/^[0-9a-f]{64}  go\.sum$/m')
         ->and($dockerfile->stage('age-source'))->toContain('--branch v1.3.2 https://github.com/FiloSottile/age.git .')

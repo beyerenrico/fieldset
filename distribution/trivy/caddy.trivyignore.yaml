@@ -1,30 +1,14 @@
-# Trivy exceptions for the caddy image only (caddy:2.11.7-alpine in distribution/release.json).
+# Trivy exceptions for the caddy image only (caddy:2.11.9-alpine in distribution/release.json).
 # Policy (ADR 0071): what we build (the app image) is scanned strictly and has no exception file. A third-party
 # image may carry dated, scoped exceptions for findings without a fix in a released upstream image: one entry per
 # finding id, scoped to the component by `paths` or `purls`, with a `statement` and an `expired_at` at most 90 days
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
-# 4 high findings in usr/bin/caddy (Go 1.26.8 standard library, golang.org/x/net 0.59.0); 30 days (fixed upstream, waiting for a Caddy release). These are reachable.
-# 1 more high finding in usr/bin/caddy, CVE-2026-111943 (Go 1.26.8 stdlib, 2026-10-21); 30 days (fixed upstream, waiting for a Caddy release).
+# 1 high finding in usr/bin/caddy (both platforms): golang.org/x/net 0.60.0; 30 days (fixed upstream, waiting for a Caddy release). The four 2.11.7 entries (Go 1.26.8 stdlib, x/net 0.59.0) are removed.
 
 vulnerabilities:
-  - id: CVE-2026-78667
+  - id: CVE-2026-78661
     paths:
       - usr/bin/caddy
-    expired_at: 2026-11-17
-    statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
-  - id: CVE-2026-78669
-    paths:
-      - usr/bin/caddy
-    expired_at: 2026-11-17
-    statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
-  - id: CVE-2026-97031
-    paths:
-      - usr/bin/caddy
-    expired_at: 2026-11-17
-    statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
-  - id: CVE-2026-111943
-    paths:
-      - usr/bin/caddy
-    expired_at: 2026-11-20
-    statement: "Go 1.26.8 standard library in caddy 2.11.7, the latest release (image 2026-10-06). Go crypto/x509 (CA distrust mitigation, published 2026-10-21) is fixed in Go 1.26.10 / 1.27.3 (fixed upstream, only the image release is missing: 30 days, ADR 0071). Waiting for a Caddy release. Reachability not analysed; Caddy terminates TLS for the instance, so treat it as reachable. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
+    expired_at: 2026-12-13
+    statement: "golang.org/x/net v0.60.0 in caddy 2.11.9 (2026-11-05, image 2026-11-13, the newest release; both platforms); fixed in x/net 0.62.0, which Caddy does not require yet. 30 days (2026-11-13 to 2026-12-13, ADR 0071 and ADR 0093): fixed upstream, only the Caddy release is missing. Reachability not analysed; Caddy terminates TLS and HTTP for the instance, so treat it as reachable. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
