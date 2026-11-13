@@ -9,7 +9,7 @@ pass (human: "Branches + PRs"): the agent opens pull requests, the human merges.
 
 ## Next actions
 1. Human merges #5 `maint-ci-green` first, then #6 `maint-journey-tiers`, #7 `maint-docs-2.1`, #8 `maint-hardening`
-   and #9 `maint-records` (all stacked on #5). Before #6: read the `tier: full` rerun of J09 (run 43475292965).
+   and #9 `maint-records` (all stacked on #5).
 2. Decide a 2.1.1 release (QUESTIONS 82c): adopted instances whose Postgres image was pulled after 2026-11-12 cannot
    restore their `safety-adopt` backup until the image's client is 16.16. Needs human approval for any tag.
 3. 2.1.1 WSL human steps: run `scripts/wsl/facts.sh` on Windows (QUESTIONS 81), approve `v2.1.1-rc.1`, run the
@@ -24,7 +24,7 @@ pass (human: "Branches + PRs"): the agent opens pull requests, the human merges.
 - #5: CI green (php-tests, audit, image-scan, e2e); one `image` build re-run after a TLS timeout to postgresql.org.
 - Install journeys `all` run 43456806241 and pull request smoke run 43456746164: shards 9.8–24.0 min, budget 66.1.
 - Full local suites, about 7,900 tests, on each branch; `SearchPlanTest` flaked once under `--parallel` (LEARNINGS 185).
-- NOT yet read: `tier: full` rerun for J09 (run 43475292965). Read it before merging #6.
+- `tier: full` rerun with the adopt fix and the new image pins (run 43475292965): all five shards green, J09 included.
 - The `0:0` ops-container path (Docker Desktop, rootless, `rules`) has no runner journey (ADR 0097).
 
 ## Pins now (ADR 0093 amended)
