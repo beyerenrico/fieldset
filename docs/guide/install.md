@@ -1,6 +1,6 @@
 # Install guide
 
-Fieldset 2.0 installs from a signed release with one command. You need no clone of the repository: the
+Fieldset installs from a signed release with one command. You need no clone of the repository: the
 installer downloads the release manifest, checks its signature, pulls the images by digest and hands over to `fieldset`,
 the instance's command-line tool. Every later step (configuration, backups, upgrades) goes through `fieldset` as well.
 
