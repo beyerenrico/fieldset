@@ -39,9 +39,6 @@ return [
     ],
     'Mail' => [
         'modules' => ['Audit', 'Documents', 'Forms', 'Identity', 'Notifications', 'Reports', 'Submissions'],
-        'App\\Http' => [
-            'Mail/CustomerSend/CustomerSendGate.php',
-        ],
     ],
     'Notifications' => [
         'modules' => ['Audit', 'Forms', 'Identity', 'Mail', 'Submissions'],
@@ -70,18 +67,8 @@ return [
     ],
     'Submissions' => [
         'modules' => ['Audit', 'Forms', 'Identity', 'Mail', 'Workflows'],
-        'App\\Http' => [
-            'Submissions/Actions/SaveSubmissionDraft.php',
-            'Submissions/Actions/StoreAttachment.php',
-            'Submissions/Actions/SubmitSubmission.php',
-            'Submissions/Actions/TransitionSubmission.php',
-            'Submissions/Support/UploadInspector.php',
-        ],
     ],
     'Workflows' => [
         'modules' => ['Audit', 'Documents', 'Forms', 'Identity', 'Instance', 'Mail', 'Notifications', 'Privacy', 'Submissions'],
-        'App\\Http' => [
-            'Workflows/Tasks/CompleteReviewTask.php',
-        ],
     ],
 ];

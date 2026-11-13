@@ -18,7 +18,7 @@ use App\Filament\Admin\Resources\Workflows\Pages\EditWorkflow;
 use App\Filament\Admin\Resources\Workflows\RelationManagers\RunsRelationManager;
 use App\Filament\Admin\Resources\Workflows\Support\WorkflowOptions;
 use App\Filament\Admin\Resources\Workflows\WebhookEndpoints\Pages\ManageWebhookEndpoints;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 use Tests\Feature\Workflows\WorkflowFixtures as W;
@@ -67,7 +67,7 @@ it('words invalid transitions with translated status names', function (): void {
 
     expect(fn () => $this->tenant->run($this->s->org, fn () => app(TransitionSubmission::class)
         ->handle(Submission::query()->findOrFail($submission->uuid), SubmissionStatus::Approved, $this->s->owner)))
-        ->toThrow(fn (ApiException $e) => expect($e->errorCode)->toBe('invalid_transition')
+        ->toThrow(fn (DomainRefusal $e) => expect($e->errorCode)->toBe('invalid_transition')
             ->and($e->getMessage())->toBe(__('submissions.errors.invalid_transition', ['from' => SubmissionStatus::Completed->label(), 'to' => SubmissionStatus::Approved->label()])));
 });
 

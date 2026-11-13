@@ -8,7 +8,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Workflows\Enums\TaskOutcome;
 use App\Domain\Workflows\Models\Task;
 use App\Domain\Workflows\Tasks\CompleteReviewTask;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -65,7 +65,7 @@ final class ReviewActions
         }
         try {
             app(CompleteReviewTask::class)->handle($task, $actor, $outcome, is_string($comment) ? $comment : null);
-        } catch (ApiException $e) {
+        } catch (DomainRefusal $e) {
             Notification::make()->danger()->title($e->getMessage())->send();
 
             return;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Submissions\Support;
 
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use finfo;
 use GdImage;
 use Illuminate\Support\Facades\Log;
@@ -40,7 +40,7 @@ final readonly class UploadInspector
     public function inspect(string $bytes, string $kind, int $maxBytes, array $accept = []): array
     {
         if ($bytes === '' || strlen($bytes) > min($maxBytes, self::MAX_BYTES)) {
-            throw new ApiException('file_too_large', __('submissions.errors.file_too_large'), 422);
+            throw new DomainRefusal('file_too_large', __('submissions.errors.file_too_large'), 422);
         }
 
         $mime = (string) new finfo(FILEINFO_MIME_TYPE)->buffer($bytes);
@@ -51,7 +51,7 @@ final readonly class UploadInspector
         };
 
         if (! isset($allowed[$mime]) || ! $this->accepted($mime, $accept)) {
-            throw new ApiException('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422, ['mime' => $mime]);
+            throw new DomainRefusal('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422, ['mime' => $mime]);
         }
 
         $this->scan($bytes, $mime);
@@ -74,18 +74,18 @@ final readonly class UploadInspector
             $result = $this->scanner->scan($bytes);
         } catch (UploadScanFailed $e) {
             if ($e->tooLarge) {
-                throw new ApiException('file_too_large', __('submissions.errors.file_too_large'), 422);
+                throw new DomainRefusal('file_too_large', __('submissions.errors.file_too_large'), 422);
             }
             report($e);
             if ((bool) config('uploads.clamav.fail_open', false)) {
                 return;
             }
-            throw new ApiException('scanner_unavailable', __('submissions.errors.scanner_unavailable'), 503);
+            throw new DomainRefusal('scanner_unavailable', __('submissions.errors.scanner_unavailable'), 503);
         }
 
         if (! $result->clean) {
             Log::warning('upload.infected', ['signature' => $result->signature, 'mime' => $mime, 'bytes' => strlen($bytes)]);
-            throw new ApiException('file_infected', __('submissions.errors.file_infected'), 422);
+            throw new DomainRefusal('file_infected', __('submissions.errors.file_infected'), 422);
         }
     }
 
@@ -104,7 +104,7 @@ final readonly class UploadInspector
         $this->guardDimensions($bytes);
         $decoded = @imagecreatefromstring($bytes);
         if ($decoded === false) {
-            throw new ApiException('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422);
+            throw new DomainRefusal('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422);
         }
         $image = $this->limitPixels(ExifOrientation::apply($decoded, ExifOrientation::read($bytes)), $mime === 'image/png');
         if ($image !== $decoded) {
@@ -152,13 +152,13 @@ final readonly class UploadInspector
     {
         $size = @getimagesizefromstring($bytes);
         if ($size === false) {
-            throw new ApiException('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422);
+            throw new DomainRefusal('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422);
         }
 
         [$width, $height] = $size;
         $maxSide = (int) config('submissions.image_max_side', 12_000);
         if ($width > $maxSide || $height > $maxSide || $width * $height > (int) config('submissions.image_max_pixels', 40_000_000)) {
-            throw new ApiException('image_too_large', __('submissions.errors.image_too_large'), 422, ['width' => $width, 'height' => $height]);
+            throw new DomainRefusal('image_too_large', __('submissions.errors.image_too_large'), 422, ['width' => $width, 'height' => $height]);
         }
     }
 }

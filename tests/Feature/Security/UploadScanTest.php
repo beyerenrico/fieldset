@@ -9,7 +9,7 @@ use App\Domain\Submissions\Support\UploadInspector;
 use App\Domain\Submissions\Support\UploadScanFailed;
 use App\Domain\Submissions\Support\UploadScanner;
 use App\Domain\Submissions\Support\UploadScanResult;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -121,7 +121,7 @@ it('refuses a file above the scanner limit as too large, also when failing open'
     try {
         $inspector->inspect('plain text', 'file', 1024);
         $this->fail('The upload was accepted unscanned.');
-    } catch (ApiException $e) {
+    } catch (DomainRefusal $e) {
         expect($e->errorCode)->toBe('file_too_large')->and($e->status)->toBe(422);
     }
 });
@@ -133,7 +133,7 @@ it('scans the original bytes after the type check and before re-encoding', funct
     $out = new UploadInspector($scanner)->inspect($png, 'signature', 1024 * 1024);
 
     expect($scanner->scanned)->toBe([$png])->and($out['mime'])->toBe('image/png');
-    expect(fn () => new UploadInspector($scanner)->inspect('<?php echo 1;', 'file', 1024))->toThrow(ApiException::class);
+    expect(fn () => new UploadInspector($scanner)->inspect('<?php echo 1;', 'file', 1024))->toThrow(DomainRefusal::class);
     expect($scanner->scanned)->toHaveCount(1);
 });
 
@@ -144,7 +144,7 @@ it('rejects an infected file with 422 and logs the signature without the content
     try {
         $inspector->inspect('%PDF-1.4 fake', 'file', 1024 * 1024);
         $this->fail('The upload was accepted.');
-    } catch (ApiException $e) {
+    } catch (DomainRefusal $e) {
         expect($e->errorCode)->toBe('file_infected')->and($e->status)->toBe(422);
     }
 
@@ -159,7 +159,7 @@ it('answers 503 without a verdict unless configured to fail open', function (): 
     try {
         $inspector->inspect('plain text', 'file', 1024);
         $this->fail('The upload was accepted.');
-    } catch (ApiException $e) {
+    } catch (DomainRefusal $e) {
         expect($e->errorCode)->toBe('scanner_unavailable')->and($e->status)->toBe(503);
     }
 

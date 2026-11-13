@@ -6,6 +6,8 @@ use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
+use App\Support\Refusal\DomainRefusal;
+use App\Support\Refusal\ExpectedDomainRefusal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Exceptions;
@@ -95,4 +97,19 @@ it('reports domain 5xx errors but not 4xx answers', function (): void {
 
     $this->getJson('/api/v1/_broken')->assertServiceUnavailable();
     Exceptions::assertReported(fn (ApiException $e): bool => $e->errorCode === 'renderer_down');
+});
+
+it('renders a domain refusal like an API exception and reports only its 5xx answers', function (): void {
+    Route::middleware('api')->get('api/v1/_refused', fn () => throw new DomainRefusal('refused', 'Not now.', 409, ['why' => 'stale']));
+    Route::middleware('api')->get('api/v1/_gone', fn () => throw new ExpectedDomainRefusal('gone_for_good', 'Gone.', 410));
+    Route::middleware('api')->get('api/v1/_down', fn () => throw new DomainRefusal('down', 'Down.', 503));
+    Exceptions::fake();
+
+    $this->getJson('/api/v1/_refused')->assertConflict()
+        ->assertJsonPath('error.code', 'refused')->assertJsonPath('error.message', 'Not now.')->assertJsonPath('error.details.why', 'stale');
+    $this->getJson('/api/v1/_gone')->assertStatus(410)->assertJsonPath('error.code', 'gone_for_good');
+    Exceptions::assertNothingReported();
+
+    $this->getJson('/api/v1/_down')->assertServiceUnavailable();
+    Exceptions::assertReported(fn (DomainRefusal $e): bool => $e->errorCode === 'down');
 });

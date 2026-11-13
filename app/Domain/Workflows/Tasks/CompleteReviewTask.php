@@ -15,7 +15,7 @@ use App\Domain\Workflows\Enums\TaskStatus;
 use App\Domain\Workflows\Models\Task;
 use App\Domain\Workflows\Models\WorkflowRun;
 use App\Domain\Workflows\Support\WorkflowNotifications;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -43,7 +43,7 @@ final readonly class CompleteReviewTask
     {
         $comment = $this->comment($outcome, $comment);
 
-        $result = DB::transaction(function () use ($task, $actor, $outcome, $comment): Task|ApiException {
+        $result = DB::transaction(function () use ($task, $actor, $outcome, $comment): Task|DomainRefusal {
             $locked = Task::query()->whereKey($task->id)->lockForUpdate()->firstOrFail();
             if (! $locked->isOpen()) {
                 throw $this->closed();
@@ -51,7 +51,7 @@ final readonly class CompleteReviewTask
             $submission = Submission::query()->whereKey($locked->submission_uuid)->lockForUpdate()->firstOrFail();
             $run = $locked->workflow_run_id === null ? null : WorkflowRun::query()->whereKey($locked->workflow_run_id)->lockForUpdate()->first();
             $problem = $this->problem($locked, $submission, $run);
-            if ($problem instanceof ApiException) {
+            if ($problem instanceof DomainRefusal) {
                 return $problem;   // committed: a cancelled task stays cancelled
             }
             $this->decide($locked, $submission, $run, $actor, $outcome, $comment);
@@ -59,18 +59,18 @@ final readonly class CompleteReviewTask
             return $locked;
         });
 
-        return $result instanceof ApiException ? throw $result : $result;
+        return $result instanceof DomainRefusal ? throw $result : $result;
     }
 
     /** Why the task cannot be decided now (cancelling it when it is moot), else null. */
-    private function problem(Task $task, Submission $submission, ?WorkflowRun $run): ?ApiException
+    private function problem(Task $task, Submission $submission, ?WorkflowRun $run): ?DomainRefusal
     {
         $inReview = $submission->status === SubmissionStatus::InReview;
         if ($inReview && (! $run instanceof WorkflowRun || $this->runner->isResumable($run))) {
             return null;
         }
         if ($inReview && $run instanceof WorkflowRun && (! $run->status->isFinished() || $run->status === RunStatus::Failed)) {
-            throw new ApiException('review_blocked', __('workflows.tasks.errors.blocked'), 409);
+            throw new DomainRefusal('review_blocked', __('workflows.tasks.errors.blocked'), 409);
         }
         $this->cancel->cancel($task, $submission->status);
 
@@ -101,9 +101,9 @@ final readonly class CompleteReviewTask
         DB::afterCommit(fn () => $this->notifications->changesRequested($submission, (string) $comment));
     }
 
-    private function closed(): ApiException
+    private function closed(): DomainRefusal
     {
-        return new ApiException('task_closed', __('workflows.tasks.errors.closed'), 409);
+        return new DomainRefusal('task_closed', __('workflows.tasks.errors.closed'), 409);
     }
 
     /** Trimmed comment; required (and limited) for a rejection. */

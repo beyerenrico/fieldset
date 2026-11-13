@@ -21,7 +21,7 @@ use App\Domain\Workflows\Tasks\CompleteReviewTask;
 use App\Domain\Workflows\Tasks\SendOverdueReminders;
 use App\Domain\Workflows\Tasks\TaskAccess;
 use App\Filament\Admin\Resources\Submissions\Pages\ViewSubmission;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -161,7 +161,7 @@ it('closes a stale task whose submission already left review and answers task_cl
     $this->tenant->run($this->s->org, fn () => Submission::query()->whereKey($submission->uuid)->update(['status' => SubmissionStatus::Approved->value]));
 
     expect(fn () => $this->tenant->run($this->s->org, fn () => app(CompleteReviewTask::class)->handle($task, $this->reviewer, TaskOutcome::Approved, null)))
-        ->toThrow(fn (ApiException $e) => expect($e->errorCode)->toBe('task_closed'));
+        ->toThrow(fn (DomainRefusal $e) => expect($e->errorCode)->toBe('task_closed'));
     expect($task->refresh()->status)->toBe(TaskStatus::Cancelled);
 });
 

@@ -17,6 +17,7 @@ use App\Http\Middleware\Security\SecureCookies;
 use App\Http\Middleware\Security\SecurityHeaders;
 use App\Http\Middleware\Security\TrustedHosts;
 use App\Http\Middleware\SetLocale;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -62,7 +63,7 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );
         // Domain 4xx answers (validation, conflicts, not found) are client errors, not incidents.
-        $exceptions->dontReportWhen(fn (Throwable $e): bool => $e instanceof ApiException && $e->status < 500);
+        $exceptions->dontReportWhen(fn (Throwable $e): bool => ($e instanceof ApiException || $e instanceof DomainRefusal) && $e->status < 500);
         $exceptions->render(fn (Throwable $e, Request $request) => $request->is('api/*')
             ? app(ApiExceptionRenderer::class)->render($e, $request)
             : null);

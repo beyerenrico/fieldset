@@ -9,7 +9,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Mail\Enums\DocumentSendFailure;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
-use App\Http\Api\ExpectedApiException;
+use App\Support\Refusal\ExpectedDomainRefusal;
 use stdClass;
 
 /**
@@ -31,7 +31,7 @@ final class CustomerSendGate
     /**
      * @return self::NOT_SUBMITTED|self::NOT_ALLOWED|null null when the send is allowed
      *
-     * @throws ExpectedApiException 410 `document_anonymized` for an anonymized submission
+     * @throws ExpectedDomainRefusal 410 `document_anonymized` for an anonymized submission
      */
     public static function refusal(User $user, Submission $submission): ?string
     {
@@ -78,9 +78,9 @@ final class CustomerSendGate
     }
 
     /** The PDF files of an anonymized submission were deleted (ADR 0039): permanent and expected, not reported. */
-    public static function anonymized(): ExpectedApiException
+    public static function anonymized(): ExpectedDomainRefusal
     {
-        return new ExpectedApiException('document_anonymized', (string) __('documents.errors.anonymized'), 410);
+        return new ExpectedDomainRefusal('document_anonymized', (string) __('documents.errors.anonymized'), 410);
     }
 
     /** `settings.sendToCustomer` of the submission's pinned form version. */

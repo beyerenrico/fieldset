@@ -11,7 +11,7 @@ use App\Domain\Submissions\Events\SubmissionStatusChanged;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Models\SubmissionEvent;
 use App\Domain\Submissions\Projection\SubmissionValueProjector;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -27,7 +27,7 @@ final readonly class TransitionSubmission
     {
         $from = $submission->status;
         if (! $from->canTransitionTo($to)) {
-            throw new ApiException('invalid_transition', __('submissions.errors.invalid_transition', ['from' => $from->label(), 'to' => $to->label()]), 409);
+            throw new DomainRefusal('invalid_transition', __('submissions.errors.invalid_transition', ['from' => $from->label(), 'to' => $to->label()]), 409);
         }
 
         $submission->status = $to;
