@@ -96,7 +96,8 @@ RUN tar -xzf /downloads/docker.tgz -C /out/bin --strip-components=1 docker/docke
  && chown -R root:root /out && chmod 0755 /out/bin/* /out/cli-plugins/* && chmod -R a+rX /out/doc
 
 # PHP runtime: FrankenPHP with the app's extensions, qpdf, curl (healthchecks) and the PGDG Postgres 16 client
-# (E13: pg_dump must match the server major; bookworm ships 15). The PHP base image keeps its build toolchain
+# (E13: pg_dump must match the server major; bookworm ships 15). The client is pinned to an exact version that is not
+# older than the manifest's server (ADR 0093, 2026-11-13: an older pg_dump writes dumps an older server refuses). The PHP base image keeps its build toolchain
 # (compilers, binutils, headers: ~170 MB); it is removed here, and the `runtime` stage flattens the result so
 # that the removal actually shrinks the image.
 FROM dunglas/frankenphp:1-php8.4-bookworm@sha256:88cec19e1b1570b258f3e2d8aa91485dc20ad32920adc132d8b35f0c41affef7 AS runtime-build
@@ -114,7 +115,7 @@ chmod 0644 /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
 printf 'Types: deb\nURIs: https://apt.postgresql.org/pub/repos/apt\nSuites: %s-pgdg\nComponents: main\nSigned-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc\n' \
   "$VERSION_CODENAME" > /etc/apt/sources.list.d/pgdg.sources
 apt-get update
-apt-get install -y --no-install-recommends qpdf curl media-types postgresql-client-16
+apt-get install -y --no-install-recommends qpdf curl media-types postgresql-client-16=16.16-1.pgdg12+1
 
 # The app listens on 8080: without the file capability FrankenPHP also starts with every capability dropped.
 setcap -r /usr/local/bin/frankenphp
