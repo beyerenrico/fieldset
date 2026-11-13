@@ -4,10 +4,20 @@ declare(strict_types=1);
 
 namespace App\Domain\Mail\Models;
 
+use __PHP_Incomplete_Class;
 use App\Domain\Audit\ErrorText;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
+use App\Domain\Mail\Delivery\DeliveredLink;
+use App\Domain\Mail\Delivery\DeliveryPlan;
+use App\Domain\Mail\Delivery\DocumentFile;
 use App\Domain\Mail\Enums\MailStatus;
+use App\Domain\Mail\Mailables\BrandedMail;
+use App\Domain\Mail\Mailables\TestMail;
 use App\Domain\Mail\Policies\MailMessagePolicy;
+use App\Domain\Mail\Templates\MailTemplate;
+use App\Domain\Notifications\Mail\NotificationMail;
+use App\Domain\Reports\Scheduling\ScheduledReportMail;
+use Carbon\CarbonImmutable;
 use Database\Factories\MailMessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -18,6 +28,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use SplObjectStorage;
 use UnexpectedValueException;
 
 /**
@@ -51,6 +63,24 @@ class MailMessage extends Model
 {
     use BelongsToOrganization;
 
+    /** Mailables the log may hold. */
+    public const array MAILABLE_CLASSES = [
+        BrandedMail::class,
+        TestMail::class,
+        NotificationMail::class,
+        ScheduledReportMail::class,
+    ];
+
+    /** Every class `unserialize` may instantiate for a payload (KTD10); a test derives it from real payloads. */
+    public const array PAYLOAD_CLASSES = [
+        ...self::MAILABLE_CLASSES,
+        MailTemplate::class,
+        DeliveryPlan::class,
+        DocumentFile::class,
+        DeliveredLink::class,
+        CarbonImmutable::class,
+    ];
+
     /** @use HasFactory<MailMessageFactory> */
     use HasFactory;
 
@@ -74,13 +104,51 @@ class MailMessage extends Model
     /** The stored mailable, exactly as queued. */
     public function mailable(): Mailable
     {
-        $mailable = unserialize($this->payload);
+        $mailable = in_array($this->mailable_class, self::MAILABLE_CLASSES, true)
+            ? unserialize($this->payload, ['allowed_classes' => self::PAYLOAD_CLASSES])
+            : false;
+        $refused = self::incompleteClass($mailable);
 
-        if (! $mailable instanceof Mailable) {
+        if ($refused !== null) {
+            Log::warning('Mail payload refused: class not allowed', ['mail_message_id' => $this->id, 'class' => $refused]);
+        }
+        if ($refused !== null || ! $mailable instanceof Mailable) {
             throw new UnexpectedValueException("Mail message {$this->id} does not hold a mailable.");
         }
 
         return $mailable;
+    }
+
+    /**
+     * Name of the first class `unserialize` refused to instantiate anywhere in the graph.
+     *
+     * @param  SplObjectStorage<object, null>|null  $seen
+     */
+    private static function incompleteClass(mixed $value, ?SplObjectStorage $seen = null): ?string
+    {
+        $seen ??= new SplObjectStorage;
+        if (is_object($value)) {
+            if ($seen->offsetExists($value)) {
+                return null;
+            }
+            $seen->offsetSet($value);
+            if ($value instanceof __PHP_Incomplete_Class) {
+                $name = ((array) $value)['__PHP_Incomplete_Class_Name'] ?? null;
+
+                return is_string($name) ? $name : '(unknown)';
+            }
+            $value = (array) $value;
+        }
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $found = self::incompleteClass($item, $seen);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+        }
+
+        return null;
     }
 
     public function isRetryable(): bool
