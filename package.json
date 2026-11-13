@@ -1,7 +1,6 @@
 {
     "$schema": "https://www.schemastore.org/package.json",
     "name": "fieldset",
-    "version": "1.0.0",
     "private": true,
     "type": "module",
     "scripts": {
