@@ -1,5 +1,5 @@
 # 0091: Dogfooding the E2E suite, all journeys in CI, the pg_dump release check
-- Status: accepted
+- Status: accepted; amended by ADR 0096 (journey tiers: smoke on pull requests and nightly, all tiers before a release)
 - Date: 2026-10-20
 - Refines: ADR 0067 (release tooling), ADR 0083 (E16 measurement), ADR 0084 (backups)
 

@@ -28,7 +28,35 @@ TLS, real images, memory measurements, real upgrades of a running stack and brow
 _To be filled by a later unit._
 
 ### Workflow shape
-_To be filled by a later unit._
+`.github/workflows/install-journeys.yml` has three jobs.
+- **Triggers.** `schedule` (nightly, `17 2 * * *`) and a plain `pull_request` limited to `app/Domain/Instance/**`,
+  `app/Domain/Platform/Instance/**`, `distribution/**`, `docker/**`, `tests/Install/**`, `tests/Support/Instance/**`
+  and the workflow file run tier `smoke`. `workflow_dispatch` and `workflow_call` take the input `tier` (`smoke`,
+  `full`, `budget`, `all`); an empty value means `smoke`; any other value fails the plan job. `release.yml` passes
+  `tier: all`. There is no `pull_request_target`, no secret and no OIDC token; the jobs keep `contents: read`. Fork
+  pull requests skip every job (`head.repo.full_name == github.repository`). A new commit cancels the running jobs
+  of the same pull request; schedule, dispatch and release runs are never cancelled.
+- **`plan`** turns the tier into a matrix. The shard list lives in one place, the `SHARDS` variable of its step.
+- **`journeys`** runs one matrix job per shard: `vendor/bin/pest --testsuite=Install --filter="<regexp>"`. Pest takes
+  one path argument only, so a shard is selected by the class names of its files (a regular expression over the
+  test class, which `InstallJourneysJobTest` checks against `pest --list-tests`). Each shard installs Playwright and
+  poppler, provides the `v1.0.0` tag, restores the harness cache and uploads `install-journey-logs-<shard>`.
+- **`gate`** needs `plan` and `journeys`, runs even when a shard failed and fails unless both succeeded, so a failed
+  or cancelled shard cannot pass silently. Callers (the release) and branch protection read this one result.
+
+| Shard | Tier | Files | Test time of the last serial run |
+|---|---|---|---|
+| `smoke-a` | smoke | Bootstrap, HarnessRelease, ComposeConfig, EdgeConfig, J01, J07 | about 14 min |
+| `smoke-b` | smoke | J08 | about 13 min |
+| `full-1` | full | J06, J03, J02 | about 12 min |
+| `full-2` | full | ConfigDomainSwitch, J12, ImageContract | about 12 min |
+| `full-3` | full | J04, J05 | about 11 min |
+| `full-4` | full | J09, J11 | about 11 min |
+| `full-5` | full | DogfoodE2E, LocalPreRelease (skips) | about 5 min |
+| `budget` | budget | J10 | about 57 min |
+
+Each file carries exactly one tier group (`pest()->group('smoke' | 'full' | 'budget')`), so `vendor/bin/pest
+--testsuite=Install --group=smoke` runs a tier locally.
 
 ## Consequences
 - Drift in third-party images (Caddy, Mailpit, Postgres, Traefik, Gotenberg) and regressions in the `full` and `budget`
