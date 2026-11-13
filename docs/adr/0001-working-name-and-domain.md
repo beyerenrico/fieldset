@@ -1,5 +1,5 @@
 # 0001: Working name `form-schema-app` and domain `localhost`
-- Status: accepted
+- Status: accepted; the name "form-schema-app" is superseded by ADR 0092 (Fieldset)
 - Date: 2026-10-16
 
 ## Context
