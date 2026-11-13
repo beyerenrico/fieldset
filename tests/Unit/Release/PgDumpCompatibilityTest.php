@@ -14,10 +14,11 @@ use Tests\Support\Release\ReleaseFixtures;
 
 /*
  * R39's release check (plan U22, ADR 0091): the app image's pg_dump major must not be below the manifest's Postgres
- * major. The image runs once per platform with pg_dump as its entry point; the server major comes from the pin's tag.
+ * major, nor its minor below the server's within the same major (ADR 0093, amendment 2026-11-13). The image runs once
+ * per platform with pg_dump as its entry point; the server version comes from the pin's tag.
  */
 
-const PG_DUMP_16 = 'pg_dump (PostgreSQL) 16.10 (Debian 16.10-1.pgdg13+1)';
+const PG_DUMP_16 = 'pg_dump (PostgreSQL) 16.16 (Debian 16.16-1.pgdg12+1)';
 
 /** The fixture manifest with another postgres tag (digest unchanged). */
 function manifestWithPostgres(string $tag): ReleaseManifest
@@ -50,6 +51,21 @@ it('fails when the image\'s pg_dump major is below the manifest\'s Postgres majo
     expect(fn () => new PgDumpCompatibility($runner)->check(manifestWithPostgres('17.2-alpine')))
         ->toThrow(ReleaseException::class, "The app image's pg_dump 16 (linux/amd64) is older than the manifest's Postgres 17");
 });
+
+it('compares the minor within the same major', function (string $client, string $tag, ?string $refusal): void {
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(0, 'sha256:'.str_repeat('c', 64)), new ProcessOutcome(0, "pg_dump (PostgreSQL) {$client} (Debian {$client}-1.pgdg12+1)"));
+    $check = fn (): array => new PgDumpCompatibility($runner)->check(manifestWithPostgres($tag), null, ['linux/amd64']);
+
+    $refusal === null
+        ? expect($check()[0])->toMatchArray(['client_major' => (int) $client, 'client_minor' => (int) explode('.', $client)[1], 'server_major' => 16])
+        : expect($check)->toThrow(ReleaseException::class, $refusal);
+})->with([
+    'same minor' => ['16.15', '16.15-alpine', null],
+    'newer minor' => ['16.16', '16.15-alpine', null],
+    'older minor' => ['16.14', '16.15-alpine', "The app image's pg_dump 16.14 (linux/amd64) is older than the manifest's Postgres 16.15"],
+    'newer major' => ['17.1', '16.15-alpine', null],
+    'tag without a minor' => ['16.2', '16-alpine', null],
+]);
 
 it('accepts a newer client, checks only the platforms asked for and pulls from the image\'s own registry without a mirror', function (): void {
     $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(1, '', 'Error: No such image'), new ProcessOutcome(0, 'pg_dump (PostgreSQL) 17.1'));
@@ -106,6 +122,17 @@ it('reads the server major from the postgres tag', function (string $tag, ?int $
     ['16.15-alpine', 16], ['16-alpine', 16], ['16', 16], ['17.0', 17], ['alpine', null], ['latest', null],
 ]);
 
+it('reads the server minor from the postgres tag and the client minor from pg_dump --version', function (): void {
+    $pin = fn (string $tag): ImagePin => new ImagePin('docker.io', 'library/postgres', $tag, 'sha256:'.str_repeat('b', 64));
+
+    expect(PgDumpCompatibility::serverMinor($pin('16.15-alpine')))->toBe(15)
+        ->and(PgDumpCompatibility::serverMinor($pin('17.0')))->toBe(0)
+        ->and(PgDumpCompatibility::serverMinor($pin('16-alpine')))->toBeNull()
+        ->and(PgDumpCompatibility::serverMinor($pin('16')))->toBeNull()
+        ->and(PgDumpCompatibility::clientMinor(PG_DUMP_16))->toBe(16)
+        ->and(PgDumpCompatibility::clientMinor('pg_dump (PostgreSQL) 17devel'))->toBeNull();
+});
+
 it('reads the client major from pg_dump --version', function (): void {
     expect(PgDumpCompatibility::clientMajor(PG_DUMP_16))->toBe(16)
         ->and(PgDumpCompatibility::clientMajor("warning: something\npg_dump (PostgreSQL) 15.8"))->toBe(15)
@@ -123,7 +150,7 @@ it('runs as release:check-pg-dump: JSON on success, exit 1 with the reason on a 
 
     try {
         $this->artisan('release:check-pg-dump', ['manifest' => $good, '--mirror' => '127.0.0.1:5000'])
-            ->expectsOutputToContain('"client_major":16,"server_major":16')
+            ->expectsOutputToContain('"client_major":16,"client_minor":16,"server_major":16,"server_minor":16')
             ->assertSuccessful();
         $this->artisan('release:check-pg-dump', ['manifest' => $newer, '--platform' => ['linux/amd64']])
             ->expectsOutputToContain('older than the manifest')

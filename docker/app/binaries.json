@@ -36,7 +36,7 @@
         {
             "name": "postgresql-client-16",
             "component": "PostgreSQL 16 client: pg_dump, pg_restore, psql",
-            "version": "16",
+            "version": "16.16",
             "origin": "apt",
             "source": "https://apt.postgresql.org/pub/repos/apt",
             "license": "PostgreSQL",

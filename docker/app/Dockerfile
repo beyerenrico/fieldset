@@ -3,8 +3,8 @@
 # container and the backup daemon. The context is an allow-list (.dockerignore); the final stage carries no
 # tests, docs, dev dependencies or composer, and stays within 1.0 GB uncompressed per architecture (E17).
 # Every external image is pinned as tag@sha256 of its multi-arch index (linux/amd64 and linux/arm64, checked with
-# `docker buildx imagetools inspect` on 2026-10-18; golang and FrankenPHP on 2026-10-21, ADR 0093); refresh tag and
-# digest together (ImageContractTest).
+# `docker buildx imagetools inspect` on 2026-10-18; golang on 2026-10-21, FrankenPHP on 2026-11-13, ADR 0093);
+# refresh tag and digest together (ImageContractTest).
 
 FROM composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac AS vendor
 WORKDIR /app
@@ -48,19 +48,20 @@ FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm@sha256:21ade014faf952365b9
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-trimpath
 WORKDIR /src
 
-# Compose v5.6.0 requires golang.org/x/net 0.58.0, which has CVE-2026-78669 (fixed in 0.60.0). The bump is made
-# here and moves x/net 0.58.0 => 0.60.0, x/crypto 0.56.0 => 0.57.0 and x/text 0.41.0 => 0.42.0 (nothing else);
-# go.mod and go.sum after it are pinned by SHA-256. Drop it once a Compose release requires x/net 0.60.0.
+# Compose v5.6.0 requires golang.org/x/net 0.58.0, which has CVE-2026-78669 (fixed in 0.60.0) and CVE-2026-78661
+# (fixed in 0.62.0; Compose v5.7.1 still requires 0.60.0). The bump is made here and moves x/net 0.58.0 => 0.62.0,
+# x/crypto 0.56.0 => 0.58.0, x/text 0.41.0 => 0.43.0, x/sync 0.23.0 => 0.24.0 and x/sys 0.48.0 => 0.49.0 (nothing
+# else); go.mod and go.sum after it are pinned by SHA-256. Drop it once a Compose release requires x/net 0.62.0.
 FROM go-toolchain AS compose-source
 RUN <<'SH'
 set -eu
 git -c advice.detachedHead=false clone --quiet --depth 1 --branch v5.6.0 https://github.com/docker/compose.git .
 test "$(git rev-parse HEAD)" = 42f48072bbf92ee9b0e43f9fdf2008d03546e7ca
-go get golang.org/x/net@v0.60.0
+go get golang.org/x/net@v0.62.0
 go mod tidy
 sha256sum -c - <<'SUMS'
-4fc4a43a1c6d22f08ceae0ab0cebfb35af6d4c99d1b83a79c749b088b8a7748c  go.mod
-88c9f2d713a391c08baf06c9b329d873821fe2001d827b50e98b0e26571a470d  go.sum
+c15c025920a223d47ce0210c74cc3e3ddc8017c829d283619967c8368b681d4f  go.mod
+fffb192694102537bb0261c5a523f2c277a409468f0b059c063294222a975427  go.sum
 SUMS
 go mod download
 SH
@@ -96,10 +97,11 @@ RUN tar -xzf /downloads/docker.tgz -C /out/bin --strip-components=1 docker/docke
  && chown -R root:root /out && chmod 0755 /out/bin/* /out/cli-plugins/* && chmod -R a+rX /out/doc
 
 # PHP runtime: FrankenPHP with the app's extensions, qpdf, curl (healthchecks) and the PGDG Postgres 16 client
-# (E13: pg_dump must match the server major; bookworm ships 15). The PHP base image keeps its build toolchain
+# (E13: pg_dump must match the server major; bookworm ships 15). The client is pinned to an exact version that is not
+# older than the manifest's server (ADR 0093, 2026-11-13: an older pg_dump writes dumps an older server refuses). The PHP base image keeps its build toolchain
 # (compilers, binutils, headers: ~170 MB); it is removed here, and the `runtime` stage flattens the result so
 # that the removal actually shrinks the image.
-FROM dunglas/frankenphp:1-php8.4-bookworm@sha256:88cec19e1b1570b258f3e2d8aa91485dc20ad32920adc132d8b35f0c41affef7 AS runtime-build
+FROM dunglas/frankenphp:1-php8.4-bookworm@sha256:bd101be4e0f384dba7da85bfc8d13911998b4fee4ed42ec7959dc0e67619c161 AS runtime-build
 # PGDG signing key, fingerprint B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8 (postgresql.org/download/linux/debian).
 ADD --checksum=sha256:0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 https://www.postgresql.org/media/keys/ACCC4CF8.asc /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
 # DL4006: the library scan pipes on purpose without pipefail (dpkg-query fails for paths no package owns).
@@ -114,7 +116,7 @@ chmod 0644 /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
 printf 'Types: deb\nURIs: https://apt.postgresql.org/pub/repos/apt\nSuites: %s-pgdg\nComponents: main\nSigned-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc\n' \
   "$VERSION_CODENAME" > /etc/apt/sources.list.d/pgdg.sources
 apt-get update
-apt-get install -y --no-install-recommends qpdf curl media-types postgresql-client-16
+apt-get install -y --no-install-recommends qpdf curl media-types postgresql-client-16=16.16-1.pgdg12+1
 
 # The app listens on 8080: without the file capability FrankenPHP also starts with every capability dropped.
 setcap -r /usr/local/bin/frankenphp

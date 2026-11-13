@@ -153,7 +153,16 @@ it('puts the nonce on Horizon\'s inlined bundle', function (): void {
 
     expect(cspDirectives($response)['script-src'])->toBe("'self' 'nonce-{$nonce}' 'unsafe-eval'")
         ->and(cspDirectives($response)['style-src'])->toBe("'self' 'unsafe-inline' https://fonts.bunny.net")
+        ->and(cspDirectives($response)['font-src'])->toBe("'self' data: https://fonts.bunny.net https://cdn.jsdelivr.net/fontsource/")
         ->and(inlineScriptsWithoutNonce((string) $response->getContent(), $nonce))->toBe([]);
+});
+
+it('keeps the jsDelivr font source out of the admin and Field App policies', function (): void {
+    expect(cspDirectives($this->get('/admin/login'))['font-src'])->not->toContain('jsdelivr');
+
+    withSpaShell('app/index.html', function (): void {
+        expect(cspDirectives($this->get('/app/forms/1')->assertOk())['font-src'])->not->toContain('jsdelivr');
+    });
 });
 
 it('allows the Vite dev server origin while it runs', function (): void {

@@ -81,7 +81,8 @@ services:
     # Compose releases (GitHub runners) treat as a check that never reports, failing `docker compose up --wait`.
 
   postgres:
-    image: postgres:16-alpine
+    # The image instances run (distribution/release.json; PostgresServerPinTest keeps the two equal, ADR 0093).
+    image: docker.io/library/postgres:16.16-alpine@sha256:0adbf25a9e96d38823bb813f3ac0ed41fadb665c88f1df7fe6dbfb060cbdc106
     environment:
       POSTGRES_DB: ${DB_DATABASE:-fieldset}
       POSTGRES_USER: ${DB_USERNAME:-fieldset}
@@ -107,7 +108,7 @@ services:
   # The renderer has no network access (BUILD_PROMPT §8.5): Chromium may not fetch private or
   # public addresses, and the container sits on an internal network shared only with app/queue.
   gotenberg:
-    image: gotenberg/gotenberg:8.38.1-chromium
+    image: gotenberg/gotenberg:8.40.0-chromium
     command:
       - gotenberg
       - --chromium-deny-private-ips=true
