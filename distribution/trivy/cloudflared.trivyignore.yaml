@@ -1,14 +1,24 @@
-# Trivy exceptions for the cloudflared image only (cloudflare/cloudflared:2026.10.2 in distribution/release.json).
+# Trivy exceptions for the cloudflared image only (cloudflare/cloudflared:2026.11.0 in distribution/release.json).
 # Policy (ADR 0071): what we build (the app image) is scanned strictly and has no exception file. A third-party
 # image may carry dated, scoped exceptions for findings without a fix in a released upstream image: one entry per
 # finding id, scoped to the component by `paths` or `purls`, with a `statement` and an `expired_at` at most 90 days
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
-# 1 high finding in the cloudflared binary (both platforms); 30 days (fixed upstream, waiting for a cloudflared release).
+# 3 high findings (both platforms): golang.org/x/net in the cloudflared binary, zlib1g in Debian 13.7; 30 days (fixed upstream, waiting for a cloudflared release). CVE-2026-63209 (klauspost/compress) is fixed in 2026.11.0 and removed.
 
 vulnerabilities:
-  - id: CVE-2026-63209
+  - id: CVE-2026-78661
     paths:
       - usr/local/bin/cloudflared
-    expired_at: 2026-11-20
-    statement: "github.com/klauspost/compress v1.18.0 in the cloudflared binary of 2026.10.2 (2026-10-20, the latest; both platforms); fixed in 1.18.7, still v1.18.0 in 2026.10.2 (Trivy 0.76.0, 2026-10-21), so we wait for a cloudflared release. Reachability not analysed; the tunnel is off by default (ADR 0057)."
+    expired_at: 2026-12-13
+    statement: "golang.org/x/net v0.61.0 in the cloudflared binary of 2026.11.0 (2026-11-12, the newest image; both platforms); fixed in x/net 0.62.0, which no cloudflared release has yet. 30 days (2026-11-13 to 2026-12-13, ADR 0071 and ADR 0093): fixed upstream, only the image release is missing. Reachability not analysed; the tunnel is off by default (ADR 0057)."
+  - id: CVE-2026-76844
+    purls:
+      - pkg:deb/debian/zlib1g
+    expired_at: 2026-12-13
+    statement: "cloudflared 2026.11.0 has Debian 13.7's zlib 1:1.3.dfsg+really1.3.1-1+b1 (zlib1g); fixed in Debian trixie-security 1:1.3.dfsg+really1.3.1-1+deb13u1, which the image does not have yet. 2026.11.0 (2026-11-12) is the newest cloudflared image. 30 days (2026-11-13 to 2026-12-13, ADR 0071 and ADR 0093): fixed upstream, only the image release is missing. Reachability not analysed; the tunnel is off by default (ADR 0057)."
+  - id: CVE-2026-85091
+    purls:
+      - pkg:deb/debian/zlib1g
+    expired_at: 2026-12-13
+    statement: "cloudflared 2026.11.0 has Debian 13.7's zlib 1:1.3.dfsg+really1.3.1-1+b1 (zlib1g); fixed in Debian trixie-security 1:1.3.dfsg+really1.3.1-1+deb13u1, which the image does not have yet. 2026.11.0 (2026-11-12) is the newest cloudflared image. 30 days (2026-11-13 to 2026-12-13, ADR 0071 and ADR 0093): fixed upstream, only the image release is missing. Reachability not analysed; the tunnel is off by default (ADR 0057)."

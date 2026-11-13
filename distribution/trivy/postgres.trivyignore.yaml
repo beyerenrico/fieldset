@@ -1,140 +1,140 @@
-# Trivy exceptions for the postgres image only (postgres:16.15-alpine in distribution/release.json).
+# Trivy exceptions for the postgres image only (postgres:16.16-alpine in distribution/release.json).
 # Policy (ADR 0071): what we build (the app image) is scanned strictly and has no exception file. A third-party
 # image may carry dated, scoped exceptions for findings without a fix in a released upstream image: one entry per
 # finding id, scoped to the component by `paths` or `purls`, with a `statement` and an `expired_at` at most 90 days
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
 # 25 findings (1 critical, 24 high), all in usr/local/bin/gosu; 90 days (not reachable, upstream policy).
-# 1 more high finding in usr/local/bin/gosu, CVE-2026-111943 (Go 1.24.6 stdlib, 2026-10-21); 30 days (reachability not analysed).
+# 1 more high finding in usr/local/bin/gosu, CVE-2026-111943 (Go 1.24.6 stdlib, 2026-10-21); 30 days, renewed 2026-11-13 (no gosu release has a fixed Go).
 
 vulnerabilities:
   - id: CVE-2025-61726
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2025-61729
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2025-68121
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-25679
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-27145
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-32280
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-32281
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-32283
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-33811
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-33814
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-33818
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-39820
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-39821
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-39822
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-39836
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-42499
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-42504
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-56853
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-56858
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-56859
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-56860
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-56862
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-78667
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-78669
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-97031
     paths:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+    statement: "Go 1.24.6 standard library in gosu 1.19, which the official postgres image ships (postgres 16.16-alpine, 2026-11-12); gosu 1.20 (2026-10-25) is built on the same Go 1.24.6. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
   - id: CVE-2026-111943
     paths:
       - usr/local/bin/gosu
-    expired_at: 2026-11-20
-    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release; postgres 16.15-alpine (2026-09-21) is the newest image. Go crypto/x509 (CA distrust mitigation, published 2026-10-21) is fixed in Go 1.26.10 / 1.27.3 (fixed upstream, only the image release is missing: 30 days, ADR 0071). Reachability not analysed with govulncheck; gosu only switches user and execs the entrypoint and makes no TLS connection. Renew only after a reachability analysis."
+    expired_at: 2026-12-13
+    statement: "Go 1.24.6 standard library in gosu 1.19, which postgres 16.16-alpine (2026-11-12, the newest image) ships; gosu 1.20 (2026-10-25) is built on the same Go 1.24.6, so no gosu release has a fixed Go (1.26.10 / 1.27.3). Go crypto/x509 (CA distrust mitigation, published 2026-10-21): 30 days, renewed 2026-11-13 (ADR 0071 and ADR 0093). Reachability not analysed with govulncheck; gosu only switches user and execs the entrypoint and makes no TLS connection. Renew only after a reachability analysis."
