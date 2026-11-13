@@ -27,9 +27,11 @@ use Throwable;
  * in the format of 1.0's `scripts/backup.sh`, which the 1.0 full-restore procedure, the restore drill and `fieldset restore`
  * read (BackupSet::LEGACY): `backups/safety-adopt-<UTC>/` (R57: a safety backup, never pruned, 0700/0600) with
  *
- * - `database.dump`: `pg_dump --format=custom --no-owner --no-privileges`, run in a one-off of the manifest's Postgres
- *   image in 1.0's Postgres container's network namespace (DatabaseProbe), streamed to the file; `pg_restore --list` must
- *   read it;
+ * - `database.dump`: `pg_dump --format=custom --no-owner --no-privileges`, run in a one-off of 1.0's own Postgres image
+ *   in 1.0's Postgres container's network namespace (DatabaseProbe), streamed to the file; `pg_restore --list` must
+ *   read it. 1.0's image, not the manifest's: 1.0 runs the floating `postgres:16-alpine`, and a pg_dump older than the
+ *   server it dumps can write a dump that does not restore (ADR 0093: pg_dump 16.15 copies a 16.16 server's `pg_attver`
+ *   column option, which a 16.15 server refuses). The image of a server is never older than that server;
  * - `storage.tar.gz`: 1.0's app-storage volume, mounted read-only into a one-off of the app image without a network
  *   (GNU tar, numeric owners, `./` members as 1.0 writes them); tar's exit 1 (a file changed) is a warning, as in 1.0;
  * - `env`: the restore allow-list's values without the APP keys (URL, sender, SMTP server; review S1): the keys stay out of
@@ -96,7 +98,7 @@ final readonly class LegacyBackupWriter
     {
         $file = $partial.'/'.self::DATABASE;
         $outcome = $this->docker->runContainerToFile(new ContainerSpec(
-            image: $images['postgres'],
+            image: $this->docker->inspectContainer($legacy->postgres())->image ?? $images['postgres'],
             command: ['-h', '127.0.0.1', '-U', $legacy->username, '-d', $legacy->database, '--format=custom', '--no-owner', '--no-privileges'],
             labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             network: 'container:'.$legacy->postgres(),

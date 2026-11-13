@@ -150,7 +150,7 @@ it('runs as release:check-pg-dump: JSON on success, exit 1 with the reason on a 
 
     try {
         $this->artisan('release:check-pg-dump', ['manifest' => $good, '--mirror' => '127.0.0.1:5000'])
-            ->expectsOutputToContain('"client_major":16,"client_minor":16,"server_major":16,"server_minor":15')
+            ->expectsOutputToContain('"client_major":16,"client_minor":16,"server_major":16,"server_minor":16')
             ->assertSuccessful();
         $this->artisan('release:check-pg-dump', ['manifest' => $newer, '--platform' => ['linux/amd64']])
             ->expectsOutputToContain('older than the manifest')

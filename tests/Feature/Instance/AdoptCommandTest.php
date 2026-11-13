@@ -127,6 +127,7 @@ it('writes the backup in the 1.0 format with only the allow-listed env values bu
         ->and($legacyMounts)->not->toBeEmpty()
         ->and(array_filter($legacyMounts, static fn (string $mount): bool => ! str_ends_with($mount, ':ro')))->toBe([])
         ->and($dump->network)->toBe('container:'.$this->adopt->legacyId('postgres'))
+        ->and($dump->image)->toBe('postgres:16-alpine') // 1.0's own image: its pg_dump is never older than the server it dumps (ADR 0093)
         ->and(implode(' ', $dump->command))->toContain('--format=custom')->not->toContain('legacy-db-secret-1');
 });
 
