@@ -15,10 +15,11 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * R39's release check (plan U22, ADR 0091), run by the release workflow after `release:manifest` and by the local
- * harness: fails when the app image's pg_dump major is below the manifest's Postgres major. Prints one JSON document
+ * harness: fails when the app image's pg_dump is older than the manifest's Postgres, by major or, within the same major,
+ * by minor (ADR 0093). Prints one JSON document
  * with the version found per platform.
  */
-#[Description('Fail when the app image\'s pg_dump major is below the release manifest\'s Postgres major (R39)')]
+#[Description('Fail when the app image\'s pg_dump is older than the release manifest\'s Postgres (R39)')]
 #[Signature('release:check-pg-dump
         {manifest : The release manifest, e.g. dist/release-manifest.json}
         {--mirror= : Pull the app image from this registry instead of its own, e.g. 127.0.0.1:5000 (local harness)}

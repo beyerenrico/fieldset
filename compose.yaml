@@ -81,7 +81,8 @@ services:
     # Compose releases (GitHub runners) treat as a check that never reports, failing `docker compose up --wait`.
 
   postgres:
-    image: postgres:16-alpine
+    # The image instances run (distribution/release.json; PostgresServerPinTest keeps the two equal, ADR 0093).
+    image: docker.io/library/postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     environment:
       POSTGRES_DB: ${DB_DATABASE:-fieldset}
       POSTGRES_USER: ${DB_USERNAME:-fieldset}

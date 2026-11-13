@@ -76,6 +76,38 @@ it('lists everything the Dockerfile clones, downloads or installs from PGDG and 
         ->and(imageBinaries())->toHaveKey('phpredis');
 });
 
+/** The exact PGDG version of `postgresql-client-16` in an `apt-get install`, null when the package floats. */
+function pgdgClientPin(string $instructions): ?string
+{
+    return preg_match('/apt-get install [^\n]*\bpostgresql-client-16=(\d+\.\d+-\d+\.pgdg[\d.]+\+\d+)(?=\s|$)/m', $instructions, $match) === 1 ? $match[1] : null;
+}
+
+it('pins the Postgres client to one exact PGDG version, the inventory\'s, in the app and the CI image and in php-tests', function (): void {
+    $version = imageBinaries()['postgresql-client-16']['version'];
+    $app = pgdgClientPin(imageDockerfile()->stage('runtime-build'));
+    $ci = pgdgClientPin((string) file_get_contents(base_path('docker/ci/Dockerfile')));
+    $workflow = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
+
+    expect($version)->toMatch('/^16\.\d+$/')
+        ->and($app)->not->toBeNull('docker/app/Dockerfile installs postgresql-client-16 without an exact version')
+        ->and($app)->toStartWith($version.'-')
+        ->and($ci)->toBe($app)
+        ->and(preg_match('/^  PG_CLIENT_VERSION: (\S+)$/m', $workflow, $env))->toBe(1)
+        ->and($app)->toStartWith($env[1].'.pgdg')
+        ->and($workflow)->toContain('"postgresql-client-16=${PG_CLIENT_VERSION}.pgdg${VERSION_ID}+1"')
+        ->and($workflow)->not->toMatch('/apt-get install [^\n]*\bpostgresql-client(-\d+)?(\s|$)/');
+});
+
+it('reads no pin from an install that lets the client float', function (string $install): void {
+    expect(pgdgClientPin($install))->toBeNull();
+})->with([
+    'no version' => ['apt-get install -y --no-install-recommends qpdf curl media-types postgresql-client-16'],
+    'major only' => ['apt-get install -y postgresql-client-16=16*'],
+    'minor without the package revision' => ['apt-get install -y postgresql-client-16=16.16'],
+    'wildcard revision' => ['apt-get install -y postgresql-client-16=16.16-*'],
+    'the metapackage' => ['apt-get install -y qpdf poppler-utils postgresql-client'],
+]);
+
 it('ships the license and notice files the tools stage collects for the binaries it adds', function (): void {
     $tools = imageDockerfile()->stage('tools');
 
