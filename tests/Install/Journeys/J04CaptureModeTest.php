@@ -8,6 +8,8 @@ use Tests\Support\Docker\InstanceJourney;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * J4 (BUILD_PROMPT_V2 §11, plan U12, AE1 as amended by R59, AE9; ADR 0080): capture mode on a real local install.
  * install.sh → an invitation goes through the queue into the catcher (read with the login from

@@ -11,6 +11,8 @@ use Tests\Support\Docker\TestImage;
 use Tests\Support\Instance\ComposeFixtures;
 use Tests\Support\Instance\TemporaryInstance;
 
+pest()->group('smoke');
+
 /*
  * U3 / M9-T04: real `docker compose config` accepts the rendered project (plan U3 verification). Nothing is
  * started: `config` only parses and normalizes, so the journey must leave no container, volume or network.

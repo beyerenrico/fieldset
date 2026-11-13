@@ -8,6 +8,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * J3 (BUILD_PROMPT_V2 §11, plan U9, ADR 0076): proxy mode behind the harness Traefik on a shared external
  * network, with the harness release and real Docker. install.sh --behind-proxy traefik → only the app joins the

@@ -11,6 +11,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * J2 (BUILD_PROMPT_V2 §11, plan U8; ADR 0075): domain mode against Pebble with challtestsrv. install.sh → fieldset install
  * --domain with Pebble as the ACME directory → the edge gets a certificate whose chain verifies against Pebble's

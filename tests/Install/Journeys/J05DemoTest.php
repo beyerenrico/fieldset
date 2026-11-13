@@ -19,6 +19,8 @@ use Tests\Support\Docker\RestoreJourney;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * J5, demo part (BUILD_PROMPT_V2 §11, AE2, R29, R30; plan U13; ADR 0081), with real Docker against the harness release:
  *

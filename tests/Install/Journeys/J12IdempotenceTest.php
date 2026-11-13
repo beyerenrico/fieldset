@@ -8,6 +8,8 @@ use Tests\Support\Docker\InstanceJourney;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * J12 (BUILD_PROMPT_V2 §11, plan U5): idempotence and errors with real Docker against the harness release.
  * AE3 a second install with the same flags changes nothing and touches no container; AE4 with 8080 taken the

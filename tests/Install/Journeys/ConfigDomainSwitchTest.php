@@ -10,6 +10,8 @@ use Tests\Support\Docker\InstanceJourney;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * `fieldset config` against real Docker and Pebble (plan U11, PLAN M10-T04; R21, R31, R32, R54, KTD26; ADR 0077). A local
  * install from the harness release → `config show` → with an organization using SAML SSO, `config set domain`

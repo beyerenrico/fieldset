@@ -1,33 +1,108 @@
-# Install journeys (BUILD_PROMPT_V2 §11, plan U22; ADR 0091 and its amendment of 2026-10-22).
+# Install journeys (BUILD_PROMPT_V2 §11, plan U22; ADR 0091 as amended by ADR 0096).
 #
-# The whole Install suite against real Docker and the local harness (KTD23), the dogfooding E2E run included. It takes
-# about 2 h 10 m on a GitHub runner, so pushes and pull requests run CI without it. It runs every night on main, on
-# demand (Actions → Install journeys → Run workflow, on any branch), and from the release workflow, which builds,
-# signs and publishes nothing before it passes on the tagged commit.
+# Every journey runs against real Docker and the local harness (KTD23), the dogfooding E2E run included, in tiers (Pest
+# groups on the files of tests/Install/Journeys, one per file) and shards (an explicit list of test classes per job, so
+# no job runs much longer than 30 minutes):
+#   smoke   shards smoke-a, smoke-b: bootstrap, harness release, compose and edge config, J1 install, J7 upgrade, J8 backup
+#           and restore. Nightly on main, on pull requests that touch the instance code, the distribution, the Docker
+#           files or the journeys, and the default of a manual run.
+#   full    shards full-1 to full-5: the other journeys but J10.
+#   budget  shard budget: J10, the resource budget (about an hour on its own).
+#   all     every shard, in parallel. The release workflow passes it: it builds, signs and publishes nothing before the
+#           gate job of this workflow is green on the tagged commit.
+# The shard lists live in the SHARDS variable of the plan job and nowhere else; InstallJourneysJobTest pins that they cover
+# the journey files exactly once. The gate job is the one result callers and branch protection look at.
+#
+# Pull requests use the plain `pull_request` trigger (never the privileged variant), only from branches of this repository, with a
+# read-only token and no credentials. A new commit cancels the running pull request jobs; nothing else is cancelled.
 
 name: Install journeys
 
 on:
   schedule:
     - cron: '17 2 * * *'
+  pull_request:
+    paths:
+      - 'app/Domain/Instance/**'
+      - 'app/Domain/Platform/Instance/**'
+      - 'distribution/**'
+      - 'docker/**'
+      - 'tests/Install/**'
+      - 'tests/Support/Instance/**'
+      - '.github/workflows/install-journeys.yml'
   workflow_dispatch:
+    inputs:
+      tier:
+        description: Which journeys to run
+        type: choice
+        options: [smoke, full, budget, all]
+        default: smoke
   workflow_call:
+    inputs:
+      tier:
+        description: Which journeys to run (smoke, full, budget or all; empty means smoke)
+        type: string
+        default: smoke
 
 permissions: {}
+
+concurrency:
+  group: install-journeys-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   PHP_VERSION: '8.4'
   NODE_VERSION: '24'
 
 jobs:
-  # Every journey on amd64 (§11; arm64 runs locally), the dogfooding E2E run included (plan U22, ADR 0091): Playwright,
-  # its Chromium and poppler for J4, J6, J10 and the E2E suite, the v1.0.0 tag for J9's 1.0 install, a 2-CPU-pinnable
-  # runner for J10. FIELDSET_REQUIRE_DOCKER and FIELDSET_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of
-  # a skip; only LocalPreReleaseTest skips (it builds a named pre-release, FIELDSET_PRERELEASE_VERSION, at a milestone
-  # gate).
-  install-journeys:
+  # Turns the tier into the matrix of shards. Schedule and pull request runs have no input: they run smoke.
+  plan:
+    name: Select the shards
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - id: select
+        env:
+          REQUESTED_TIER: ${{ inputs.tier }}
+          SHARDS: |
+            [
+              {"shard": "smoke-a", "tier": "smoke", "timeout": 45, "filter": "(BootstrapJourneyTest|HarnessReleaseTest|ComposeConfigJourneyTest|EdgeConfigJourneyTest|J01LocalInstallTest|J07UpgradeTest)"},
+              {"shard": "smoke-b", "tier": "smoke", "timeout": 45, "filter": "(J08BackupRestoreTest)"},
+              {"shard": "full-1", "tier": "full", "timeout": 45, "filter": "(J06PhoneHttpsTest|J03ProxyModeTest|J02DomainModeTest)"},
+              {"shard": "full-2", "tier": "full", "timeout": 45, "filter": "(ConfigDomainSwitchTest|J12IdempotenceTest|ImageContractJourneyTest)"},
+              {"shard": "full-3", "tier": "full", "timeout": 45, "filter": "(J04CaptureModeTest|J05DemoTest)"},
+              {"shard": "full-4", "tier": "full", "timeout": 45, "filter": "(J09AdoptTest|J11AgentGuideTest)"},
+              {"shard": "full-5", "tier": "full", "timeout": 45, "filter": "(DogfoodE2ETest|LocalPreReleaseTest)"},
+              {"shard": "budget", "tier": "budget", "timeout": 120, "filter": "(J10ResourceBudgetTest)"}
+            ]
+        run: |
+          tier="${REQUESTED_TIER:-smoke}"
+          case "$tier" in
+            smoke | full | budget | all) ;;
+            *) echo "Unknown tier '$tier' (smoke, full, budget or all)" >&2; exit 1 ;;
+          esac
+          matrix="$(jq -c --arg tier "$tier" '{include: map(select($tier == "all" or .tier == $tier))}' <<< "$SHARDS")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Tier $tier: $matrix"
+
+  # Every shard on amd64 (§11; arm64 runs locally): Playwright, its Chromium and poppler for J4, J6, J10 and the E2E suite
+  # (installed in every shard for simplicity), the v1.0.0 tag for J9's 1.0 install, a 2-CPU-pinnable runner for J10.
+  # FIELDSET_REQUIRE_DOCKER and FIELDSET_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of a skip; only
+  # LocalPreReleaseTest skips (it builds a named pre-release, FIELDSET_PRERELEASE_VERSION, at a milestone gate).
+  journeys:
+    name: Journeys (${{ matrix.shard }})
+    needs: plan
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     permissions:
       contents: read
     env:
@@ -68,12 +143,33 @@ jobs:
           path: storage/fieldset-test-cache
           key: fieldset-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
           restore-keys: fieldset-test-cache-
-      - run: vendor/bin/pest --testsuite=Install
+      - name: Run the shard's journeys
+        env:
+          FILTER: ${{ matrix.filter }}
+        run: vendor/bin/pest --testsuite=Install --filter="$FILTER"
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: install-journey-logs
+          name: install-journey-logs-${{ matrix.shard }}
           path: |
             storage/agent-logs
             docs/agent/milestones/evidence/M13
           if-no-files-found: ignore
+
+  # One result for callers and branch protection: green only when the plan and every shard that was selected succeeded.
+  # `always()` keeps it from being skipped when a shard fails; a cancelled or failed shard fails it.
+  gate:
+    name: Install journeys gate
+    needs: [plan, journeys]
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      PLAN_RESULT: ${{ needs.plan.result }}
+      JOURNEYS_RESULT: ${{ needs.journeys.result }}
+    steps:
+      - run: |
+          echo "plan: $PLAN_RESULT, journeys: $JOURNEYS_RESULT"
+          [ "$PLAN_RESULT" = success ] && [ "$JOURNEYS_RESULT" = success ]

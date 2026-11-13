@@ -10,6 +10,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * Dogfooding (BUILD_PROMPT_V2 §11, §15.6; plan U22; ADR 0091): the existing E2E suite (Playwright project `desktop`, two
  * workers) against a local-mode `--demo` instance that install.sh and `fieldset install` set up from the harness release.

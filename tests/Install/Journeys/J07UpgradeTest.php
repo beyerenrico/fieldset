@@ -10,6 +10,8 @@ use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 use Tests\Support\Docker\UpgradeJourney;
 
+pest()->group('smoke');
+
 /*
  * J7 (BUILD_PROMPT_V2 §11, R33–R37, R55, R57, R62, AE7, F5; plan U18; ADR 0086) with real Docker. Releases built
  * locally into the harness: 2.1.0-rc.1-test (installed), and three targets derived from it: rc.2-test adds a migration
