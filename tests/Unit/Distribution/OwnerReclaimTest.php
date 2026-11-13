@@ -115,7 +115,8 @@ it('gives the root-owned leftovers of a failed 2.1.0 install back to the measure
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(array_map(ownerEntrypoint(...), $mounting))->toBe(['stat', 'find', 'fieldset'])
-        ->and(array_slice($reclaim, 0, 9))->toBe(['run', '--rm', '--network', 'none', '--label', 'app.fieldset.role=owner', '--user', '0:0', '--entrypoint'])
+        ->and(array_slice($reclaim, 0, 16))->toBe(['run', '--rm', '--network', 'none', '--label', 'app.fieldset.role=owner', '--user', '0:0',
+            '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--cap-add', 'CHOWN', '--cap-add', 'DAC_READ_SEARCH'])
         ->and(array_slice($reclaim, array_search('--entrypoint', $reclaim, true)))->toBe([
             '--entrypoint', 'find', '-v', "{$this->dir}:{$this->dir}", $this->image,
             $this->dir, '-xdev', '-uid', '0', '!', '-type', 'l', '(', '-type', 'd', '-o', '-links', '1', ')', '-exec', 'chown', '-h', "{$this->uid}:{$this->gid}", '{}', '+',

@@ -208,8 +208,8 @@ it('hands over to fieldset install in an ops container with the host facts, moun
     $gid = trim((string) shell_exec('id -g'));
 
     expect($process->getExitCode())->toBe(6)
-        ->and(array_slice($run, 0, 20))->toBe([
-            'run', '--rm', '--init', '--label', 'app.fieldset.role=ops', '--user', "{$uid}:{$gid}", '--tmpfs', "/run/fieldset-home:mode=0700,uid={$uid},gid={$gid}",
+        ->and(array_slice($run, 0, 24))->toBe([
+            'run', '--rm', '--init', '--label', 'app.fieldset.role=ops', '--user', "{$uid}:{$gid}", '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--tmpfs', "/run/fieldset-home:mode=0700,uid={$uid},gid={$gid}",
             '-e', 'HOME=/run/fieldset-home', '-e', 'DOCKER_CONFIG=/run/fieldset-home/.docker',
             '-e', 'DOCKER_HOST=unix:///var/run/docker.sock', '-v', '/var/run/docker.sock:/var/run/docker.sock', '-v', "{$this->dir}:{$this->dir}", '-w',
         ])

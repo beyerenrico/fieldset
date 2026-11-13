@@ -322,10 +322,26 @@ fieldset_state_owner() { # <state.json>: sets fieldset_saved_uid, _runtime and _
 	fieldset_saved_group=${fieldset_saved#* }
 }
 
+# Capabilities of the helper containers and of the ops container (ADR 0097). Every container drops all of them and cannot
+# gain privileges; only these come back. Defense in depth: the mounted Docker socket still makes the ops container
+# root-equivalent on the host.
+fieldset_caps_measure='DAC_READ_SEARCH' # stat of the nonce file in the 0700 instance dir, owned by a user other than container root (rootful Linux)
+fieldset_caps_reclaim='CHOWN DAC_READ_SEARCH' # find as root in that dir, chown -h of the entries a failed 2.1.0 install left to root
+fieldset_caps_ops_root='CHOWN DAC_OVERRIDE FOWNER' # ops as 0:0, when files or the socket may belong to another UID: lchown by SafeFiles and BackupStore, opening files and the socket, chmod of files of other owners
+
+fieldset_harden() { # [<capabilities, space-separated>]: sets fieldset_hardening for a docker run; none keeps no capability
+	fieldset_hardening='--cap-drop ALL --security-opt no-new-privileges'
+	for fieldset_cap in ${1:-}; do
+		fieldset_hardening="$fieldset_hardening --cap-add $fieldset_cap"
+	done
+}
+
 fieldset_measure() { # the measuring container (KTD2, KTD4); sets fieldset_measured_uid, _group and _mode
 	# Container root of the verified image reads the owner of the nonce file the host user just wrote (0: root maps to the
 	# host user; the host UID: IDs pass through) and the mounted socket as containers see it. Nothing is written.
-	fieldset_measured=$(docker run --rm --network none --label app.fieldset.role=owner --user 0:0 --entrypoint stat \
+	fieldset_harden "$fieldset_caps_measure"
+	# shellcheck disable=SC2086 # fieldset_hardening is flags separated by spaces, none of them contains one
+	fieldset_measured=$(docker run --rm --network none --label app.fieldset.role=owner --user 0:0 $fieldset_hardening --entrypoint stat \
 		-v "$fieldset_socket:/var/run/docker.sock:ro" -v "$fieldset_dir:$fieldset_dir:ro" "$fieldset_image" \
 		-L -c '%u %g %a' "$fieldset_dir/$FIELDSET_NONCE" /var/run/docker.sock 2>"$fieldset_tmp/measure") || return 1
 	fieldset_measured=$(printf '%s\n' "$fieldset_measured" | awk 'NR == 1 { owner = $1 } NR == 2 { group = $2; mode = $3 }
@@ -401,7 +417,9 @@ fieldset_reclaim() { # R24, KTD12: entries a failed 2.1.0 install left to root g
 	case $fieldset_command in install | adopt) ;; *) return 0 ;; esac
 	[ "${fieldset_leftover:-0}" = 1 ] && [ "$FIELDSET_OWNER_SOURCE" = measured ] && [ "$fieldset_container_uid" != 0 ] && [ ! -f "$fieldset_dir/state.json" ] || return 0
 	# Owners only, on the instance's file system, never of or through a symlink, never of a file with a second hard link.
-	docker run --rm --network none --label app.fieldset.role=owner --user 0:0 --entrypoint find -v "$fieldset_dir:$fieldset_dir" "$fieldset_image" \
+	fieldset_harden "$fieldset_caps_reclaim"
+	# shellcheck disable=SC2086 # fieldset_hardening is flags separated by spaces, none of them contains one
+	docker run --rm --network none --label app.fieldset.role=owner --user 0:0 $fieldset_hardening --entrypoint find -v "$fieldset_dir:$fieldset_dir" "$fieldset_image" \
 		"$fieldset_dir" -xdev -uid 0 ! -type l '(' -type d -o -links 1 ')' -exec chown -h "$fieldset_container_uid:$FIELDSET_HOST_GID" '{}' + >/dev/null 2>"$fieldset_tmp/reclaim" ||
 		fieldset_fail 3 instance_unwritable "Cannot give the files an earlier install left to root in $fieldset_dir back to UID $fieldset_container_uid: $(tail -n 1 "$fieldset_tmp/reclaim" 2>/dev/null)" \
 			"Give them back yourself (sudo chown -R -h $fieldset_container_uid:$FIELDSET_HOST_GID $fieldset_dir), then run install.sh again."
@@ -641,7 +659,13 @@ fieldset_run_container() { # <fieldset args…>: the ops container (ADR 0070); r
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin
 	# or config into the process that holds the socket.
-	set -- --rm --init --label app.fieldset.role=ops --user "$fieldset_user" \
+	if [ "$fieldset_user" = 0:0 ]; then
+		fieldset_harden "$fieldset_caps_ops_root"
+	else
+		fieldset_harden
+	fi
+	# shellcheck disable=SC2086 # fieldset_hardening is flags separated by spaces, none of them contains one
+	set -- --rm --init --label app.fieldset.role=ops --user "$fieldset_user" $fieldset_hardening \
 		--tmpfs "/run/fieldset-home:mode=0700,uid=${fieldset_user%%:*},gid=${fieldset_user#*:}" -e HOME=/run/fieldset-home -e DOCKER_CONFIG=/run/fieldset-home/.docker \
 		-e DOCKER_HOST=unix:///var/run/docker.sock -v "$fieldset_socket:/var/run/docker.sock" -v "$fieldset_dir:$fieldset_dir" -w "$fieldset_dir" "$@"
 	fieldset_docker_run "$@"
