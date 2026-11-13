@@ -16,6 +16,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('budget');
+
 /*
  * J10 (BUILD_PROMPT_V2 §11, E16, §2.3 "Small"; plan U15; ADR 0083): the shipped stack inside the E16 envelope. Domain mode
  * with capture mail against Pebble (as J2), no Keycloak, the scheduler running and production Horizon settings. Memory:

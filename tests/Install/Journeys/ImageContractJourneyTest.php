@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Symfony\Component\Process\Process;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * U1 / M9-T02 image contract on the built image (R1, R5, R6, E17, KTD8, KTD9, ADR 0065). Builds
  * `fieldset-test-u1:latest` natively, or `fieldset-test-u1:<arch>` with FIELDSET_TEST_PLATFORM=linux/<arch> under emulation.

@@ -7,6 +7,8 @@ use App\Domain\Instance\Release\ReleaseManifest;
 use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('smoke');
+
 /*
  * U7 / M9-T06: build, sign and serve a release in the local harness (R1–R4, R8, E14, E18, KTD22, KTD23,
  * ADR 0064, ADR 0067). One harness release is published for the whole file: the app image (APP_VERSION

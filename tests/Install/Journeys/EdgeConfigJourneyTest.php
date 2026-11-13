@@ -13,6 +13,8 @@ use Tests\Support\Instance\DomainFixtures;
 use Tests\Support\Instance\PhoneFixtures;
 use Tests\Support\Instance\TemporaryInstance;
 
+pest()->group('smoke');
+
 /*
  * Plan U8 (ADR 0075): the rendered domain-mode project is accepted by real `docker compose config`, and the rendered
  * Caddyfile by `caddy validate` of the pinned Caddy image, as the edge mounts it (read-only, non-root). Nothing is

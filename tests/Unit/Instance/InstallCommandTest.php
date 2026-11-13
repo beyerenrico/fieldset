@@ -202,7 +202,9 @@ it('exits 3 before pulling anything when the domain resolves elsewhere (AE5)', f
         ->and($dns['details']['a'])->toBe(['203.0.113.10'])
         ->and($this->fixture->docker->called('pullImage'))->toBe([])
         ->and($this->fixture->docker->called('composeUp'))->toBe([])
-        ->and($this->fixture->directory->hasState())->toBeFalse();
+        ->and($this->fixture->directory->hasState())->toBeFalse()
+        ->and(is_dir($this->fixture->directory->path('env')))->toBeFalse()
+        ->and($this->fixture->directory->exists('operations/current.json'))->toBeFalse();
 });
 
 it('exits 4 on a failed smoke test and resumes there with a fresh sign-in link', function (): void {

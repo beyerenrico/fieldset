@@ -11,6 +11,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * J6 (BUILD_PROMPT_V2 §11, R19, R20, R29, R61, R65, AE6, F3; plan U14; ADR 0082), with real Docker against the harness
  * release:

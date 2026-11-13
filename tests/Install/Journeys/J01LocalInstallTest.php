@@ -7,6 +7,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('smoke');
+
 /*
  * J1 (BUILD_PROMPT_V2 §11, plan U5): a local install from the harness release with the harness build of
  * install.sh and real Docker. install.sh → fieldset install → instance up → the owner's sign-in link leads into the

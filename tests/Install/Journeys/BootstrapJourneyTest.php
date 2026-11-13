@@ -18,6 +18,8 @@ use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('smoke');
+
 /*
  * U4 / M9-T07: install.sh and the shim against the local release harness with real Docker (R7, R8, R58, KTD2,
  * ADR 0070). The shared harness release (harness builds of the image and install.sh, SharedHarness) serves the

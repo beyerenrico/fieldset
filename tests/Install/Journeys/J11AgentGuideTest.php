@@ -9,6 +9,8 @@ use Tests\Support\Docker\TestImage;
 use Tests\Support\Docs\GuideBlocks;
 use Tests\Support\Docs\GuideCommand;
 
+pest()->group('full');
+
 /*
  * J11 (BUILD_PROMPT_V2 §11, R51, plan U21): the agent guide's doc-test. Every `sh runnable` block of
  * docs/guide/agent-guide.md runs, in the guide's order, against the harness release (install.sh of the release, the

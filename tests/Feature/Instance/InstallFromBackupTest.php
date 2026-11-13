@@ -164,6 +164,23 @@ it('uses the APP key inside an encrypted backup with secrets, and keeps the othe
         ->and(json_encode($json))->not->toContain(BackupSetFixture::PASSPHRASE)->not->toContain(BackupSetFixture::OTHER_KEY);
 });
 
+it('installs from an encrypted backup with --identity-file, --passphrase-file and --app-key-file, authenticated by the key file', function (): void {
+    $dir = BackupSetFixture::fieldset($this->move->outside.'/manual-20261019T130000Z');
+    $file = BackupSetFixture::encrypt($dir);
+    $identity = BackupSetFixture::identityFile($this->move->outside.'/identity.age');
+    file_put_contents($this->move->outside.'/passphrase', BackupSetFixture::PASSPHRASE);
+
+    [$refused, $refusedJson] = $this->move->install($file, ['--identity-file' => $identity, '--passphrase-file' => $this->move->outside.'/passphrase']);
+    [$code, $json] = $this->move->install($file, ['--identity-file' => $identity, '--passphrase-file' => $this->move->outside.'/passphrase', '--app-key-file' => $this->move->keyFile()]);
+
+    expect($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('backup_unauthenticated')
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['from_backup'])->toMatchArray(['backup' => 'manual-20261019T130000Z', 'encrypted' => true, 'authenticated' => true])
+        ->and($json['data']['webhooks'])->toBe('paused')
+        ->and(new EnvFiles($this->move->instance->directory)->read('app')['APP_KEY'])->toBe(BackupSetFixture::APP_KEY)
+        ->and(json_encode($json))->not->toContain(BackupSetFixture::PASSPHRASE)->not->toContain(BackupSetFixture::APP_KEY);
+});
+
 it('refuses the flags a move does not take, and --from-backup flags without it', function (bool $withBackup, array $flags, string $error): void {
     $backup = $this->move->backup();
 

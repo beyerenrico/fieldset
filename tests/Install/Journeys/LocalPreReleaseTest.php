@@ -12,6 +12,8 @@ use Tests\Support\Docker\InstanceJourney;
 use Tests\Support\Docker\ReleaseHarness;
 use Tests\Support\Docker\TestImage;
 
+pest()->group('full');
+
 /*
  * The milestone pre-release, built and tested locally (BUILD_PROMPT_V2 §12, §15.6, E18; ADR 0064, ADR 0067). Runs
  * only with FIELDSET_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1): the harness publishes exactly that version as a multi-arch

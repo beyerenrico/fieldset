@@ -10,6 +10,8 @@ use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 use Tests\Support\Docker\V1Install;
 
+pest()->group('full');
+
 /*
  * J9 (BUILD_PROMPT_V2 §11, R46 as changed by R60, F7, KTD20; plan U19; ADR 0087), with real Docker: a 1.0.0 install
  * built from the local tag `v1.0.0` and started as its install guide says (V1Install), with demo data and a file in its

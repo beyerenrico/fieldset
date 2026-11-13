@@ -162,6 +162,27 @@ it('turns encryption on first with --encrypt, then backs up', function (): void 
         ->and($strayCode)->toBe(2)->and($stray['errors'][0]['code'])->toBe('invalid_flag');
 });
 
+it('turns encryption on and includes the secrets in one call: --encrypt --include-secrets --identity-out --passphrase-file', function (): void {
+    app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
+    file_put_contents($this->outside.'/pass', 'a long enough passphrase');
+    $this->instance->backupOutcome = InstanceCommandFixture::backupRun('manual', ['encrypted' => true, 'result' => [
+        'backup' => 'manual-20261019T120000Z', 'kind' => 'manual', 'created_at' => '2026-10-19T12:00:00Z', 'bytes' => 52_431, 'encrypted' => true, 'includes_secrets' => true,
+        'files' => ['referenced' => 3, 'missing' => 0, 'missing_sample' => []], 'app_key_fingerprints' => ['0123-4567-89ab-cdef'], 'warnings' => [],
+    ]]);
+
+    [$code, $json] = $this->instance->run('fieldset:backup', ['--encrypt' => true, '--include-secrets' => true, '--identity-out' => $this->outside.'/id.age', '--passphrase-file' => $this->outside.'/pass']);
+    $app = new EnvFiles($this->instance->directory)->read('app');
+    $run = backupOneOffs($this->instance)[0];
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'encrypted' => true, 'includes_secrets' => true])
+        ->and($json['data']['path'])->toBeString()
+        ->and($this->instance->state()->recipients())->not->toBe([])
+        ->and(file_exists($this->outside.'/id.age'))->toBeTrue()
+        ->and($run['command'])->toContain('--include-secrets')
+        ->and($this->instance->backupInput)->toContain('APP_KEY=')->toContain($app['APP_KEY'])->not->toContain('DB_PASSWORD');
+});
+
 it('refuses an instance without a backup service or not installed yet', function (): void {
     $compose = json_decode((string) preg_replace('/\A(#[^\n]*\n)+/', '', (string) $this->instance->directory->read('compose.yaml')), true);
     unset($compose['services']['backup']);

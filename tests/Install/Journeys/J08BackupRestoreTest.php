@@ -16,6 +16,8 @@ use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 use Tests\Support\Instance\RecordingDockerGateway;
 
+pest()->group('smoke');
+
 /*
  * J8, backup half (BUILD_PROMPT_V2 §11, R38–R40, R57, R67, E13; plan U16; ADR 0084), with real Docker against the
  * harness release (U17 adds the restore half):

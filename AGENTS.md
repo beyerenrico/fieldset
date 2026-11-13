@@ -41,6 +41,7 @@ npm run conformance                                      # PHP + JS conformance 
 npm run -w resources/field-app build                     # Field App build
 npm run e2e                                              # Playwright (browsers in storage/playwright)
 vendor/bin/pest --testsuite=Install                      # install journeys (real Docker, names with fieldset-test-)
+vendor/bin/pest --testsuite=Install --group=smoke        # one tier: smoke (PR + nightly), full, budget (ADR 0096); CI tier `all` before a release
 vendor/bin/pest --testsuite=Install tests/Install/Journeys/DogfoodE2ETest.php   # E2E suite against a fieldset instance (ADR 0091)
 (cd docs/site && npm ci && npm test)                     # docs site: own package and lockfile (ADR 0094)
 API_VERSION=dev php artisan scramble:export --path=storage/agent-logs/openapi.json   # OpenAPI export for the site (migrated DB)
