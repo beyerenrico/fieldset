@@ -50,6 +50,11 @@ guessing it.
   belong to you (ADR 0095).
 
 ### Security
+- **Image updates** — the app image uses FrankenPHP 1.13.5 (PHP 8.4.27, Caddy 2.11.9: go-jose 4.1.8, CVE-2026-116587)
+  and builds Compose with golang.org/x/net 0.62.0 (CVE-2026-78661); postgres 16.16, valkey 8.1.11, Gotenberg 8.40.0
+  (the last 8.x release), Mailpit 1.33.1, Caddy 2.11.9 and cloudflared 2026.11.0 replace the 2.1.0 pins. Dated scan
+  exceptions that remain run to 2026-12-13 (zlib in Gotenberg and cloudflared, x/net in Caddy and cloudflared) and to
+  2027-01-16 (gosu in postgres) (ADR 0093).
 - **Livewire 4.4.8** — fixes an authorization bypass in Livewire's `#[Authorize]` with reordered parameter keys and the
   `#[Json]` execution order (GHSA-mhf7-xp6r-6qrc; 2.1.0 shipped 4.4.7).
 - **Docs site API reference** — `@scalar/api-reference` 1.76.0 pulls a fixed undici (GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472,

@@ -47,7 +47,7 @@ jobs:
     services:
       # The image instances run (distribution/release.json; PostgresServerPinTest keeps the two equal, ADR 0093).
       postgres:
-        image: docker.io/library/postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        image: docker.io/library/postgres:16.16-alpine@sha256:0adbf25a9e96d38823bb813f3ac0ed41fadb665c88f1df7fe6dbfb060cbdc106
         env:
           POSTGRES_DB: fieldset_test
           POSTGRES_USER: fieldset
@@ -57,14 +57,14 @@ jobs:
           --health-cmd "pg_isready -U fieldset" --health-interval 5s --health-timeout 5s --health-retries 10
       # Document rendering integration tests (ADR 0028); GOTENBERG_URL in .env.example points at 13000.
       gotenberg:
-        image: gotenberg/gotenberg:8.38.1-chromium
+        image: gotenberg/gotenberg:8.40.0-chromium
         ports: ['13000:3000']
       # Queue drain tests (Redis queue) and the Mailpit integration tests; host ports as in .env.example.
       redis:
         image: valkey/valkey:8-alpine
         ports: ['63799:6379']
       mailpit:
-        image: axllent/mailpit:v1.31
+        image: axllent/mailpit:v1.33
         ports: ['11025:1025', '18025:8025']
     env:
       DB_HOST: 127.0.0.1
@@ -255,7 +255,7 @@ jobs:
     # The export reads a migrated database, as in php-tests.
     services:
       postgres:
-        image: docker.io/library/postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        image: docker.io/library/postgres:16.16-alpine@sha256:0adbf25a9e96d38823bb813f3ac0ed41fadb665c88f1df7fe6dbfb060cbdc106
         env:
           POSTGRES_DB: fieldset_test
           POSTGRES_USER: fieldset
