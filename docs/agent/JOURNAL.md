@@ -450,3 +450,14 @@
 - Measured on this Mac: VirtioFS shows host files owned by the reader; measurement runs as container root (LEARNINGS 180).
 - Units U1–U8, U14, U15 committed; simplify; 11-agent review, 8 findings validated, #1 fixed, 7 recorded as residuals.
   Full suite 7847/7847 before simplify; PR #1 opened; no tags pushed.
+
+## 2026-11-13 Maintenance pass (maint-ci-green and four stacked branches, PRs #5–#9)
+- Human asked for an analysis, then for all findings fixed; chose "Branches + PRs" and cut real-Docker coverage ("I do
+  not want to run 2h long actions"). Local main fast-forwarded to 57480d5d. No merges, no tags.
+- #5 CI green: Postgres client pinned to 16.16 (Ubuntu 26.04 runner had 18), J09 adopt dumps with 1.0's image
+  (`pg_attver`, 16.16; first diagnosis wrong), Horizon CSP font host, audit and image-scan fixes, pins refreshed.
+- #6 journey tiers (ADR 0096): smoke shards 19–24 min, budget 66 min, was 2 h 21 min in one job; ops container drops
+  capabilities.
+- #7 docs for 2.0/2.1; #8 mail allow-list, import baseline, `DomainRefusal`, line limit 300 (ADR 0097); #9 records.
+- Full local suites about 7,900 tests per branch. `tier: full` rerun for J09 dispatched (43475292965), unread.
+- Open: 2.1.1 for adopted instances (QUESTIONS 82c); LEARNINGS 181–192.

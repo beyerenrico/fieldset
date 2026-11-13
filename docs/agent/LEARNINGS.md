@@ -26,7 +26,7 @@
 21. pdf-lib 1.17.1 cannot create signature fields or encrypt: the fixture builds the /Sig field dict by hand; encrypted fixtures come from `qpdf --encrypt` (`--deterministic-id` is refused with encryption, so regenerating changes encrypted-*.pdf bytes — restore them from git when nothing else changed).
 22. Not reproducible with generated fixtures (no real Acrobat files): exact Acrobat script spellings beyond the AF* calls tested, Simplified Field Notation, JS streams with non-Flate filters, text in Type0/CID fonts or form XObjects (labels then fall back to the field name), check-box groups with distinct export values. Handled by text patterns/heuristics and covered with synthetic inputs only.
 23. Storage::fake('local') wipes storage/framework/testing/disks/local in every concurrent test run; tests that hand files to an external process (qpdf) use their own fake disk name.
-24. qpdf on the host: `QPDF_BINARY=scripts/qpdf` (phpunit.xml) runs a local qpdf or `docker run form-schema-app-ci qpdf` (~0.2–0.5 s per call, paths resolved with `pwd -P` because macOS /tmp is a symlink). PDF tests no longer skip (supersedes the skip note in #3); unit tests use the stored `tests/Fixtures/pdf/*.qpdf.json` dumps.
+24. qpdf on the host: `QPDF_BINARY=scripts/qpdf` (phpunit.xml) runs a local qpdf or `docker run fieldset-ci qpdf` (~0.2–0.5 s per call, paths resolved with `pwd -P` because macOS /tmp is a symlink). PDF tests no longer skip (supersedes the skip note in #3); unit tests use the stored `tests/Fixtures/pdf/*.qpdf.json` dumps.
 25. Filament throttles admin logins per IP (5/min, key in the cache). E2E signs admins in once in a setup project (tests/e2e/auth.setup.ts → storage/playwright-auth) and reuses the session; re-running the suite within a minute can still trip it — `docker compose exec app php artisan cache:clear` resets the limiter.
 26. A sticky footer that "intercepts pointer events" in Playwright on a phone viewport was a real bug: `position: absolute` sr-only labels inside an unpositioned `overflow-x: auto` table wrapper widened the page (769 px on a 412 px phone), so the layout viewport grew and the sticky footer sat below the screen. Check `document.documentElement.scrollWidth` vs `innerWidth` first; give overflow containers `position: relative`. (Supersedes the earlier focus+Enter workaround.)
 27. Livewire re-renders replace the builder preview iframe (wire:key = md5 of the definition); only `live()` fields trigger a re-render, so builder settings that the preview shows need `live(onBlur: true)`.
@@ -76,7 +76,7 @@
 69. Filament's notification mailbox pulls under a per-session cache lock with `block()` (250 ms retry): parallel lazy widgets of one page view sometimes wait ~250 ms for each other. It is vendor behaviour, not a query.
 70. Postgres JIT (on by default) costs ~95 ms on whole-form report aggregates (cost far above jit_above_cost): `SET LOCAL jit = off` inside a transaction for those queries. With log_min_duration_statement=0, parse/bind/execute are logged separately (counts ×3).
 71. Playwright `frame.waitForFunction(..., { polling: 'raf' })` never fires in the sandboxed builder preview when the iframe is offscreen (rAF is throttled there); poll on an interval instead.
-72. `composer audit` fails (exit 2) on abandoned packages too. The per-package `config.audit.ignore-abandoned` map works in Composer 2.10 (CI image, `form-schema-app-ci`) but not in the host's 2.8.12: run the audit in the CI image (`docker run --rm -v "$PWD":/app:ro -w /app form-schema-app-ci composer audit --locked`).
+72. `composer audit` fails (exit 2) on abandoned packages too. The per-package `config.audit.ignore-abandoned` map works in Composer 2.10 (CI image, `fieldset-ci`) but not in the host's 2.8.12: run the audit in the CI image (`docker run --rm -v "$PWD":/app:ro -w /app form-schema-app-ci composer audit --locked`).
 73. XML comments in `phpunit.xml` must not contain `--`: PHPUnit fails with `ConfigurationCannotBeBuiltException`.
 74. With `defaultTestSuite="Unit,Feature"` in phpunit.xml (added for the Install suite), a new suite or test directory outside `tests/Unit` and `tests/Feature` silently never runs by default. Put new tests under those two, or add the suite to the list.
 75. The Debian FrankenPHP base marks gcc/binutils/perl as manually installed, so `apt-get purge $PHPIZE_DEPS` removes almost nothing. Working recipe: `apt-mark auto '.*'`, keep required/important packages plus libraries found by an `ldd` scan of `/usr/local`, autoremove, then flatten with `FROM scratch` + `COPY --from=… / /` (2.12 GB → 648 MB, ADR 0065).
@@ -88,7 +88,7 @@
 81. A PCRE `$` also matches before a trailing newline, so `"host\n"` passes `/^[a-z.]+$/`: use the `D` modifier or `\z` for every input-grammar regex.
 82. valkey-cli 8.1 reads `REDISCLI_AUTH` (not `VALKEYCLI_AUTH`) and exits 0 on NOAUTH, so a healthcheck must grep for PONG. `docker compose config` prints `$` as `$$`, but containers get the literal value.
 83. Postgres healthchecks should use `pg_isready -h 127.0.0.1` (TCP): over the socket, the temporary server of the first-start initialisation reports ready too early.
-84. The dev `app` container has no source mount: E2E for new code needs a rebuilt image (`form-schema-app:local`). A `docker compose cp` hot-patch only applies after `docker compose restart app` (opcache never re-checks files).
+84. The dev `app` container has no source mount: E2E for new code needs a rebuilt image (`fieldset:local`). A `docker compose cp` hot-patch only applies after `docker compose restart app` (opcache never re-checks files).
 85. A URL that differs only in its fragment loads nothing in a tab already on that path: pages that read a token from the fragment need a `hashchange` handler. Filament's one-time-code input submits itself after 6 digits; clicking "Sign in" afterwards races the navigation.
 86. `AuditLabelsTest` finds events only through the logger method names in its regex: a new `AuditLogger` method must be added there. `toEqualCanonicalizing` on associative arrays ignores keys.
 87. Docker Desktop publishes container ports only on the Mac side: `docker pull 127.0.0.1:<port>` from the daemon and `--network host` containers cannot reach them. The harness starts a host-network forwarder when a probe fails (ReleaseHarness).
@@ -97,7 +97,7 @@
 90. `docker cp` creates root-owned files that keep their mode: a 0700/0600 staging dir copied into a container is unreadable for a non-root image (cosign runs as 65532). Colima does not share temp dirs, so install.sh verifies via `docker create`/`cp`/`start`, not a bind mount.
 91. `cosign verify-blob` accepts `-` (stdin) as the blob; a real keyless bundle verifies offline with `--trusted-root` and `--network none`. In POSIX sh, `set --` inside a function overwrites `$1` (save arguments first); shellcheck SC2015 (`a && b || c`) fails CI, group as `{ a && b; } || c`.
 92. Install-suite tests do not boot Laravel (`base_path()` fails there). macOS `/var/folders` vs `/private/var`: compare paths with `pwd -P`.
-93. Never name a console option `--version`: Symfony answers it before any command runs (prints the Laravel version, exit 0). The image's `fsa` wrapper maps install.sh's `--version` to `--release` for `install`.
+93. Never name a console option `--version`: Symfony answers it before any command runs (prints the Laravel version, exit 0). The image's `fieldset` wrapper maps install.sh's `--version` to `--release` for `install`.
 94. Docker Desktop: host files appear as UID 0 inside containers (in-container owner UID 0); a `docker run --rm` whose start fails on a taken port leaves no container ("Bind for 127.0.0.1:8080 failed: port is already allocated"). `docker events --since` has whole-second resolution.
 95. `docker image inspect 127.0.0.1:<port>/repo@sha256:D` can succeed when D is present locally under another registry name (observed, cause inferred), so a pull is skipped; pull by the exact reference when the registry matters.
 96. Two agents (or an agent and a coverage run) on the same test database drop each other's tables mid-run ("relation users does not exist"): give long runs their own database (`form_schema_cov`) and keep parallel workers apart.
@@ -105,7 +105,7 @@
 98. Symfony Process can stream a large stdout to a file with a run callback plus `clearOutput()` (pg_dump/tar through `composeRunToFile`), keeping it out of PHP memory.
 99. Livewire keeps per-request state in statics (e.g. `SupportAutoInjectedAssets::$hasRenderedAComponentThisRequest`) that survive into the next test, whose fresh app then injects Livewire assets into a Livewire-free page (2 `<script>` on /login-link after a Livewire page in the previous test). `tests/TestCase.php` now calls `Livewire::flushState()` in setUp and before every request; send `X-Livewire` per request, not with sticky `withHeaders()`, or a later page GET becomes a Livewire request (405 from PersistentMiddleware).
 99b. Docker's classic image store keeps one platform per by-digest reference: an amd64 `docker create image@sha256:…` cannot re-pull over a native copy ("cannot overwrite digest"). Run tools like cosign at the engine's own platform (unset DOCKER_DEFAULT_PLATFORM for them).
-99c. Under QEMU emulation containers use far more memory (Mailpit ~57 MiB instead of 13, plus ~40 MiB per healthcheck exec): `fsa install` doubles memory limits when doctor reports emulation (ADR 0062/0070). `docker events` for a running instance include healthcheck `exec_*`/`health_status` events; idempotence checks must ignore them.
+99c. Under QEMU emulation containers use far more memory (Mailpit ~57 MiB instead of 13, plus ~40 MiB per healthcheck exec): `fieldset install` doubles memory limits when doctor reports emulation (ADR 0062/0070). `docker events` for a running instance include healthcheck `exec_*`/`health_status` events; idempotence checks must ignore them.
 100. Playwright runs spec files in parallel (half the cores) against the shared dev DB: specs must delete the users they create (`deleteUsers` in tests/e2e/support/platform.ts), and lookups in paged Filament tables go through the table search.
 101. Field App: adding a repeater row moves focus into its first field one render later, and a key pressed before then cancels it (wait with `toBeFocused()`); signature_pad's end-of-stroke event renders a task later, so "Unterschrift bestätigen" is briefly disabled (wait with `toBeEnabled()`).
 102. Filament draws text placeholders (`.fi-ta-placeholder`) in gray-400, ~2.6:1 contrast: `App\Filament\AccessiblePlaceholders` raises them to gray-500 (light) / gray-400 (dark) on both panels. axe ignores a lone "—" placeholder.
@@ -124,12 +124,12 @@
 115. In a git worktree a symlinked `vendor` makes Composer autoload the main checkout's `app/` and `tests/` (base dir from the real path): clone it instead (`cp -cR <main>/vendor <worktree>/vendor`, instant on APFS). A `node_modules` symlink is fine. `end()` on a readonly property's array fails ("Cannot indirectly modify readonly property"); use `$a[array_key_last($a)]`.
 116. `docker stats` without a TTY marks each refresh with ESC[H (lines may also carry ESC[K/ESC[J): split on ESC[H only; one stream is far cheaper than repeated `--no-stream`. `docker update --cpuset-cpus` works on created-but-not-started containers (pin on the `create` event to confine a whole stack). A read-only bind of `/sys/fs/cgroup` shows every container at `/host-cgroup/docker/<id>/` on Docker Desktop; `memory.events oom_kill` also counts killed `docker exec` processes.
 117. Postgres: `CROSS JOIN LATERAL (SELECT gen_random_uuid())` without an outer reference runs once; put volatile functions in a subquery's select list. Microsoft Defender scanning new files (harness workspace, Chromium profiles) pushes host load to 10–14 and stalls perf series (J10 sets `PERF_QUIET_LOAD=10`).
-118. Memory facts (CLI, no OPcache): each Horizon process ~57 MiB anon at rest; the scheduler stacks `schedule:work` + `schedule:run` + a command to ~175 MiB; one classic-builder request takes the app to ~354 MiB. A fresh `fsa demo` puts every task in "Team Nord" while the reviewer is in "Büro" (perf fixtures must pick visible samples). Docker Desktop's dockerd RSS says nothing about a VPS.
+118. Memory facts (CLI, no OPcache): each Horizon process ~57 MiB anon at rest; the scheduler stacks `schedule:work` + `schedule:run` + a command to ~175 MiB; one classic-builder request takes the app to ~354 MiB. A fresh `fieldset demo` puts every task in "Team Nord" while the reviewer is in "Büro" (perf fixtures must pick visible samples). Docker Desktop's dockerd RSS says nothing about a VPS.
 119. A worktree also needs `.env`, `public/app` (built Field App) and `storage/playwright` linked from the main checkout for Feature tests (without `.env` they try 127.0.0.1:5432 as root) and journeys; dev-stack compose commands need `--project-directory <main checkout>`. Playwright projects matched by a regex pick up new specs: journeys must name their spec file.
-120. Parallel worktree agents share the journey test image name `fsa-test-u1:latest` (TestImage): set `FSA_TEST_IMAGE_REPOSITORY=fsa-test-<agent>`; parallel journeys can also lose the catcher UI port between doctor and start ("Bind for 127.0.0.1:8025 failed"). Feature tests in a worktree need `public/build` linked (Vite manifest). Warm a worktree's harness build by cloning `storage/fsa-test-cache/{buildx,oci}` (`cp -cR`), never by symlinking.
+120. Parallel worktree agents share the journey test image name `fieldset-test-u1:latest` (TestImage): set `FIELDSET_TEST_IMAGE_REPOSITORY=fieldset-test-<agent>`; parallel journeys can also lose the catcher UI port between doctor and start ("Bind for 127.0.0.1:8025 failed"). Feature tests in a worktree need `public/build` linked (Vite manifest). Warm a worktree's harness build by cloning `storage/fieldset-test-cache/{buildx,oci}` (`cp -cR`), never by symlinking.
 121. Compose env_file: in a single-quoted value a trailing `\` escapes the closing quote and the whole file fails to parse (double-quote such values). Never split env files with PCRE `\R` (byte mode matches 0x0B, 0x0C, 0x85 inside UTF-8 Å/х/ą). Symfony EsmtpTransport STARTTLSes only when offered, then AUTHs anyway; Laravel passes the mailer array as DSN options, so `require_tls`/`auto_tls` work as config keys.
 122. Pest handles SIGINT itself: signal tests must use SIGTERM/SIGHUP and send only once a handler is installed. `Foo::class` with a missing `use` binds a non-existent class silently (a singleton then has no effect; PHPStan does not flag it). `Model::shouldBeStrict` makes mass assignment of a non-fillable attribute throw (handy to test a column is never mass-assigned).
-123. `git commit` after `git add <paths>` also commits anything already staged (e.g. an earlier `git rm`). ShimScriptTest can fail under `--parallel` with `mkdir(): Invalid argument` at storage/fsa-test-dist (passes alone). A Monitor waiting for "exit" in a reused log can fire on the previous run's line: truncate first.
+123. `git commit` after `git add <paths>` also commits anything already staged (e.g. an earlier `git rm`). ShimScriptTest can fail under `--parallel` with `mkdir(): Invalid argument` at storage/fieldset-test-dist (passes alone). A Monitor waiting for "exit" in a reused log can fire on the previous run's line: truncate first.
 124. Journeys that assert memory limits must multiply by `RenderContext::EMULATION_MEMORY_FACTOR` on an emulated run (ADR 0070 doubles every limit); J10 does via `j10MemoryFactor()`. An emulated run overwrites the native evidence files: copy them aside, then `git checkout docs/agent/milestones/evidence`.
 125. J10's perf scripts drive a Chromium on the macOS host through Docker Desktop's port forwarding: a host network event shows up as `net::ERR_NETWORK_CHANGED` on one navigation. Rerun before suspecting the instance.
 126. `docker compose exec -T` reads stdin: inside a `while read … done < file` loop it swallows the rest of the file after the first iteration (redirect `< /dev/null`).
@@ -146,7 +146,7 @@
 137. The valkey image's entrypoint appends `VALKEY_EXTRA_FLAGS` (`--requirepass <pw>`) to every command, so a one-off `valkey-cli FLUSHALL` becomes `FLUSHALL --requirepass <pw>`: a syntax error with the password in argv. Empty the variable for one-offs and pass the password another way (U17 `a0fe499`).
 138. `OperationRun` phases with `always: true` re-run even when completed: never use it for a non-idempotent step (a way back, an epoch bump). Journal a separate phase for each irreversible step and decide from the journal on resume.
 139. A `pg_restore` by a non-superuser role needs the dump's `EXTENSION` and `COMMENT ON EXTENSION` entries left out (`--use-list`): the superuser creates the extension first, otherwise the restoring role owns it and can add members to it.
-140. Coverage runs in the `form-schema-app-ci` image: use `scripts/coverage.sh` from the main checkout (the container reads the mounted `.env`; a worktree's `.env` symlink does not resolve, LEARNINGS 135). Every host-mapped address of the dev `.env` needs its in-network override (`REDIS_PORT=6379`, `MAIL_HOST=mailpit`, `MAIL_PORT=1025`, besides DB/Redis host): without them ~16 cache and mail tests fail. Never `--env-file`: real environment variables beat phpunit.xml's `<env>` (not forced), so `APP_ENV=local` gives CSRF 419s and hundreds of failures (supersedes the earlier `--env-file` advice). It runs as the caller (`--user $(id -u):$(id -g)`), like CI: as root, chmod-based permission tests fail.
+140. Coverage runs in the `fieldset-ci` image: use `scripts/coverage.sh` from the main checkout (the container reads the mounted `.env`; a worktree's `.env` symlink does not resolve, LEARNINGS 135). Every host-mapped address of the dev `.env` needs its in-network override (`REDIS_PORT=6379`, `MAIL_HOST=mailpit`, `MAIL_PORT=1025`, besides DB/Redis host): without them ~16 cache and mail tests fail. Never `--env-file`: real environment variables beat phpunit.xml's `<env>` (not forced), so `APP_ENV=local` gives CSRF 419s and hundreds of failures (supersedes the earlier `--env-file` advice). It runs as the caller (`--user $(id -u):$(id -g)`), like CI: as root, chmod-based permission tests fail.
 141. Postgres sequences survive RefreshDatabase's rollback: a test of sequence floors must compute them from the current values, not assume where earlier tests left them.
 142. Rector pitfalls: `ThrowWithPreviousExceptionRector` puts `$e` into the next positional parameter (e.g. `retryable`), so pass `previous: $e` by name; `RemoveAlwaysTrueIfConditionRector` misreads a flag captured with `use (&$flag)` and deletes the condition: avoid that pattern.
 143. Docker fills an empty named volume (also an external one) with the image's content at the mount path on first mount; mount at an empty image path, or expect the files.
@@ -170,7 +170,7 @@
    fixed file list into the 0700 scratch first and verify and read only the copy (M12 gate R1).
 159. `git checkout docs/agent/milestones/evidence` after E2E also reverts uncommitted journey JSON (M12 gate lost a whole
    Install run's evidence that way). Revert only the E2E churn: `git checkout -- ':(glob)docs/agent/milestones/evidence/**/*.png'`,
-   or commit journey evidence before running E2E. Emulated runs without `FSA_EVIDENCE_MILESTONE` write into M9.
+   or commit journey evidence before running E2E. Emulated runs without `FIELDSET_EVIDENCE_MILESTONE` write into M9.
 160. Playwright resolves `page.screenshot({ path })` and other relative paths against the process's working directory,
    not the config: run the suite from a scratch directory (`--config=<repo>/playwright.config.ts`, `tests` linked back)
    and the specs' evidence PNGs land there (DogfoodE2ETest). `docker compose exec` also depends on the working
@@ -181,7 +181,7 @@
    independent of both.
 162. 99b also bites a check that runs one by-digest image per platform (`release:check-pg-dump`): amd64 then arm64 of
    the same index digest fails with "cannot overwrite digest". Remove the pulled image between platforms. A journey that
-   needs an older release must publish it itself: FSA_RELEASE_VERSION can make the shared harness's version the newest.
+   needs an older release must publish it itself: FIELDSET_RELEASE_VERSION can make the shared harness's version the newest.
 163. Renaming the Compose project (rename U6: `form-schema-app` → `fieldset`) gives the dev stack new containers and
    empty volumes. Reset: `docker compose -p form-schema-app stop` (never `down -v`: the old volumes
    `form-schema-app_pg-data`/`_app-storage` and images stay for the human); in `.env` set `APP_NAME=Fieldset`,
@@ -244,3 +244,45 @@
 180. Docker Desktop on macOS (VirtioFS) reports a bind-mounted host file as owned by the reading container user: container
    root sees 0, `--user 4242` sees 4242, and a file root writes lands on the host as the host user (checked 2026-10-26,
    Docker Desktop 29.2.1). Measure ownership as `--user 0:0`, never as the image's default user (www-data saw 33).
+181. `ubuntu-latest` moved to Ubuntu 26.04 (2026-11): its `postgresql-client` is 18, and an 18 client cannot restore its
+   own dump into a 16 server (`SET transaction_timeout` is unknown there). Pin the client to the server's major (PGDG,
+   `postgresql-client-16`) in the app image, the CI image and the `php-tests` step; a floating runner image changes
+   tools under unchanged code.
+182. PostgreSQL 16.16 (2026-11-12) stores `pg_attver` in every column's `attoptions`. `pg_dump` 16.15 writes it as
+   `ALTER COLUMN … SET (pg_attver=…)`, which a 16.15 server refuses on restore; `pg_dump` 16.16 leaves it out. The
+   release notes do not mention it. `postgres:16-alpine` moved to 16.16 at 22:13 UTC, so the nightly J09 went red
+   without a code change. Check `attoptions` when a dump from a floating tag will not restore into an older minor.
+183. The adopt's dump is written by `LegacyBackupWriter::dump` in a one-off of the manifest's Postgres image, not by the
+   app image, and 1.0's compose floats `postgres:16-alpine`. Dump with the image 1.0's container really runs
+   (`Config.Image`), not with a client of your own choosing. The option survives the file copy: a 16.15 server on those
+   files still holds it. The first diagnosis (stale client in the harness image) was wrong; it was corrected only after
+   J09 failed again on the runner (run 43456806241): read the failing runner's log before fixing locally.
+184. A git worktree needs `public/build`, `public/app`, `public/form-preview` and the Filament asset directories copied
+   from the main checkout, or 11 feature tests fail (missing Vite manifest, 503 on Field App routes). An existing empty
+   `public/app` hides the problem: the directory is there, the files are not.
+185. `Tests\Feature\Performance\SearchPlanTest` (trigram index plan) failed once under `--parallel` on a loaded host, on
+   two branches, and passed alone. Rerun it alone before treating it as a regression.
+186. `gh pr edit` fails with a GraphQL "Projects (classic)" deprecation error. Use
+   `gh api -X PATCH repos/<owner>/<repo>/pulls/<n> -F body=@file`. A `maint-*` branch matches `ci.yml`'s `m*-*` push
+   filter, so a pushed `maint-` branch with a pull request runs CI twice.
+187. In-process HTTP tests across several logins need `app('session')->forgetDrivers()`,
+   `app()->forgetInstance('session.store')` and `Auth::forgetGuards()` between requests, or the second login reuses
+   the first one's session and guard (agent report, not checked separately).
+188. An exact PGDG package pin fails the image build when PGDG drops that version (its index listed three minors), and
+   a floating pin lets the client drift below the server: `ImageBinariesTest` and `PgDumpCompatibility` check the minor
+   instead. A build that fetches PGDG's key can time out on postgresql.org: re-run once before changing anything.
+189. PHP 8.4 `unserialize(…, ['allowed_classes' => …])` does not gate backed enums (`E:` entries), and restoring
+   Carbon adds translator classes through `__wakeup`. Derive an allow-list from the serialized strings (parse `O:`
+   and `E:`), not from the object graph of a restored sample (`MailPayloadAllowListTest`). Refuse any
+   `__PHP_Incomplete_Class`.
+190. paratest 7.28.0 breaks Pest's parallel runner (`getTestFiles()` TypeError). The lock holds 7.27.5 with no
+   `composer.json` constraint, so a plain `composer update` pulls the break in. phpunit 13.4.5 needs pest 5.3.5 (13.4.2
+   needed 5.3.2): update both together.
+191. Horizon's CSP broke after 5 of 8 nightlies without a Horizon change: the stylesheet `fonts.bunny.net` serves for
+   Figtree now points to `https://cdn.jsdelivr.net/fontsource/fonts/figtree@5.3.0/…`, and `m8-csp.spec.ts` "Horizon
+   renders under its CSP" failed on the blocked font. A CSP that allows a font CDN must allow what that CDN
+   redirects to.
+192. A Go binary inside a third-party base image carries its own dependencies: go-jose 4.1.5 sat in
+   `usr/local/bin/frankenphp` through Caddy and was fixed by FrankenPHP 1.13.5, not by a Go bump. docker-compose's
+   `golang.org/x/net` (CVE-2026-78661) is fixed without changing Compose (stays 5.6.0): `go get
+   golang.org/x/net@v0.62.0` in its build.

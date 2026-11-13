@@ -337,6 +337,8 @@ Format: question · chosen option · impact · how to reverse.
    the amd64 libssl entry, the pin stays 2026.10.1 for 2.0.0 · confirm or bump the pin. (b) The pg_dump check's
    multi-platform run (QUESTIONS 75) is fixed: it removes the image it pulled between platforms. (c) Dogfood E2E failed
    once at the 2.0.0 run (m6-offline journey 3, a click timeout at host load 8) and passed on the rerun · watch.
+   **76a resolved (2026-11-13, ADR 0093 amended):** cloudflared is pinned to 2026.11.0; the entries that expired on
+   2026-11-20 were replaced (3 cloudflared exceptions now run to 2026-12-13, see 82).
 
 ## Human decisions (2026-10-21)
 - 1, 25: renamed to **Fieldset** before the first publish: repository `beyerenrico/fieldset`, CLI `fieldset` (was `fsa`);
@@ -380,6 +382,8 @@ Format: question · chosen option · impact · how to reverse.
    rc.2's release failed J09 (timing-dependent assertion); human answer "Yes, rc.3 when green (Recommended)". rc.3's
    release failed the third-party scan (60 Chromium CVEs in gotenberg 8.38.1, no newer image); dated exceptions until
    2026-11-22 (ADR 0071); human answer "Yes, rc.4 when green (Recommended)".
+   **77e dates superseded (2026-11-13, ADR 0093 amended):** the exceptions dated 2026-11-17, 2026-11-20 and 2026-11-22
+   no longer exist: the maintenance pass refreshed the pins and renewed what had no fixed image (82a).
 78. Docs site go-live settings (2026-10-22, plan `docs/plans/2026-10-22-001-feat-docs-site-plan.md` U10, ADR 0094,
    `RELEASING.md` "Docs site"): repository settings the `Docs` workflow relies on, none of them made by the agent:
    (a) Pages source "GitHub Actions"; (b) environment `github-pages` deploying from `main` only; (c) environment
@@ -436,3 +440,28 @@ Format: question · chosen option · impact · how to reverse.
    credential helper error (troubleshooting); whether `http://localhost:<port>` reaches an Engine instance from the
    Windows browser under NAT (the instance publishes on 127.0.0.1 in the distro) · pending human review: confirm or
    change (a) and (b); (c) closes with the RELEASING WSL checklist on the first 2.1.1 release candidate.
+82. Maintenance pass (2026-11-13, requirements `docs/brainstorms/2026-11-13-maintenance-pass-requirements.md`, plan
+   `docs/plans/2026-11-13-001-fix-maintenance-pass-plan.md`, ADR 0096 and 0097, ADR 0093 amended; PRs #5 to #9, none
+   merged, no tags). Human decisions: delivery "Branches + PRs" (the agent pushes branches and opens pull requests, the
+   human merges); for the install journeys "I do not want to run 2h long actions" with the option "Cut real-Docker
+   coverage". Dependabot #2, #3 and #4 were closed as superseded by #5. Decisions the agent took, for review, and open
+   items: (a) renewed scan exceptions: 140 before, 32 after; 7 expire 2026-12-13 (gotenberg 2 zlib CVE-2026-76844 and
+   CVE-2026-85091; caddy 1 CVE-2026-78661; cloudflared 3; postgres 1 CVE-2026-111943), 25 postgres (gosu 1.19) expire
+   2027-01-16; renewals have no cumulative cap, so a chain of renewals is possible · decide whether to cap them. (b)
+   Gotenberg 8.40.0 is the last 8.x; upstream continues with 9 (9.5.0 exists); the two zlib exceptions depend on moving
+   · decide on the move. (c) **Published 2.1.0 and adopted instances:** instances installed with 2.1.0 are not
+   affected. An instance adopted with 2.1.0 from a 1.0 stack whose Postgres image was pulled after 2026-11-12 completes
+   the adopt, but its `safety-adopt` backup and later backups do not restore until the image's client is 16.16
+   (inferred for the published image's client, tested with a 16.15 image); fixed on #5 (e2597de1: the adopt dumps with
+   1.0's own Postgres image) · a 2.1.1 release is a human decision. (d) A `fieldset doctor` warning for disabled upload
+   scanning was deferred: 2.x cannot turn scanning on, so it would fire on every instance. (e) The six open P2 findings
+   in `docs/residual-review-findings/maint-wsl-parity.md` are untouched. (f) The line limit is 300; 200 means wrapping
+   553 lines · say if it should be lowered. (g) `fieldset adopt` copies a newer Postgres minor's data files under an
+   older server without comparing minors, and a newer client major still passes `release:check-pg-dump` although an 18
+   client cannot restore into 16. (h) `ImageContractJourneyTest` is release-only now (entirely engine-only); it would
+   join the smoke set for about 3 minutes · say if it should. (i) `MailMessage` imports the `NotificationMail` and
+   `ScheduledReportMail` classes of two other modules (ADR 0097). (j) The commit trailer in `AGENTS.md` names "Claude
+   Opus 5.5" while this pass ran on other models. (k) Journey coverage after the cut: 116 assertion rows in the 13
+   non-smoke files, 74 covered by Docker-free tests (17 new), 42 engine-only and release-only now; a `tier: full` run
+   of J09 was dispatched (run 43475292965) and must be read before #6 is merged · pending human review: (a), (b), (c),
+   (f), (h), (j) need an answer; (d), (e), (g), (i) are recorded.
