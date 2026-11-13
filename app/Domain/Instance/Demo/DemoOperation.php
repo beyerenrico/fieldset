@@ -105,7 +105,11 @@ final readonly class DemoOperation
         $issued = $this->app->loginLink($project, DemoCredentials::OWNER, $uid);
         $link = $issued->ok ? $issued->secret(SignInDelivery::SECRET) : null;
         if ($link === null) {
-            return $result->withData([SignInDelivery::SECRET => null])->withWarning('sign_in_link_unavailable', 'No sign-in link for '.DemoCredentials::OWNER.' could be issued: '.$issued->errorMessage(), 'Sign in with the demo passwords, or run '.SignInDelivery::loginLinkCommand(DemoCredentials::OWNER).' once the cause is fixed.');
+            return $result->withData([SignInDelivery::SECRET => null])->withWarning(
+                'sign_in_link_unavailable',
+                'No sign-in link for '.DemoCredentials::OWNER.' could be issued: '.$issued->errorMessage(),
+                'Sign in with the demo passwords, or run '.SignInDelivery::loginLinkCommand(DemoCredentials::OWNER).' once the cause is fixed.',
+            );
         }
         if (! $changed) {
             $result = $result->withChanged(true)->withWarning('sign_in_link_issued', 'The demo data exists already; only a new sign-in link for '.DemoCredentials::OWNER.' was issued, and an earlier unused one no longer works.');

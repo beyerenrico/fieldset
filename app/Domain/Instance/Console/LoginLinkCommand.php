@@ -113,7 +113,14 @@ final class LoginLinkCommand extends FieldsetCommand
         return match (true) {
             in_array($code, self::INPUT_ERRORS, true) => new InstanceException($result->errorMessage(), ExitCode::InvalidInput, $code, $result->errorHint()),
             $code === 'rate_limited' => new InstanceException($result->errorMessage(), ExitCode::AbortedUnchanged, $code, 'Wait a few minutes, then run the command again.', true),
-            in_array($code, self::NO_RESULT, true) => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::HealthCheckFailed, $code, 'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.', true, ['output' => $result->output]),
+            in_array($code, self::NO_RESULT, true) => new InstanceException(
+                'The sign-in link could not be issued: '.$result->errorMessage(),
+                ExitCode::HealthCheckFailed,
+                $code,
+                'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.',
+                true,
+                ['output' => $result->output],
+            ),
             default => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::InternalError, $code, 'Check that the instance runs (`fieldset status`), then run the command again.', true, ['output' => $result->output]),
         };
     }

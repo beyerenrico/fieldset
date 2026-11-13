@@ -201,7 +201,11 @@ final readonly class ResetOperation
             if ($request->noBackup) {
                 $run->phase('audit_export', fn (): array => $this->exportIfReal($project, $run->record()), always: ! self::current($run->record(), 'audit_export'));
             } else {
-                $run->phase('safety_backup', fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost during the reset.', ExitCode::AbortedUnchanged, 'lock_lost'))), always: ! self::current($run->record(), 'safety_backup'));
+                $run->phase(
+                    'safety_backup',
+                    fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost during the reset.', ExitCode::AbortedUnchanged, 'lock_lost'))),
+                    always: ! self::current($run->record(), 'safety_backup'),
+                );
             }
             $this->interruption->checkpoint();
         } catch (Throwable $e) {

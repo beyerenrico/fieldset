@@ -153,11 +153,19 @@ final readonly class LegacyCheckout
     private static function assertNoOverride(string $path, ?string $composeFile): void
     {
         if ($composeFile !== null && ! in_array(trim($composeFile), [self::COMPOSE_FILE, './'.self::COMPOSE_FILE], true)) {
-            throw self::refused("The 1.0 install runs with COMPOSE_FILE={$composeFile}: adopt copies only what compose.yaml of 1.0 defines.", 'compose_file_override', 'Set COMPOSE_FILE=compose.yaml (the production template\'s value) and restart 1.0 with `docker compose up -d`, or move what the override adds into instance settings after a fresh install.');
+            throw self::refused(
+                "The 1.0 install runs with COMPOSE_FILE={$composeFile}: adopt copies only what compose.yaml of 1.0 defines.",
+                'compose_file_override',
+                'Set COMPOSE_FILE=compose.yaml (the production template\'s value) and restart 1.0 with `docker compose up -d`, or move what the override adds into instance settings after a fresh install.',
+            );
         }
         $found = array_values(array_filter(self::OVERRIDES, static fn (string $file): bool => file_exists($path.'/'.$file)));
         if ($composeFile === null && $found !== []) {
-            throw self::refused('The checkout has '.implode(', ', $found).', which Compose merges into compose.yaml: adopt copies only what compose.yaml of 1.0 defines.', 'compose_file_override', 'Set COMPOSE_FILE=compose.yaml in .env (Compose then ignores the override) and restart 1.0, or remove the override.');
+            throw self::refused(
+                'The checkout has '.implode(', ', $found).', which Compose merges into compose.yaml: adopt copies only what compose.yaml of 1.0 defines.',
+                'compose_file_override',
+                'Set COMPOSE_FILE=compose.yaml in .env (Compose then ignores the override) and restart 1.0, or remove the override.',
+            );
         }
     }
 
@@ -166,7 +174,11 @@ final readonly class LegacyCheckout
         preg_match_all('/^\s*DB_HOST:\s*["\']?([^"\'\s#]+)/m', $compose, $hosts);
         $external = array_values(array_filter($hosts[1], static fn (string $host): bool => $host !== 'postgres'));
         if ($hosts[1] === [] || $external !== [] || preg_match('/^\s{2}postgres:\s*$/m', $compose) !== 1) {
-            throw self::refused('The 1.0 install does not use its bundled Postgres service'.($external === [] ? '' : ' (DB_HOST: '.implode(', ', array_unique($external)).')').': adopt copies the bundled database volume only.', 'external_database', 'Move the data with a 1.0 backup of your database instead: `install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated` takes a 1.0 backup.');
+            throw self::refused(
+                'The 1.0 install does not use its bundled Postgres service'.($external === [] ? '' : ' (DB_HOST: '.implode(', ', array_unique($external)).')').': adopt copies the bundled database volume only.',
+                'external_database',
+                'Move the data with a 1.0 backup of your database instead: `install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated` takes a 1.0 backup.',
+            );
         }
     }
 

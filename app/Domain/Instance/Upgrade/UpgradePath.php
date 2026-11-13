@@ -53,7 +53,12 @@ final class UpgradePath
         try {
             return ReleaseVersion::parse((string) $installed);
         } catch (ReleaseException) {
-            throw new InstanceException('The installed version ('.($installed ?? 'unknown').') is no release this fieldset can upgrade.', ExitCode::Incompatible, 'unsupported_source', 'Reinstall from a release (`fieldset backup`, then `install.sh --dir <new directory> --from-backup <backup>`). Nothing was changed.');
+            throw new InstanceException(
+                'The installed version ('.($installed ?? 'unknown').') is no release this fieldset can upgrade.',
+                ExitCode::Incompatible,
+                'unsupported_source',
+                'Reinstall from a release (`fieldset backup`, then `install.sh --dir <new directory> --from-backup <backup>`). Nothing was changed.',
+            );
         }
     }
 }

@@ -11,7 +11,7 @@ use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Models\SubmissionEvent;
 use App\Domain\Submissions\Support\FormAccessResolver;
 use App\Domain\Submissions\Support\SubmissionVisibility;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Fieldset\Json\Json;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +45,7 @@ final readonly class SaveSubmissionDraft
                 }
                 // A concurrent request created the uuid after our lookup: continue as its repeat.
                 $existing = Submission::query()->whereKey($uuid)->lockForUpdate()->first()
-                    ?? throw new ApiException('not_found', __('api.not_found'), 404);
+                    ?? throw new DomainRefusal('not_found', __('api.not_found'), 404);
             }
 
             return [$this->update($user, $existing, $formVersionId, $data, $revision, $device, $geo), false];
@@ -57,16 +57,16 @@ final readonly class SaveSubmissionDraft
     {
         if (Submission::query()->withoutTenant()->whereKey($uuid)->exists()) {
             // The uuid exists in another organization: never reveal or touch it.
-            throw new ApiException('not_found', __('api.not_found'), 404);
+            throw new DomainRefusal('not_found', __('api.not_found'), 404);
         }
 
         $version = FormVersion::query()->with('form')->find($formVersionId);
         if ($version === null) {
-            throw new ApiException('not_found', __('api.not_found'), 404);
+            throw new DomainRefusal('not_found', __('api.not_found'), 404);
         }
         $this->guardFillable($user, $version);
         if ($version->isRetired()) {
-            throw new ApiException('version_retired', __('submissions.errors.version_retired'), 409);
+            throw new DomainRefusal('version_retired', __('submissions.errors.version_retired'), 409);
         }
 
         try {
@@ -88,16 +88,16 @@ final readonly class SaveSubmissionDraft
     {
         $this->guardOwner($user, $submission);
         if ($submission->form_version_id !== $formVersionId) {
-            throw new ApiException('version_mismatch', __('submissions.errors.version_mismatch'), 409);
+            throw new DomainRefusal('version_mismatch', __('submissions.errors.version_mismatch'), 409);
         }
         if ($this->repeatsLastSave($user, $submission, $data, $revision)) {
             return $submission;
         }
         if ($revision !== $submission->revision) {
-            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
+            throw new DomainRefusal('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
         }
         if (! $submission->status->isEditable()) {
-            throw new ApiException('not_editable', __('submissions.errors.not_editable'), 409);
+            throw new DomainRefusal('not_editable', __('submissions.errors.not_editable'), 409);
         }
         $this->guardFillable($user, $submission->formVersion);
 
@@ -126,14 +126,14 @@ final readonly class SaveSubmissionDraft
         }
 
         throw $this->visibility->canView($user, $submission)
-            ? new ApiException('forbidden', __('api.forbidden'), 403)
-            : new ApiException('not_found', __('api.not_found'), 404);
+            ? new DomainRefusal('forbidden', __('api.forbidden'), 403)
+            : new DomainRefusal('not_found', __('api.not_found'), 404);
     }
 
     private function guardFillable(User $user, FormVersion $version): void
     {
         if (! $this->access->canFill($user, $version->form)) {
-            throw new ApiException('form_access_revoked', __('submissions.errors.form_access_revoked'), 403);
+            throw new DomainRefusal('form_access_revoked', __('submissions.errors.form_access_revoked'), 403);
         }
     }
 }

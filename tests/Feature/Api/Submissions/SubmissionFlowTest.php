@@ -150,6 +150,17 @@ it('replays a repeated Idempotency-Key and refuses it for another request', func
         ->assertStatus(400)->assertJsonPath('error.code', 'idempotency_key_required');
 });
 
+it('answers a submit with a stale revision with the current submission in the conflict details', function (): void {
+    $uuid = FieldAppScenario::uuid();
+    putDraft($uuid, ['customer_name' => 'A'])->assertCreated();
+    putDraft($uuid, ['customer_name' => 'B'], 1)->assertOk();
+
+    submit($uuid, 1)->assertStatus(409)
+        ->assertJsonPath('error.code', 'revision_conflict')
+        ->assertJsonPath('error.details.submission.revision', 2)
+        ->assertJsonPath('error.details.submission.data.customer_name', 'B');
+});
+
 it('refuses submits on a retired version and after access was revoked', function (): void {
     $retired = FieldAppScenario::uuid();
     putDraft($retired, ['customer_name' => 'A']);

@@ -138,7 +138,9 @@ final readonly class Uninstaller
         $keys = is_string($final['key_file'] ?? null) ? $final['key_file'] : null;
         $restore = match (true) {
             $set === null => 'They authenticate the backups kept in backups/ (`--app-key-file`).',
-            $keys === null => "`install.sh --dir {$root} --from-backup {$root}/{$set}/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it).",
+            $keys === null => "`install.sh --dir {$root} --from-backup {$root}/{$set}/backup.tar.age --identity-file <identity> --passphrase-file <file> "
+                .'--accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated '
+                .'if you kept it).',
             default => "`install.sh --dir {$root} --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back (install.sh takes a directory that holds only backups/; the instance's own fieldset is gone).",
         };
         if ($keys === null) {
@@ -146,7 +148,11 @@ final readonly class Uninstaller
         }
         $plain = ! str_ends_with($keys, '.age');
 
-        return $result->withWarning('app_key_beside_backup', ($plain ? 'The APP keys are in plaintext (0600) in ' : 'The APP keys are encrypted to the backup recipients in ')."{$root}/{$keys}".($set === null ? '' : ', beside the final backup').'.', ($plain ? 'Keep that file as safe as the backup. ' : '').$restore);
+        return $result->withWarning(
+            'app_key_beside_backup',
+            ($plain ? 'The APP keys are in plaintext (0600) in ' : 'The APP keys are encrypted to the backup recipients in ')."{$root}/{$keys}".($set === null ? '' : ', beside the final backup').'.',
+            ($plain ? 'Keep that file as safe as the backup. ' : '').$restore,
+        );
     }
 
     /**
@@ -162,7 +168,11 @@ final readonly class Uninstaller
             ->withWarning('restart_1_0', AdoptedInstance::restartNotice($legacyChanged).AdoptedInstance::jobsNotice($record), 'Bring it back with: '.$data['restart_1_0']);
         $set = is_string($final['dir'] ?? null) ? $final['dir'] : null;
         if ($writes === null) {
-            return $result->withWarning('writes_since_adopt_unknown', 'The writes made since adopt could not be counted (no baseline in backups/ledger.log, or Postgres did not answer).', $set === null ? 'Without a final backup they are gone with the instance.' : "Whatever was written is in the final backup {$set}.");
+            return $result->withWarning(
+                'writes_since_adopt_unknown',
+                'The writes made since adopt could not be counted (no baseline in backups/ledger.log, or Postgres did not answer).',
+                $set === null ? 'Without a final backup they are gone with the instance.' : "Whatever was written is in the final backup {$set}.",
+            );
         }
         if (! $writes['any']) {
             return $result;
@@ -223,7 +233,11 @@ final readonly class Uninstaller
             throw new InvalidInput('That is this instance; run `fieldset uninstall` without --orphans to remove it.', 'invalid_flag');
         }
         if (! in_array($uuid, $this->conflicts->orphans($this->directory->root, $own ?? ''), true)) {
-            throw new InvalidInput("Installation {$uuid} has no container that ran from this directory; fieldset removes only the orphans `fieldset install` names here.", 'not_an_orphan', 'If its resources are leftovers, check them (`docker ps -a --filter label='.Labels::INSTANCE."={$uuid}`, `docker volume ls --filter label=".Labels::INSTANCE."={$uuid}`) and remove them yourself.");
+            throw new InvalidInput(
+                "Installation {$uuid} has no container that ran from this directory; fieldset removes only the orphans `fieldset install` names here.",
+                'not_an_orphan',
+                'If its resources are leftovers, check them (`docker ps -a --filter label='.Labels::INSTANCE."={$uuid}`, `docker volume ls --filter label=".Labels::INSTANCE."={$uuid}`) and remove them yourself.",
+            );
         }
         $containers = $this->docker->containers([Labels::INSTANCE => $uuid]);
         $this->refuseLive($uuid, $containers);
@@ -284,7 +298,16 @@ final readonly class Uninstaller
         } catch (DockerCommandFailed $e) {
             $changed = $backedUp || array_merge(...array_values($removed)) !== [];
 
-            throw new InstanceException('Not every resource could be removed: '.$e->getMessage(), ExitCode::HealthCheckFailed, 'uninstall_incomplete', 'Run the same `fieldset uninstall` command again to finish; the instance files are kept until everything is gone.', true, ['removed' => $removed, 'stderr' => $e->outcome->stderrTail(3)], $e, $changed);
+            throw new InstanceException(
+                'Not every resource could be removed: '.$e->getMessage(),
+                ExitCode::HealthCheckFailed,
+                'uninstall_incomplete',
+                'Run the same `fieldset uninstall` command again to finish; the instance files are kept until everything is gone.',
+                true,
+                ['removed' => $removed, 'stderr' => $e->outcome->stderrTail(3)],
+                $e,
+                $changed,
+            );
         }
 
         return $removed;

@@ -52,7 +52,14 @@ final readonly class ExposureCheck
         $elapsed = (int) round((hrtime(true) - $started) / 1e9);
         $progress?->event(self::PHASE, $result->ok ? ProgressReporter::INFO : ProgressReporter::ERROR, ($result->ok ? 'Completed '.self::PHASE.' in ' : self::PHASE.' failed after ').OperationRun::duration($elapsed), ['elapsed_seconds' => $elapsed]);
         if (! $result->ok) {
-            throw new InstanceException('The accounts could not be checked: `app:demo-passwords --check` failed: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'account_check_failed', 'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.', true, ['output' => $result->output]);
+            throw new InstanceException(
+                'The accounts could not be checked: `app:demo-passwords --check` failed: '.$result->errorMessage(),
+                ExitCode::HealthCheckFailed,
+                'account_check_failed',
+                'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.',
+                true,
+                ['output' => $result->output],
+            );
         }
         $users = array_values(array_filter(is_array($result->data['users'] ?? null) ? $result->data['users'] : [], static fn (mixed $user): bool => is_array($user) && is_string($user['email'] ?? null)));
         $emails = static fn (bool $demo): array => array_values(array_map(static fn (array $user): string => $user['email'], array_filter($users, static fn (array $user): bool => (($user['demo'] ?? false) === true) === $demo)));

@@ -15,7 +15,7 @@ use App\Domain\Submissions\Support\AttachmentReferences;
 use App\Domain\Submissions\Support\FormAccessResolver;
 use App\Domain\Submissions\Support\NumberAllocator;
 use App\Domain\Submissions\Support\SubmissionEvaluator;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -49,7 +49,7 @@ final readonly class SubmitSubmission
             $now = Carbon::now();
             $result = $this->evaluator->evaluate($locked->formVersion, $locked->data, $user, $organization, $now);
             if (! $result->isValid()) {
-                throw new ApiException('validation_failed', __('api.validation_failed'), 422, $result->errorsToArray());
+                throw new DomainRefusal('validation_failed', __('api.validation_failed'), 422, $result->errorsToArray());
             }
             $this->guardAttachments($locked, AttachmentReferences::collect($locked->formVersion->definition, $result->data));
 
@@ -91,19 +91,19 @@ final readonly class SubmitSubmission
     private function guard(User $user, Submission $submission, int $revision): void
     {
         if ($submission->created_by !== $user->id) {
-            throw new ApiException('forbidden', __('api.forbidden'), 403);
+            throw new DomainRefusal('forbidden', __('api.forbidden'), 403);
         }
         if (! $submission->status->isEditable()) {
-            throw new ApiException('not_editable', __('submissions.errors.not_editable'), 409);
+            throw new DomainRefusal('not_editable', __('submissions.errors.not_editable'), 409);
         }
         if ($revision !== $submission->revision) {
-            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
+            throw new DomainRefusal('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
         }
         if ($submission->status === SubmissionStatus::Draft && $submission->formVersion->isRetired()) {
-            throw new ApiException('version_retired', __('submissions.errors.version_retired'), 409);
+            throw new DomainRefusal('version_retired', __('submissions.errors.version_retired'), 409);
         }
         if (! $this->access->canFill($user, $submission->form)) {
-            throw new ApiException('form_access_revoked', __('submissions.errors.form_access_revoked'), 403);
+            throw new DomainRefusal('form_access_revoked', __('submissions.errors.form_access_revoked'), 403);
         }
     }
 
@@ -115,7 +115,7 @@ final readonly class SubmitSubmission
         $missing = array_values(array_diff($referenced, $stored));
 
         if ($missing !== []) {
-            throw new ApiException('attachments_missing', __('submissions.errors.attachments_missing'), 422, $missing);
+            throw new DomainRefusal('attachments_missing', __('submissions.errors.attachments_missing'), 422, $missing);
         }
     }
 }

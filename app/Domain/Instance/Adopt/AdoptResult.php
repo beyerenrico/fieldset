@@ -118,7 +118,11 @@ final readonly class AdoptResult
             $result = $result->withWarning('mail_captured_after_adopt', 'Mail is captured by the instance\'s catcher until you confirm the SMTP server 1.0 used ('.$pending['host'].').', (string) $pending['command']);
         }
         if (($drain['drained'] ?? true) === false) {
-            $result = $result->withWarning('jobs_left_in_1_0', 'With --drop-jobs, '.(int) ($drain['waiting'] ?? 0).' waiting and '.(int) ($drain['reserved'] ?? 0).' running job(s) stayed in 1.0\'s Valkey.', 'They run if 1.0 is started again; stalled PDFs and workflow steps are picked up again by the scheduler.');
+            $result = $result->withWarning(
+                'jobs_left_in_1_0',
+                'With --drop-jobs, '.(int) ($drain['waiting'] ?? 0).' waiting and '.(int) ($drain['reserved'] ?? 0).' running job(s) stayed in 1.0\'s Valkey.',
+                'They run if 1.0 is started again; stalled PDFs and workflow steps are picked up again by the scheduler.',
+            );
         } elseif (array_key_exists('drained', $drain) && $drain['drained'] === null) {
             $result = $result->withWarning('drain_unknown', 'With --drop-jobs, the jobs in 1.0\'s Valkey were not counted; the queue was stopped with its grace period.', 'Jobs left run if 1.0 is started again; stalled PDFs and workflow steps are picked up again by the scheduler.');
         }

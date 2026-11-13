@@ -130,7 +130,14 @@ final readonly class UpgradeQuiesce
     {
         $outcome = $this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'audit:seal'], timeout: 600.0);
         if (! $outcome->successful()) {
-            throw new InstanceException('Sealing the pending audit entries failed.', ExitCode::AbortedUnchanged, 'audit_seal_failed', "Read `fieldset logs postgres`, then run `fieldset {$operation}` again; nothing was changed and the instance runs as before.", true, ['output' => $outcome->stderrTail(5)]);
+            throw new InstanceException(
+                'Sealing the pending audit entries failed.',
+                ExitCode::AbortedUnchanged,
+                'audit_seal_failed',
+                "Read `fieldset logs postgres`, then run `fieldset {$operation}` again; nothing was changed and the instance runs as before.",
+                true,
+                ['output' => $outcome->stderrTail(5)],
+            );
         }
     }
 

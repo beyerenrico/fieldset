@@ -42,7 +42,15 @@ final class AdoptSettings
 
             return $portHeld ? $request : $request->with('port', (string) $checkout->port());
         } catch (InvalidInput $e) {
-            throw new InstanceException("The 1.0 APP_URL [{$url}] is not a URL an instance can serve (an http(s) origin without a path).", ExitCode::Incompatible, 'unsupported_url', 'Set APP_URL in the checkout\'s .env to the public origin (e.g. https://forms.example.com), restart 1.0, then run adopt again.', false, [], $e);
+            throw new InstanceException(
+                "The 1.0 APP_URL [{$url}] is not a URL an instance can serve (an http(s) origin without a path).",
+                ExitCode::Incompatible,
+                'unsupported_url',
+                'Set APP_URL in the checkout\'s .env to the public origin (e.g. https://forms.example.com), restart 1.0, then run adopt again.',
+                false,
+                [],
+                $e,
+            );
         }
     }
 

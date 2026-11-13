@@ -183,9 +183,13 @@ final readonly class SchemaAudit
             'schema' => "SELECT n.nspname AS name, 'schema' AS definition FROM pg_namespace n WHERE {$user}",
             'extension' => self::EXTENSIONS,
             'acl' => self::acl(),
-            'operator' => "SELECT n.nspname || '.' || o.oprname || '(' || o.oprleft::regtype || ',' || o.oprright::regtype || ')' AS name, o.oprcode::text AS definition FROM pg_operator o JOIN pg_namespace n ON n.oid = o.oprnamespace WHERE {$user} AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = o.oid AND d.deptype = 'e')",
+            'operator' => "SELECT n.nspname || '.' || o.oprname || '(' || o.oprleft::regtype || ',' || o.oprright::regtype || ')' AS name, o.oprcode::text "
+                ."AS definition FROM pg_operator o JOIN pg_namespace n ON n.oid = o.oprnamespace WHERE {$user} AND NOT EXISTS (SELECT 1 FROM "
+                ."pg_depend d WHERE d.objid = o.oid AND d.deptype = 'e')",
             'cast' => "SELECT k.castsource::regtype || '->' || k.casttarget::regtype AS name, k.castfunc::text AS definition FROM pg_cast k WHERE k.oid >= 16384 AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = k.oid AND d.deptype = 'e')",
-            'type' => "SELECT n.nspname || '.' || t.typname AS name, t.typtype::text || coalesce(pg_catalog.format_type(t.typbasetype, t.typtypmod), '') AS definition FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE t.typtype IN ('d', 'e', 'r', 'm') AND {$user} AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = t.oid AND d.deptype = 'e')",
+            'type' => "SELECT n.nspname || '.' || t.typname AS name, t.typtype::text || coalesce(pg_catalog.format_type(t.typbasetype, t.typtypmod), "
+                ."'') AS definition FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE t.typtype IN ('d', 'e', 'r', 'm') AND "
+                ."{$user} AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = t.oid AND d.deptype = 'e')",
         ];
     }
 
@@ -219,8 +223,12 @@ final readonly class SchemaAudit
         $user = self::USER_SCHEMAS;
 
         return [
-            'default' => "SELECT c.relname || '.' || a.attname AS name, pg_get_expr(d.adbin, d.adrelid) AS definition FROM pg_attrdef d JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum JOIN pg_class c ON c.oid = d.adrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE {$user}",
-            'check' => "SELECT coalesce(c.relname, ty.typname) || '.' || k.conname AS name, pg_get_constraintdef(k.oid) AS definition FROM pg_constraint k LEFT JOIN pg_class c ON c.oid = k.conrelid LEFT JOIN pg_type ty ON ty.oid = k.contypid JOIN pg_namespace n ON n.oid = k.connamespace WHERE k.contype IN ('c', 'x', 't') AND {$user}",
+            'default' => "SELECT c.relname || '.' || a.attname AS name, pg_get_expr(d.adbin, d.adrelid) AS definition FROM pg_attrdef d JOIN pg_attribute "
+                .'a ON a.attrelid = d.adrelid AND a.attnum = d.adnum JOIN pg_class c ON c.oid = d.adrelid JOIN pg_namespace n ON n.oid = c.relnamespace '
+                ."WHERE {$user}",
+            'check' => "SELECT coalesce(c.relname, ty.typname) || '.' || k.conname AS name, pg_get_constraintdef(k.oid) AS definition FROM pg_constraint "
+                .'k LEFT JOIN pg_class c ON c.oid = k.conrelid LEFT JOIN pg_type ty ON ty.oid = k.contypid JOIN pg_namespace n ON n.oid = '
+                ."k.connamespace WHERE k.contype IN ('c', 'x', 't') AND {$user}",
             'index' => "SELECT n.nspname || '.' || i.relname AS name, pg_get_indexdef(i.oid) AS definition FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid JOIN pg_namespace n ON n.oid = i.relnamespace WHERE {$user}",
         ];
     }

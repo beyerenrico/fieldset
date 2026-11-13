@@ -121,7 +121,12 @@ final readonly class UpgradePreflight
     public function assertBackupService(): void
     {
         if (! in_array('backup', ComposeFile::services($this->directory), true)) {
-            throw new InstanceException('This instance has no backup service, so no safety backup can be taken.', ExitCode::PreflightFailed, 'backup_service_missing', 'Any `fieldset config set` that changes a setting (e.g. `fieldset config set backup-retention <days>`) renders the compose file again with the backup service; then run `fieldset upgrade` again. Nothing was changed.');
+            throw new InstanceException(
+                'This instance has no backup service, so no safety backup can be taken.',
+                ExitCode::PreflightFailed,
+                'backup_service_missing',
+                'Any `fieldset config set` that changes a setting (e.g. `fieldset config set backup-retention <days>`) renders the compose file again with the backup service; then run `fieldset upgrade` again. Nothing was changed.',
+            );
         }
     }
 

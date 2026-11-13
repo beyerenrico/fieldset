@@ -93,13 +93,17 @@ final class OperationUnfinished extends InstanceException
                 ? "Run `{$command}` to resume it: it checks the backup again, so it needs the same identity file, passphrase and APP key file (a plain `fieldset install` cannot take it over). `fieldset uninstall` removes a half-finished install."
                 : "Run `{$command}` again with the same flags to resume it. `fieldset uninstall` removes a half-finished install.",
             'restore' => "Run `{$command}` to resume it: before the swap its steps run again from a clean scratch state; a half-done swap is undone; a completed swap is verified again (and undone if that fails). Or `fieldset restore --abandon --yes` brings the instance back as it was before.",
-            'upgrade' => "Run `{$command}` once `fieldset status` shows `supervisor.running: false` (while it runs, `fieldset upgrade --follow` follows it; ADR 0086): before the safety backup it brings the previous services back (then run `fieldset upgrade` again), from the safety backup until the commit it rolls back to the safety backup, after the commit it only finishes opening.",
+            'upgrade' => "Run `{$command}` once `fieldset status` shows `supervisor.running: false` (while it runs, `fieldset upgrade --follow` follows "
+                .'it; ADR 0086): before the safety backup it brings the previous services back (then run `fieldset upgrade` again), from the '
+                .'safety backup until the commit it rolls back to the safety backup, after the commit it only finishes opening.',
             'rollback' => "Run `{$command}` to resume it: before the swap its steps run again; a half-done swap returns to the upgraded release; a completed swap is verified again (and returns if that fails).",
             ResetOperation::OPERATION => ResetStatus::hint($record),
             AdoptOperation::OPERATION => $record->hasStarted('start')
                 ? "Run `{$command}` again to finish it (2.0 already runs on its copy), or `fieldset uninstall` (a final backup first) and `docker compose up -d` in the 1.0 checkout to go back to 1.0."
                 : "Run `{$command}` again to resume it, or `fieldset adopt --abandon --yes` to start 1.0 again as it was (ADR 0087).",
-            TunnelOperation::OPERATION => "Run `{$command}`: it finishes the interrupted `".self::cutOff($record).'`, removes the tunnel whatever state it was left in and brings the stack back to the local URL; `fieldset tunnel start` starts a new one afterwards.'.(self::action($record) === 'renew' ? ' `fieldset tunnel renew` finishes a cut-off renew too and keeps a running tunnel.' : ''),
+            TunnelOperation::OPERATION => "Run `{$command}`: it finishes the interrupted `".self::cutOff($record)
+                .'`, removes the tunnel whatever state it was left in and brings the stack back to the local URL; `fieldset tunnel start` starts a new one afterwards.'
+                .(self::action($record) === 'renew' ? ' `fieldset tunnel renew` finishes a cut-off renew too and keeps a running tunnel.' : ''),
             default => "Run `{$command}` again with the same flags to resume it.",
         };
     }

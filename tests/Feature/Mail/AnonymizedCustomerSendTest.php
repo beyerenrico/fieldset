@@ -19,7 +19,7 @@ use App\Domain\Workflows\Enums\TriggerType;
 use App\Domain\Workflows\Triggers\StartWorkflows;
 use App\Domain\Workflows\Triggers\TriggerEvent;
 use App\Filament\Admin\Resources\Submissions\Pages\ViewSubmission;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -133,6 +133,6 @@ it('refuses a direct send request for an anonymized submission even without the 
 
     expect(fn () => $this->tenant->run($this->s->org, fn () => app(RequestCustomerSend::class)
         ->handle($this->s->owner, $submission, new CustomerRecipient('kunde@example.com', 'Kunde'))))
-        ->toThrow(fn (ApiException $e) => expect([$e->errorCode, $e->status])->toBe(['document_anonymized', 410]));
+        ->toThrow(fn (DomainRefusal $e) => expect([$e->errorCode, $e->status])->toBe(['document_anonymized', 410]));
     expect($this->tenant->run($this->s->org, fn (): int => DocumentSend::query()->where('submission_uuid', $submission->uuid)->count()))->toBe(0);
 });

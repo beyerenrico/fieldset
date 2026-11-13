@@ -163,7 +163,14 @@ final readonly class RestoreDatabases
             input: json_encode($input, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), timeout: self::TIMEOUT,
         ));
         if (! $outcome->ok) {
-            throw new InstanceException('Finishing the restored database failed: '.$outcome->errorMessage(), ExitCode::HealthCheckFailed, $outcome->errorCode() === 'decrypt_failed' ? 'decrypt_failed' : 'restore_finish_failed', 'Read the output; the live database was not touched.', true, ['output' => $outcome->output, 'data' => $outcome->data]);
+            throw new InstanceException(
+                'Finishing the restored database failed: '.$outcome->errorMessage(),
+                ExitCode::HealthCheckFailed,
+                $outcome->errorCode() === 'decrypt_failed' ? 'decrypt_failed' : 'restore_finish_failed',
+                'Read the output; the live database was not touched.',
+                true,
+                ['output' => $outcome->output, 'data' => $outcome->data],
+            );
         }
 
         return $outcome->data;
@@ -193,7 +200,14 @@ final readonly class RestoreDatabases
     {
         $outcome = OneOffResult::fromOutcome($this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:restore-db', $action, ...$options, '--json'], $env, timeout: self::TIMEOUT));
         if (! $outcome->ok) {
-            throw new InstanceException("The database step `{$action}` failed: ".$outcome->errorMessage(), ExitCode::HealthCheckFailed, 'restore_database_failed', 'Read the output; `fieldset status` shows what is left.', true, ['action' => $action, 'code' => $outcome->errorCode(), 'output' => $outcome->output]);
+            throw new InstanceException(
+                "The database step `{$action}` failed: ".$outcome->errorMessage(),
+                ExitCode::HealthCheckFailed,
+                'restore_database_failed',
+                'Read the output; `fieldset status` shows what is left.',
+                true,
+                ['action' => $action, 'code' => $outcome->errorCode(), 'output' => $outcome->output],
+            );
         }
 
         return $outcome;

@@ -81,7 +81,13 @@ final readonly class ResetApp
         $header = $outcome->successful() ? $this->header($partial) : null;
         if ($header === null) {
             @unlink($partial);
-            throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fieldset reset` again, or without --no-backup to keep a full backup.', true);
+            throw new InstanceException(
+                'The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)),
+                ExitCode::HealthCheckFailed,
+                'audit_export_failed',
+                'Read the output; nothing was deleted. Run `fieldset reset` again, or without --no-backup to keep a full backup.',
+                true,
+            );
         }
         $file = $recipients === [] ? $name : $name.'.age';
         $final = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$file);

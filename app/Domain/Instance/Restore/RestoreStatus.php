@@ -33,7 +33,11 @@ final readonly class RestoreStatus
         ];
         $warnings = [];
         if ($data['webhooks_paused']) {
-            $warnings[] = ['webhooks_paused', 'Workflow webhooks are paused since the last restore, rollback or install from a backup: restored runs could repeat deliveries.', 'Check the webhook receivers (after a move: once the old server no longer runs), then run `fieldset config set webhooks on`.'];
+            $warnings[] = [
+                'webhooks_paused',
+                'Workflow webhooks are paused since the last restore, rollback or install from a backup: restored runs could repeat deliveries.',
+                'Check the webhook receivers (after a move: once the old server no longer runs), then run `fieldset config set webhooks on`.',
+            ];
         }
         if ($scratch !== []) {
             $warnings[] = ['restore_scratch_left', 'An interrupted restore or drill left scratch directories: '.implode(', ', $scratch).'. They may hold decrypted backup data.', 'Remove them (`rm -rf` in the instance directory) when no restore runs.'];

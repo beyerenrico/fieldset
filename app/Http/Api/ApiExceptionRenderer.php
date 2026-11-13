@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Api;
 
 use App\Domain\Identity\Tenancy\TenantNotSetException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -22,6 +23,7 @@ final class ApiExceptionRenderer
     {
         return match (true) {
             $e instanceof ApiException => ApiResponse::error($e->errorCode, $e->getMessage(), $e->status, $e->details),
+            $e instanceof DomainRefusal => ApiResponse::error($e->errorCode, $e->getMessage(), $e->status, $e->details),
             $e instanceof ValidationException => $this->validation($e),
             $e instanceof AuthenticationException => ApiResponse::error('unauthenticated', __('api.unauthenticated'), 401),
             $e instanceof AuthorizationException => ApiResponse::error('forbidden', __('api.forbidden'), 403),

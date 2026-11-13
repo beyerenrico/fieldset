@@ -9,7 +9,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Submissions\Models\Attachment;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Support\UploadInspector;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -38,12 +38,12 @@ final readonly class StoreAttachment
         }
 
         if ($submission->created_by !== $user->id || ! $submission->status->isEditable()) {
-            throw new ApiException('not_editable', __('submissions.errors.not_editable'), 409);
+            throw new DomainRefusal('not_editable', __('submissions.errors.not_editable'), 409);
         }
 
         $element = $this->element($submission, $elementKey);
         if ((self::KIND_FOR_TYPE[$element->type ?? ''] ?? null) !== $kind) {
-            throw new ApiException('validation_failed', __('api.validation_failed'), 422, [['pointer' => '/kind', 'code' => 'invalid_kind']]);
+            throw new DomainRefusal('validation_failed', __('api.validation_failed'), 422, [['pointer' => '/kind', 'code' => 'invalid_kind']]);
         }
 
         $validation = $element->validation ?? null;
@@ -55,7 +55,7 @@ final readonly class StoreAttachment
             return [$this->persist($user, $submission, $attachmentUuid, $kind, $elementKey, $originalName, $file), true];
         } catch (UniqueConstraintViolationException) {
             // A concurrent upload stored the same uuid first: answer like a repeat.
-            return [$this->existing($attachmentUuid, $submission) ?? throw new ApiException('attachment_conflict', __('submissions.errors.attachment_conflict'), 409), false];
+            return [$this->existing($attachmentUuid, $submission) ?? throw new DomainRefusal('attachment_conflict', __('submissions.errors.attachment_conflict'), 409), false];
         }
     }
 
@@ -91,7 +91,7 @@ final readonly class StoreAttachment
             return null;
         }
         if ($existing === null || $existing->submission_uuid !== $submission->uuid) {
-            throw new ApiException('attachment_conflict', __('submissions.errors.attachment_conflict'), 409);
+            throw new DomainRefusal('attachment_conflict', __('submissions.errors.attachment_conflict'), 409);
         }
 
         return $existing;
@@ -105,6 +105,6 @@ final readonly class StoreAttachment
             }
         }
 
-        throw new ApiException('validation_failed', __('api.validation_failed'), 422, [['pointer' => '/element_key', 'code' => 'unknown_element']]);
+        throw new DomainRefusal('validation_failed', __('api.validation_failed'), 422, [['pointer' => '/element_key', 'code' => 'unknown_element']]);
     }
 }

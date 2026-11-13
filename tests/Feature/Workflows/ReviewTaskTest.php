@@ -18,7 +18,7 @@ use App\Domain\Workflows\Models\Task;
 use App\Domain\Workflows\Tasks\CompleteReviewTask;
 use App\Domain\Workflows\Tasks\SendOverdueReminders;
 use App\Domain\Workflows\Tasks\TaskAccess;
-use App\Http\Api\ApiException;
+use App\Support\Refusal\DomainRefusal;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 use Tests\Feature\Workflows\WorkflowFixtures as W;
@@ -125,7 +125,7 @@ it('completes a task only once', function (): void {
     decide($task, $this->reviewer, TaskOutcome::Approved);
 
     expect(fn () => decide($task, $this->s->owner, TaskOutcome::Rejected, 'zu spät'))
-        ->toThrow(fn (ApiException $e) => expect($e->errorCode)->toBe('task_closed')->and($e->status)->toBe(409));
+        ->toThrow(fn (DomainRefusal $e) => expect($e->errorCode)->toBe('task_closed')->and($e->status)->toBe(409));
 });
 
 it('lets reviewers (submissions.review) or the assignee user who can see the submission complete', function (): void {

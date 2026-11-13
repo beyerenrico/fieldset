@@ -49,7 +49,11 @@ final readonly class BackupEncryptionApplier implements SettingApplier, SettingH
             return new ConfigChange(self::KEY, $state, $state, $from, 'on');
         }
         if ($request->identityOut === null || $request->passphrase === null) {
-            throw new InvalidInput('Turning backup encryption on needs --identity-out <path> and the passphrase from --passphrase-file or --passphrase-stdin.', 'identity_required', 'The identity file and its passphrase are the only way to read encrypted backups: store them apart, outside the instance directory.');
+            throw new InvalidInput(
+                'Turning backup encryption on needs --identity-out <path> and the passphrase from --passphrase-file or --passphrase-stdin.',
+                'identity_required',
+                'The identity file and its passphrase are the only way to read encrypted backups: store them apart, outside the instance directory.',
+            );
         }
         KeySetup::checkPath($request->identityOut, $this->directory);
 
