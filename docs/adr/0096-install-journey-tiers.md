@@ -25,7 +25,23 @@ TLS, real images, memory measurements, real upgrades of a running stack and brow
   only an engine can prove (`engine-only`).
 
 ### Measured job durations
-_To be filled by a later unit._
+Wall-clock per job on `ubuntu-24.04` runners, set-up included, on 2026-11-13. The serial job before this ADR took
+2 h 21 min (run 43195508204).
+
+| Job | Tier `all` (run 43456806241) | Pull request smoke (run 43456746164) |
+|---|---|---|
+| smoke-a | 24.0 min | 22.7 min |
+| smoke-b | 19.4 min | 20.6 min |
+| full-1 | 18.3 min | |
+| full-2 | 18.7 min | |
+| full-3 | 14.3 min | |
+| full-4 | 19.6 min | |
+| full-5 | 9.8 min | |
+| budget | 66.1 min | |
+
+A pull request or nightly run ends after about 24 minutes; a release run after about 66 minutes, set by `budget`. In
+run 43456806241 full-4 failed in `J09AdoptTest`: the adopt's dump was written by the manifest's Postgres image against
+a newer 1.0 server (ADR 0093, amendment of 2026-11-13). The gate job failed with it, as intended.
 
 ### Workflow shape
 `.github/workflows/install-journeys.yml` has three jobs.
