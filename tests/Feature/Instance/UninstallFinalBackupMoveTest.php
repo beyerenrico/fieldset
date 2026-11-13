@@ -37,6 +37,13 @@ it('leaves a final backup that fieldset install --from-backup accepts, authentic
     $keyFile = $old->directory->root.'/'.$json['data']['final_backup']['key_file'];
 
     expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['status'])->toBe('ok')
+        ->and(array_keys($json['data']['removed']))->toBe(['containers', 'networks', 'volumes'])
+        ->and($json['data']['removed']['containers'])->toBeArray()->not->toBeEmpty()
+        ->and($json['data']['removed']['volumes'])->toBe([$state->project().'_pg-data'])
+        ->and(array_is_list($json['data']['removed']['networks']))->toBeTrue()
+        ->and($json['data']['kept'])->toBe(['backups'])
+        ->and($json['data']['final_backup'])->toBeArray()->toHaveKeys(['dir', 'key_file'])
         ->and(BackupSet::detect($set))->toMatchArray(['format' => BackupSet::FIELDSET, 'encrypted' => false]);
 
     $move = new FromBackupFixture;

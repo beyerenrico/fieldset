@@ -7,6 +7,7 @@ use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Release\ManifestVerifier;
 use Tests\Support\Instance\ConfigFixture;
+use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
@@ -34,6 +35,18 @@ it('stores a verified target release under releases/<version>/ and leaves no dow
         ->and(is_file($this->dir.'/releases/'.UpgradeFixture::TARGET.'/'.ManifestVerifier::MANIFEST))->toBeTrue()
         ->and(is_file($this->dir.'/releases/'.UpgradeFixture::TARGET.'/'.ManifestVerifier::BUNDLE))->toBeTrue()
         ->and(glob($this->dir.'/releases/.download-*', GLOB_ONLYDIR))->toBe([]);
+});
+
+it('answers `--to` the running version with from, to and current, and changes nothing', function (): void {
+    $this->upgrade->serve(InstanceCommandFixture::VERSION, UpgradeFixture::TARGET_DIGEST);
+    $mark = $this->config->mark();
+
+    [$code, $json] = $this->upgrade->upgrade(['--to' => InstanceCommandFixture::VERSION]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data'])->toBe(['from' => InstanceCommandFixture::VERSION, 'to' => InstanceCommandFixture::VERSION, 'current' => true])
+        ->and($this->config->callsSince($mark, 'composeStop'))->toBe([])
+        ->and($this->upgrade->instance->state()->version())->toBe(InstanceCommandFixture::VERSION);
 });
 
 it('refuses an unusable --to or release URL, an unknown release and an unreachable server before anything changes', function (array $options, ?string $url, ?int $status, int $exit, string $error): void {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Docker\ContainerSpec;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\LocalCa\LocalCaStore;
 use Tests\Support\Instance\InstanceCommandFixture;
@@ -203,6 +204,29 @@ it('refuses phone-https values it does not take, and the local CA next to a tunn
     expect($tunnel)->toBe(2)->and($tunnelJson['errors'][0]['code'])->toBe('use_tunnel_command')
         ->and($junk)->toBe(2)->and($junkJson['errors'][0]['code'])->toBe('invalid_value')
         ->and($beside)->toBe(2)->and($besideJson['errors'][0]['code'])->toBe('invalid_combination');
+});
+
+it('reports the local CA in status and doctor: the root, the current LAN address and the edge service', function (): void {
+    $fixture = new TunnelFixture;
+    $instance = $fixture->config->instance;
+    $instance->facts(['lanAddresses' => [PhoneFixtures::LAN]]);
+    $root = LocalCaFixture::root();
+    localCaEdge($fixture, $root);
+    $fixture->config->set('phone-https', 'local-ca', ['--yes' => true]);
+    $state = $fixture->config->state();
+    $instance->withRunningStack();
+    $instance->docker->withRunningContainer(str_repeat('e', 12), '2026-10-18T10:00:00Z', [
+        Labels::COMPOSE_PROJECT => $state->project(), Labels::COMPOSE_SERVICE => 'edge', Labels::INSTANCE => $state->uuid(), Labels::ROLE => 'edge',
+    ], $state->project().'-edge-1');
+
+    [$statusCode, $status] = $instance->run('fieldset:status');
+    [$doctorCode, $doctor] = $instance->run('fieldset:doctor', ['--post' => true]);
+
+    expect($statusCode)->toBe(0, json_encode($status))
+        ->and($status['data']['phone_https'])->toMatchArray(['mode' => 'local-ca', 'root_sha256' => LocalCaFixture::fingerprint($root), 'lan_address_current' => true])
+        ->and($status['data']['services'])->toHaveKey('edge')
+        ->and($doctorCode)->toBe(0, json_encode($doctor))
+        ->and(collect($doctor['data']['checks'])->firstWhere('key', 'lan_address')['status'] ?? null)->toBe('ok');
 });
 
 it('reports a LAN address that is no longer the host\'s in doctor and status, with the re-issue command', function (): void {

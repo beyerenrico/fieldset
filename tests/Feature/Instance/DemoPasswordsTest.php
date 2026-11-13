@@ -20,6 +20,7 @@ use Database\Seeders\DemoSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Testing\TestResponse;
 use Tests\Feature\Documents\DocumentFixtures;
 
 /*
@@ -294,4 +295,78 @@ it('revokes the unused sign-in links and password-reset tokens of the demo accou
         ->and($audits['owner@demo.test']->properties['links_revoked'])->toBe(1)
         ->and($audits['worker@demo.test']->properties['links_revoked'])->toBe(1)
         ->and($audits['viewer@demo.test']->properties['links_revoked'])->toBe(0);
+});
+
+/** @return array<string, string> the encrypted cookies a response set, to send back as a browser does */
+function demoCookies(TestResponse $response): array
+{
+    $cookies = [];
+    foreach ($response->headers->getCookies() as $cookie) {
+        $cookies[$cookie->getName()] = (string) $cookie->getValue();
+    }
+
+    return $cookies;
+}
+
+/** One browser request with exactly the cookies it holds, against database sessions as the instance runs them. */
+function demoRequest(string $method, string $uri, array $cookies = [], array $data = []): TestResponse
+{
+    config(['session.driver' => 'database']);
+    app('session')->forgetDrivers();
+    app()->forgetInstance('session.store');
+    app('auth')->forgetGuards();
+    $server = ['HTTP_REFERER' => 'http://localhost', 'HTTP_ORIGIN' => 'http://localhost', 'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'];
+
+    return test()->call($method, $uri, [], $cookies, [], $server, $data === [] ? null : json_encode($data));
+}
+
+/** Fortify's headless login as the Field App does it. */
+function demoSignIn(string $email, string $password, bool $remember = false): TestResponse
+{
+    return demoRequest('POST', '/auth/login', [], ['email' => $email, 'password' => $password, 'remember' => $remember]);
+}
+
+function demoMe(array $cookies): TestResponse
+{
+    return demoRequest('GET', '/api/v1/me', $cookies);
+}
+
+it('signs the demo users in over HTTP with the documented password and with the random passwords', function (): void {
+    demoCommand('app:demo-seed');
+    $default = demoSignIn('worker@demo.test', 'password');
+    $me = demoMe(demoCookies($default));
+
+    expect($default->status())->toBe(200)
+        ->and($me->status())->toBe(200)
+        ->and($me->json('data.user.email'))->toBe('worker@demo.test');
+
+    Artisan::call('migrate:fresh', ['--force' => true]);
+    [$json] = demoCommand('app:demo-seed', ['--passwords' => 'random']);
+    $passwords = demoSecrets($json);
+    expect(demoSignIn('worker@demo.test', 'password')->status())->toBe(422);
+    foreach ($passwords as $email => $password) {
+        $login = demoSignIn($email, $password);
+        expect([$login->status(), demoMe(demoCookies($login))->json('data.user.email')])->toBe([200, $email], "{$email} signs in with its printed password");
+    }
+});
+
+it('refuses the old password with 422 and ends a remembered session with 401 after the rotation', function (): void {
+    demoCommand('app:demo-seed');
+    $login = demoSignIn('mobile@demo.test', 'password', remember: true);
+    $cookies = demoCookies($login);
+    $before = demoMe($cookies);
+
+    [$json] = demoCommand('app:demo-passwords', ['--rotate' => true]);
+    $passwords = demoSecrets($json);
+    $after = demoMe($cookies);
+    $old = demoSignIn('mobile@demo.test', 'password');
+    $new = demoSignIn('mobile@demo.test', $passwords['mobile@demo.test']);
+
+    expect($login->status())->toBe(200)
+        ->and(array_keys($cookies))->toContain(app('auth')->guard('web')->getRecallerName())
+        ->and($before->status())->toBe(200)
+        ->and($before->json('data.user.email'))->toBe('mobile@demo.test')
+        ->and($after->status())->toBe(401)
+        ->and($old->status())->toBe(422)
+        ->and($new->status())->toBe(200);
 });

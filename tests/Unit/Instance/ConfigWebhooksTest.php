@@ -33,7 +33,9 @@ it('pauses and resumes webhooks through runtime.json without recreating a servic
     expect($paused)->toBe(0, (string) json_encode($pausedJson))
         ->and($pausedJson['data']['services']['recreated'] ?? null)->toBe([])
         ->and($afterPause)->toBe(['paused' => true])
-        ->and($on)->toBe(0)->and(runtimeWebhooks($this->config))->toBe(['paused' => false])
+        ->and($on)->toBe(0)
+        ->and($onJson['data'])->toMatchArray(['key' => 'webhooks', 'to' => 'on'])
+        ->and(runtimeWebhooks($this->config))->toBe(['paused' => false])
         ->and($this->config->state()->setting('webhooks_paused'))->toBeNull()
         ->and(collect($show['data']['keys'])->firstWhere('key', 'webhooks')['value'] ?? null)->toBe('on');
 });

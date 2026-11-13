@@ -111,6 +111,20 @@ it('refuses a tunnel next to the local CA, in domain and in proxy mode (R61, exi
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('invalid_combination');
 })->with(['local CA', 'domain', 'proxy']);
 
+it('refuses a domain next to a living tunnel (R61, exit 2) and changes nothing', function (): void {
+    $this->fixture->tunnel('start');
+    $directory = $this->fixture->config->instance->directory;
+    $before = [$directory->read('state.json'), $directory->read('compose.yaml'), $directory->read('runtime/runtime.json')];
+
+    [$code, $json] = $this->fixture->config->set('domain', 'forms.example.com', ['--yes' => true]);
+
+    expect($code)->toBe(2, json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('invalid_combination')
+        ->and([$directory->read('state.json'), $directory->read('compose.yaml'), $directory->read('runtime/runtime.json')])->toBe($before)
+        ->and($this->fixture->config->state()->setting('phone_https'))->toBe('tunnel')
+        ->and($this->fixture->tunnelContainer())->toBe('running');
+});
+
 it('restores the previous stack when cloudflared reports no hostname (exit 5)', function (): void {
     $this->fixture->hostname = null;
 

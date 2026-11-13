@@ -287,8 +287,11 @@ it('reports domain mode in status and serves 80/443 from its own edge in doctor'
 
     [, $status] = $this->fixture->run('fieldset:status');
     [$doctorCode, $doctor] = $this->fixture->run('fieldset:doctor');
+    [$postCode, $post] = $this->fixture->run('fieldset:doctor', ['--post' => true]);
 
-    expect($status['data'])->toMatchArray(['mode' => 'domain', 'url' => 'https://forms.example.com', 'port' => null])
+    expect($status['data'])->toMatchArray(['mode' => 'domain', 'url' => 'https://forms.example.com', 'port' => null, 'health' => 'ok'])
+        ->and(array_keys($status['data']['services']))->toContain('edge')
+        ->and($postCode)->toBe(0, json_encode($post))
         ->and($status['data']['mail']['catcher_url'])->toBe('https://forms.example.com/_mail/')
         ->and($doctorCode)->toBe(0, json_encode($doctor))
         ->and(collect($doctor['data']['checks'])->firstWhere('key', 'ports')['summary'])->toContain('served by this instance')

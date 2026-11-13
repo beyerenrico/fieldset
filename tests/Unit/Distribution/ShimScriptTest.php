@@ -114,6 +114,19 @@ it('takes the first argument that is no flag as the command and puts --dir <inst
     'value flag after the command' => [['--json', 'logs', '--tail', '50', 'app'], ['logs', '--dir', '{dir}', '--json', '--tail', '50', 'app'], 'logs'],
 ]);
 
+it('hands a secret given as a flag value to the command unchanged, so the command can refuse it (AE9)', function (array $arguments, string $command): void {
+    $this->scripts->run($this->dir.'/fieldset', $arguments, [...$this->env, 'STUB_OPS_EXIT' => '125']);
+    $run = $this->scripts->opsRuns()[0];
+    $afterImage = array_slice($run, array_search(SHIM_IMAGE, $run, true) + 1);
+
+    expect($afterImage[0])->toBe($command)
+        ->and(array_slice($afterImage, 1, 2))->toBe(['--dir', $this->dir])
+        ->and(array_slice($afterImage, 3))->toBe(array_slice($arguments, array_search($command, $arguments, true) + 1));
+})->with([
+    'config set mail smtp --smtp-password=hunter2' => [['config', 'set', 'mail', 'smtp', '--smtp-host', 'smtp.example.test', '--smtp-password=hunter2', '--json'], 'config'],
+    'doctor --api-token=x' => [['doctor', '--api-token=x', '--json'], 'doctor'],
+]);
+
 it('knows every value-taking option of the fieldset commands, so a flag before the command keeps its value', function (): void {
     preg_match("/^fieldset_value_flags='([^']+)'$/m", (string) file_get_contents(base_path('distribution/shim.sh')), $listed);
 

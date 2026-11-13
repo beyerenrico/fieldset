@@ -50,7 +50,8 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'format' => 'fieldset', 'authenticated' => true, 'epoch' => 2, 'previous_epoch' => 1,
-            'safety_backup' => 'safety-restore-20261019T120000Z', 'storage_volume' => $state->project().'_app-storage-r'.$id, 'left_behind' => []])
+            'safety_backup' => 'safety-restore-20261019T120000Z', 'storage_volume' => $state->project().'_app-storage-r'.$id, 'left_behind' => [], 'webhooks' => 'paused'])
+        ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['webhooks']['paused'])->toBeTrue()
         ->and($prepare->network)->toBe('none')->and(json_encode($prepare))->not->toContain('docker.sock')
         ->and($prepare->volumes)->toContain($this->dir.'/backups/manual-20261019T120000Z:'.$this->dir.'/backups/manual-20261019T120000Z:ro')
         ->and($pgRestore->network)->toBe($state->project().'_default')
