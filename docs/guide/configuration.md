@@ -74,7 +74,7 @@ address for the mode (the edge in domain and local-CA mode, the proxy container 
 database, Valkey and catcher passwords and the APP_KEY are generated at install and never printed.
 
 Settings of the 1.0 `.env` that `fieldset config set` does not offer (for example error reporting, upload scanning or log
-channels) are not configurable on a 2.0 instance. `fieldset adopt` takes over only the APP keys, the URL (and with it the
+channels) are not configurable on a 2.x instance. `fieldset adopt` takes over only the APP keys, the URL (and with it the
 mode and port), the sender and the database names from a 1.0 `.env`; everything else comes from `fieldset`'s rendering.
 Mail starts captured: the 1.0 SMTP server is only suggested for `fieldset config set mail smtp`.
 

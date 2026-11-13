@@ -10,9 +10,9 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 - **Fieldset Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
-> Status: **2.0** — distributed as signed Docker images and installed, configured, backed up and upgraded with
+> Status: **2.1** — distributed as signed Docker images and installed, configured, backed up and upgraded with
 > one command-line tool, `fieldset`. See [CHANGELOG.md](CHANGELOG.md) and the [guides](docs/guide/index.md). 1.0 installs
-> from a clone of the repository move to 2.0 with `fieldset adopt`.
+> from a clone of the repository move to 2.x with `fieldset adopt`.
 
 ## What you can do
 
@@ -105,7 +105,7 @@ Demo users (seeded with `php artisan db:seed`, password `password`): `owner@demo
 | http://localhost:8080/platform | Operator panel (after `php artisan app:platform-admin <email>`) |
 
 Checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`,
-`vendor/bin/rector --dry-run`, `./scripts/coverage.sh`, `npm run typecheck lint test`,
+`vendor/bin/rector --dry-run`, `./scripts/coverage.sh`, `npm run typecheck`, `npm run lint`, `npm run test`,
 `npm run conformance`, `npm run e2e` (against the Docker stack). Releases: [RELEASING.md](RELEASING.md).
 
 ## Documentation
@@ -120,7 +120,7 @@ release with search, the interactive API reference and Fieldset Spec 1.0 (ADR 00
   [1.0 archive](docs/guide/archive/1.0-install.md)
 - [Admin guide](docs/guide/admin-guide.md) · [Field App guide](docs/guide/field-app-guide.md) ·
   [API and integrations](docs/guide/api.md)
-- [Changelog](CHANGELOG.md) · [Release notes](docs/releases/1.0.0.md) ·
+- [Changelog](CHANGELOG.md) · [Release notes](docs/releases/2.1.0.md) ·
   [Architecture decisions](docs/adr/)
 
 ## Architecture

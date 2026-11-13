@@ -476,7 +476,7 @@ publishing it is a human step described in `RELEASING.md`.
   2.0.0-alpha.2), and the capture-mode banner, demo data and phone HTTPS (added since, see above). Backups,
   restore, upgrade and adopt arrive in later milestones.
 
-## 1.0.0 — 2026-10-23
+## 1.0.0 — 2026-10-17
 
 The first stable release: single sign-on and the canvas builder (M7), and hardening (M8) with the audit
 log, GDPR tools, security headers, integration tokens and the operator panel. Release notes:

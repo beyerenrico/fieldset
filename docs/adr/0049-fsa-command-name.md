@@ -1,5 +1,6 @@
 # 0049: The management command is `fsa`
-- Status: accepted; amended by ADR 0066 (exit 1) and ADR 0070 (browser hand-over)
+- Status: accepted; amended by ADR 0066 (exit 1) and ADR 0070 (browser hand-over);
+  the command name "fsa" is superseded by ADR 0092 ("fieldset")
 - Date: 2026-10-17
 
 ## Context
