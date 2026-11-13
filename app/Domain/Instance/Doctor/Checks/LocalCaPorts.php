@@ -54,7 +54,12 @@ final readonly class LocalCaPorts
             return CheckResult::fail($loopback->key, "Docker cannot publish ports 80 and 443 on {$where} for the edge.", PortProbe::ROOTLESS_HINT, [...$loopback->details, 'lan' => $lan]);
         }
         if ($taken !== []) {
-            return CheckResult::fail($loopback->key, 'Port(s) '.implode(', ', $taken)." are in use on {$where}.", "The local CA needs ports 80 and 443 on {$where}: stop the program that uses them, or pick another address with --lan-address.", [...$loopback->details, 'lan' => [...$lan, 'taken' => $taken]]);
+            return CheckResult::fail(
+                $loopback->key,
+                'Port(s) '.implode(', ', $taken)." are in use on {$where}.",
+                "The local CA needs ports 80 and 443 on {$where}: stop the program that uses them, or pick another address with --lan-address.",
+                [...$loopback->details, 'lan' => [...$lan, 'taken' => $taken]],
+            );
         }
 
         return $this->merged($loopback, $lan, " Ports 80 and 443 on {$where} are free for the edge.");

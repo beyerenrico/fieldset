@@ -61,7 +61,8 @@ final class UninstallCommand extends FieldsetCommand
         if ($noBackup) {
             return $keep
                 ? "Remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/? No final backup is made.{$legacy}"
-                : "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/".($adopted === null ? '' : ' (the adopt\'s 1.0 backup too)')."? No final backup is made.{$legacy}".($adopted === null ? '' : ' Data written since the adopt is lost.');
+                : "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/".($adopted === null ? '' : ' (the adopt\'s 1.0 backup too)')
+                    ."? No final backup is made.{$legacy}".($adopted === null ? '' : ' Data written since the adopt is lost.');
         }
         if ($keep || $adopted !== null) {
             return "Write a final backup into {$root}/backups/, then remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/?{$legacy}".($adopted === null ? '' : ' Data written since the adopt is only in the final backup.');

@@ -60,11 +60,19 @@ final readonly class FromBackupResult
         }
         $unconfirmed = array_values(array_diff(FromBackupSettings::recipients($backup)['kept'], $state->recipients()));
         if ($unconfirmed !== []) {
-            $result = $result->withWarning('backup_recipients_not_kept', 'The backup lists the age recipient(s) '.implode(', ', $unconfirmed).'; they were not taken over, so new backups are not encrypted.', 'If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
+            $result = $result->withWarning(
+                'backup_recipients_not_kept',
+                'The backup lists the age recipient(s) '.implode(', ', $unconfirmed).'; they were not taken over, so new backups are not encrypted.',
+                'If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`.',
+            );
         }
         $dropped = count(FromBackupSettings::recipients($backup)['dropped']);
         if ($dropped > 0) {
-            return $result->withWarning('backup_recipients_dropped', "{$dropped} backup recipient(s) from the backup were not taken over".($backup->authenticated() ? ' (not an age public key)' : ' (the backup is not authenticated)').'; new backups are encrypted only to the recipients you set.', 'Turn encryption on for this instance with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
+            return $result->withWarning(
+                'backup_recipients_dropped',
+                "{$dropped} backup recipient(s) from the backup were not taken over".($backup->authenticated() ? ' (not an age public key)' : ' (the backup is not authenticated)').'; new backups are encrypted only to the recipients you set.',
+                'Turn encryption on for this instance with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`.',
+            );
         }
 
         return $result;

@@ -78,7 +78,14 @@ final class InstallMail
         $others = array_values(array_intersect_key(self::FLAGS, array_diff_key($explicit, ['smtp_host' => true, 'smtp_credentials' => true])));
         $others = [...$others, ...($username ? ['--smtp-username'] : []), ...($passwordSource === null ? [] : ['--password-'.$passwordSource])];
         if (! array_key_exists('smtp_host', $explicit) && $others !== []) {
-            throw new InstanceException(implode(', ', $others).' need(s) --smtp-host.', ExitCode::InvalidInput, 'input_required', 'Pass --smtp-host <server> to install with your SMTP server, or leave the SMTP flags out to start in capture mode (`fieldset config set mail smtp` switches later).', false, ['missing' => ['--smtp-host']]);
+            throw new InstanceException(
+                implode(', ', $others).' need(s) --smtp-host.',
+                ExitCode::InvalidInput,
+                'input_required',
+                'Pass --smtp-host <server> to install with your SMTP server, or leave the SMTP flags out to start in capture mode (`fieldset config set mail smtp` switches later).',
+                false,
+                ['missing' => ['--smtp-host']],
+            );
         }
         if ($username && $passwordSource === null) {
             throw new InvalidInput('--smtp-username needs the password.', 'password_required', 'Pass --password-file=<path> (mode 0600), or --password-stdin; never as a flag value.');

@@ -59,7 +59,18 @@ final readonly class JsonResult
         return new self($this->command, $this->changed, $this->data, $this->secrets, [...$this->warnings, $warning], $this->errors);
     }
 
-    /** @return array{schema_version: int, command: string, status: string, changed: bool, data: array<string, mixed>, secrets: list<array{name: string, value: string, expires_at: string|null}>, warnings: list<array{code: string, message: string, hint: string|null}>, errors: list<array{code: string, message: string, hint: string|null, retryable: bool}>} */
+    /**
+     * @return array{
+     *     schema_version: int,
+     *     command: string,
+     *     status: string,
+     *     changed: bool,
+     *     data: array<string, mixed>,
+     *     secrets: list<array{name: string, value: string, expires_at: string|null}>,
+     *     warnings: list<array{code: string, message: string, hint: string|null}>,
+     *     errors: list<array{code: string, message: string, hint: string|null, retryable: bool}>
+     * }
+     */
     public function toArray(): array
     {
         return [

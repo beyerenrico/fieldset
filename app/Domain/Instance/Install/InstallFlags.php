@@ -16,7 +16,12 @@ use App\Domain\Instance\State\InstanceState;
  */
 final class InstallFlags
 {
-    public const string PROXY_SWITCH = 'Switching to proxy mode, or changing its setup or network, is not possible on an installed instance: it needs `fieldset uninstall` and a fresh `fieldset install --behind-proxy traefik|caddy|port --url <origin>`. To carry the data over, run `fieldset uninstall --keep-backups` (it writes a final backup into backups/ and keeps that directory), then `install.sh --dir <dir> --from-backup <dir>/backups/final-<time>` with the proxy flags, adding `--app-key-file <dir>/backups/final-<time>.app-key.env` when backups are not encrypted, or `--identity-file`, the passphrase and `--accept-unauthenticated` when they are (the APP keys are inside the encrypted backup).';
+    public const string PROXY_SWITCH = 'Switching to proxy mode, or changing its setup or network, is not possible on an installed instance: it needs `fieldset '
+        .'uninstall` and a fresh `fieldset install --behind-proxy traefik|caddy|port --url <origin>`. To carry the data over, run '
+        .'`fieldset uninstall --keep-backups` (it writes a final backup into backups/ and keeps that directory), then `install.sh '
+        .'--dir <dir> --from-backup <dir>/backups/final-<time>` with the proxy flags, adding `--app-key-file <dir>/backups/final-<time>.app-key.env` '
+        .'when backups are not encrypted, or `--identity-file`, the passphrase and `--accept-unauthenticated` when they are (the APP '
+        .'keys are inside the encrypted backup).';
 
     /** Install flag => the config key for it. */
     private const array KEYS = [

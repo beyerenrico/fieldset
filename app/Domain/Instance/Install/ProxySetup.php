@@ -100,7 +100,14 @@ final readonly class ProxySetup
         if ($given !== null) {
             $endpoint = InputGrammar::isIp($given) ? $network->endpointAt($given) : $network->endpoint($given);
 
-            return $endpoint ?? throw new InstanceException("No container {$given} is attached to {$network->name}.", ExitCode::PreflightFailed, 'trusted_proxy_not_found', "{$retry} with the proxy's container name or its address on {$network->name}: one of data.candidates (`docker network inspect {$network->name}`).", false, ['candidates' => $this->candidates($network->endpoints)]);
+            return $endpoint ?? throw new InstanceException(
+                "No container {$given} is attached to {$network->name}.",
+                ExitCode::PreflightFailed,
+                'trusted_proxy_not_found',
+                "{$retry} with the proxy's container name or its address on {$network->name}: one of data.candidates (`docker network inspect {$network->name}`).",
+                false,
+                ['candidates' => $this->candidates($network->endpoints)],
+            );
         }
         $candidates = array_values(array_filter($network->endpoints, fn (NetworkEndpoint $endpoint): bool => $this->runsProxyImage($endpoint, $kind)));
         if (count($candidates) === 1) {

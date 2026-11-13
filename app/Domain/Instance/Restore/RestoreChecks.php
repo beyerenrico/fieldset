@@ -132,7 +132,12 @@ final readonly class RestoreChecks
             throw new InvalidInput('The backup is damaged: '.implode('; ', array_slice($backup->problems, 0, 5)).'.', 'backup_damaged', 'Use another backup; a changed or missing file is never restored.', ['problems' => $backup->problems]);
         }
         if ($backup->dump['rejected'] !== []) {
-            throw new InvalidInput('The dump holds objects a backup of this app never has: '.implode('; ', array_slice($backup->dump['rejected'], 0, 3)).'.', 'backup_unsafe', 'Nothing was restored. Use a backup written by fieldset or by scripts/backup.sh of this app.', ['rejected' => $backup->dump['rejected']]);
+            throw new InvalidInput(
+                'The dump holds objects a backup of this app never has: '.implode('; ', array_slice($backup->dump['rejected'], 0, 3)).'.',
+                'backup_unsafe',
+                'Nothing was restored. Use a backup written by fieldset or by scripts/backup.sh of this app.',
+                ['rejected' => $backup->dump['rejected']],
+            );
         }
         if ($backup->migrations['relation'] === MigrationSet::NONE) {
             throw new InvalidInput('The dump has no migrations table: it is not a backup of this app.', 'not_an_app_backup', 'Use a backup written by fieldset or by scripts/backup.sh.');
@@ -202,7 +207,12 @@ final readonly class RestoreChecks
             default => $backup->isLegacy() ? 'the 1.0 format carries no HMAC' : 'it carries no HMAC',
         };
         if (! $accept) {
-            throw new InvalidInput("The backup is not authenticated: {$why}.", 'backup_unauthenticated', 'Pass the APP key it was made with (--app-key-file), or --accept-unauthenticated if you trust where it comes from; it is then restored by a role that owns only the scratch database.', ['hmac' => $backup->hmac]);
+            throw new InvalidInput(
+                "The backup is not authenticated: {$why}.",
+                'backup_unauthenticated',
+                'Pass the APP key it was made with (--app-key-file), or --accept-unauthenticated if you trust where it comes from; it is then restored by a role that owns only the scratch database.',
+                ['hmac' => $backup->hmac],
+            );
         }
 
         return [['backup_unauthenticated', "The backup is not authenticated ({$why}); it was accepted with --accept-unauthenticated.", null]];

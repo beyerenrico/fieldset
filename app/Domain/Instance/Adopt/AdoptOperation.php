@@ -98,7 +98,11 @@ final readonly class AdoptOperation
             throw new InvalidInput('No unfinished adopt to abandon here.', 'nothing_to_abandon', 'An adopt that finished is undone with `fieldset uninstall` and `docker compose up -d` in the 1.0 checkout.');
         }
         if ($current->hasStarted('start')) {
-            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `'.OperationUnfinished::commandLine($current).'` again to finish it, or `fieldset uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
+            throw new InvalidInput(
+                'This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.',
+                'adopt_started',
+                'Run `'.OperationUnfinished::commandLine($current).'` again to finish it, or `fieldset uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.',
+            );
         }
 
         return $this->supervisor->run(self::OPERATION, $this->identity->holder('fieldset', $context->facts->callerUid()),

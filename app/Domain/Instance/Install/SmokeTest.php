@@ -145,7 +145,9 @@ final readonly class SmokeTest
                 "The edge got no certificate for {$domain} from {$settings->acmeCa()}.",
                 ExitCode::HealthCheckFailed,
                 'certificate_failed',
-                "Check that {$domain} points at this host and that ports 80 and 443 reach it from the internet, then run `fieldset install` again with the same flags: it resumes at the smoke test and keeps the certificate storage. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
+                "Check that {$domain} points at this host and that ports 80 and 443 reach it from the internet, then run `fieldset install` "
+                    .'again with the same flags: it resumes at the smoke test and keeps the certificate storage. Repeated attempts count against '
+                    ."the CA's rate limits; --acme-staging is for trials.",
                 true,
                 ['output' => trim($https->stdout."\n".$https->stderrTail(3)), 'logs' => $this->edgeLogs($project)],
             );
@@ -154,7 +156,14 @@ final readonly class SmokeTest
             '--max-time', '20', '--resolve', "{$domain}:80:{$address}", '--output', '/dev/null', '--write-out', '%{http_code} %{redirect_url}', "http://{$domain}/up",
         ]);
         if (trim($http->stdout) !== "308 https://{$domain}/up") {
-            throw new InstanceException("The edge does not redirect http://{$domain} to HTTPS.", ExitCode::HealthCheckFailed, 'smoke_failed', 'Read `fieldset logs edge`, fix the cause, then run `fieldset install` again with the same flags: it resumes at the smoke test.', true, ['output' => trim($http->stdout."\n".$http->stderrTail(3))]);
+            throw new InstanceException(
+                "The edge does not redirect http://{$domain} to HTTPS.",
+                ExitCode::HealthCheckFailed,
+                'smoke_failed',
+                'Read `fieldset logs edge`, fix the cause, then run `fieldset install` again with the same flags: it resumes at the smoke test.',
+                true,
+                ['output' => trim($http->stdout."\n".$http->stderrTail(3))],
+            );
         }
 
         return ["https://{$domain}/up", "http://{$domain} → https"];

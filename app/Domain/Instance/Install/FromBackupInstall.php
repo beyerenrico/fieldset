@@ -209,7 +209,14 @@ final readonly class FromBackupInstall
         $outcome = $this->app->migrate($project);
         if (! $outcome->successful()) {
             $output = implode("\n", array_slice(preg_split('/\R/', trim($outcome->stdout)) ?: [], -10));
-            throw new InstanceException('The database migrations of the restored data failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fieldset install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
+            throw new InstanceException(
+                'The database migrations of the restored data failed.',
+                ExitCode::HealthCheckFailed,
+                'migrate_failed',
+                'Read the output, fix the cause, then run `fieldset install` again with the same flags: it resumes here.',
+                true,
+                ['output' => trim($output."\n".$outcome->stderrTail(10))],
+            );
         }
         $this->backups->ensureRole($project);
 

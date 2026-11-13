@@ -249,7 +249,13 @@ final readonly class Installer
             $result = $result->withWarning((string) $warning['code'], (string) $warning['message'], is_string($warning['hint'] ?? null) ? $warning['hint'] : null);
         }
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
-            $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.fieldset.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fieldset uninstall --orphans {$uuid} --yes`; fieldset refuses while any of its containers runs.");
+            $result = $result->withWarning(
+                'orphans_found',
+                "Containers of another installation ({$uuid}) ran from this directory.",
+                "Check first that it does not run elsewhere (`docker ps -a --filter label=app.fieldset.instance={$uuid}` shows its containers "
+                    ."and their directories). If it was deleted by hand, remove its leftovers with `fieldset uninstall --orphans {$uuid} --yes`; "
+                    .'fieldset refuses while any of its containers runs.',
+            );
         }
         $localCa = InstanceSettings::of($state)->localCa() ? LocalCaInfo::warnings((string) InstanceSettings::of($state)->lanAddress()) : [];
         foreach ([...$warnings, ...$localCa, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fieldset')])] as [$code, $message, $hint]) {

@@ -57,13 +57,21 @@ final readonly class LegacyContainers
         $files = array_values(array_filter(explode(',', $labels[LegacyInstall::CONFIG_FILES] ?? ''), static fn (string $file): bool => $file !== ''));
         $service = $container->service();
         if ($dir === null || $files === [] || $service === null) {
-            throw self::refused("The container {$container->name} of the Compose project {$project} lacks Compose's service, working-directory or config-files label.", 'legacy_unlabelled', 'Adopt takes over containers that `docker compose up` in the checkout created; recreate it there (`docker compose up -d`).');
+            throw self::refused(
+                "The container {$container->name} of the Compose project {$project} lacks Compose's service, working-directory or config-files label.",
+                'legacy_unlabelled',
+                'Adopt takes over containers that `docker compose up` in the checkout created; recreate it there (`docker compose up -d`).',
+            );
         }
         if (self::real($dir) !== self::real($checkout)) {
             throw self::refused("The Compose project {$project} was started from {$dir}, not from {$checkout}.", 'checkout_mismatch', "Pass the checkout the 1.0 install runs from: fieldset adopt {$dir}");
         }
         if (array_map(self::real(...), $files) !== [self::real($checkout.'/'.LegacyCheckout::COMPOSE_FILE)]) {
-            throw self::refused('The 1.0 install was started with these Compose files: '.implode(', ', $files).'. Adopt copies only what compose.yaml of 1.0 defines.', 'compose_file_override', 'Restart 1.0 with compose.yaml alone (COMPOSE_FILE=compose.yaml, `docker compose up -d`), then run adopt again.');
+            throw self::refused(
+                'The 1.0 install was started with these Compose files: '.implode(', ', $files).'. Adopt copies only what compose.yaml of 1.0 defines.',
+                'compose_file_override',
+                'Restart 1.0 with compose.yaml alone (COMPOSE_FILE=compose.yaml, `docker compose up -d`), then run adopt again.',
+            );
         }
 
         return $service;
