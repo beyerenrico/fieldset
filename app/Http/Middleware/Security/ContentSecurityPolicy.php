@@ -122,7 +122,7 @@ final readonly class ContentSecurityPolicy
             // Horizon inlines its bundle (nonce) and compiles in-DOM Vue templates at runtime.
             'script-src' => ["'self'", ...$this->nonceSource(), "'unsafe-eval'"],
             'style-src' => ["'self'", "'unsafe-inline'", 'https://fonts.bunny.net'],
-            'font-src' => ["'self'", 'data:', 'https://fonts.bunny.net'],
+            'font-src' => ["'self'", 'data:', 'https://fonts.bunny.net', 'https://cdn.jsdelivr.net/fontsource/'],
             'img-src' => ["'self'", 'data:'],
             'connect-src' => ["'self'"],
             'object-src' => ["'none'"],

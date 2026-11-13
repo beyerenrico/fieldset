@@ -25,7 +25,7 @@ What the frameworks need (checked in vendor/, Filament 5.10.2, Livewire 4.4.7, H
 | FieldApp | /app/* | unchanged from M6: `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `connect-src/worker-src/manifest-src 'self'`, `frame-ancestors 'none'` |
 | Preview | /form-preview/* | `default-src 'none'; script-src 'self' <origin>; style-src 'self' <origin> 'unsafe-inline'; img-src … data: blob:; font-src … data:; connect-src 'none'; object-src/base-uri/form-action 'none'; frame-ancestors 'self' <origin>; sandbox allow-scripts` |
 | Api | /api/* | `default-src 'none'; frame-ancestors 'none'` plus `Cross-Origin-Resource-Policy: same-origin` |
-| Horizon | /horizon/* | nonce plus `'unsafe-eval'`, Bunny fonts for its stylesheet |
+| Horizon | /horizon/* | nonce plus `'unsafe-eval'`, Bunny stylesheet, Bunny and jsDelivr fontsource font files |
 | Vendor | /docs/api, /docs/api.json, /up | baseline only: `object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'` |
 
 Notes on the table:
@@ -150,3 +150,10 @@ as HTTPS (no HSTS, no Secure cookie), the URL configured for the host decides ot
 `session.secure` both ways and names the session cookie `__Host-<name>` over HTTPS, which closes V3.4.4 for `fsa`
 instances. `TrustedHosts::patterns()` adds the runtime hosts. Without the runtime directory nothing changes.
 
+## Amendment 2026-11-13: Horizon font files come from jsDelivr
+Horizon 5.50.1's layout links `https://fonts.bunny.net/css?family=figtree:300,400,500,600`. That stylesheet's
+`@font-face` rules now point to `https://cdn.jsdelivr.net/fontsource/fonts/figtree@5.3.0/*.woff2`, which the Horizon
+`font-src` blocked. Upstream cause: bunny.net changed where it serves the files, not Horizon or this repository.
+`font-src` of the Horizon policy gains `https://cdn.jsdelivr.net/fontsource/`, a path-scoped source; no other surface
+changes. Overriding Horizon's layout would drop the third party but must be maintained on every Horizon upgrade, so
+the narrow source was chosen.
